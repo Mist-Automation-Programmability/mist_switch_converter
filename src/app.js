@@ -22,7 +22,6 @@ try {
     logger.info("No Config file. Using ENV variables!")
     config = {
         appServer: {
-            vhost: process.env.NODE_HOSTNAME || null,
             httpPort: process.env.NODE_PORT || 3000,
             enableHttps: stringToBool(process.env.NODE_HTTPS, false),
             httpsPort: process.env.NODE_PORT_HTTPS || 3443,

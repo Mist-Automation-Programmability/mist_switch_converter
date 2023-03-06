@@ -11,16 +11,15 @@
  *                                 SERVER                                    *
  ******************************************************************************/
 module.exports.appServer = {
-    vhost: "localhost",
+    httpPort: 3000,
     // Enable HTTPS directly with NodeJS. 
     // Set to false if you are using a reverse proxy to manage HTTPS (nginx, apache, ...)
     enableHttps: true,
     // used if enableHttps = true
+    httpsPort: 3443,
+    // used if enableHttps = true
     // certificate name. The certificate has to be installed into certs folder
     httpsCertificate: "default.pem",
     // key name. The key has to be installed into certs folder, without password
-    httpsKey: "default.key",
-    // optional. Used to disable on function of the app to deploy one server to sync rogues and one serer to serve HTTP pages
-    disable_server_role: false,
-    disable_sync_role: false
+    httpsKey: "default.key"
 }
