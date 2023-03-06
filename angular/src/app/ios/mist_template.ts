@@ -1,0 +1,68 @@
+export interface MistTemplate {
+    name: string,
+    ntp_servers: object,
+    dns_servers: string[],
+    dns_suffix: string[],
+    networks: {
+        [key: string]: {
+            vlan_id: string | number
+        }
+    },
+    port_usages: {
+        [key: string]: ProfileConfiguration
+    },
+    radius_config: {
+        acct_interim_interval: number,
+        acct_servers: object[],
+        auth_servers: object[],
+        auth_servers_retries: number,
+        auth_servers_timeout: number,
+        coa_enabled: boolean,
+        coa_port: number
+    },
+    switch_mgmt: {
+        tacacs: {
+            enabled: boolean,
+            tacplus_servers: object[]
+        }
+    },
+    additional_config_cmds: string[],
+    dhcp_snooping: {
+        enabled: boolean,
+        networks: string[]
+    },
+    remote_syslog: {
+        enabled: boolean,
+        servers: object[]
+    }
+}
+
+export interface ProfileConfiguration {
+    all_networks: boolean,
+    disable_autoneg: boolean,
+    disabled: boolean,
+    duplex: string | undefined,
+    speed: string | undefined,
+    enable_mac_auth: boolean,
+    enable_qos: boolean,
+    mac_auth_only: boolean,
+    mac_limit: number | undefined,
+    mode: string | undefined,
+    mtu: string | undefined,
+    poe_disabled: boolean,
+    port_auth: string | undefined,
+    stp_edge: boolean,
+    networks: string[] | undefined,
+    rejected_network: string | undefined,
+    port_network: string | undefined,
+    voip_network: string | undefined,
+    persist_mac: boolean
+}
+
+export interface Vlans {
+    [key: string]: string[]
+}
+
+export interface Terms {
+    [key: string]: number
+}

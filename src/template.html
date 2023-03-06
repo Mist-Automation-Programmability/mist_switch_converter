@@ -1,0 +1,47 @@
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>{title}</title>
+</head>
+
+<body style="background-color: #fff;margin: 0;padding: 0;min-width: 100%!important;">
+    <div style="background-color: #eee; max-width: 890px; min-width: 200px; margin-left: auto; margin-right: auto;">
+
+
+        <table style="width:100%; border:0; margin-top:2em; margin: auto">
+            <tr>
+                <td>
+                    <table>
+                        <tr>
+                            <td>
+                                <img style="height: 5em;" src="{logo}" alt="Logo" />
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <table class="content" style="width: 100%; padding: 3em; ;">
+                        <tr>
+                            <th colspan="3" style="text-align: left;">
+                                Hello!
+                            </th>
+                        </tr>
+                        <tr>
+                            <td colspan="3" style="padding-top: 2em; padding-bottom: 2em; text-align: left;">
+                                Rogue Alert for the Org <b>{org_name}</b> (org_id: {org_id})
+                            </td>
+                        </tr>
+                        {rogue_tables}
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+
+</html>

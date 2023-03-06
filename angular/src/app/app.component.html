@@ -1,0 +1,54 @@
+<!-- Toolbar -->
+<div class="toolbar" role="banner" class="banner">
+    <div class="logo">
+        <img src="assets/juniper.png" />
+        <div>
+            Switch Configuration Converter
+        </div>
+    </div>
+    <div class="help">
+        <mat-icon style="cursor: pointer; padding: 0 1em" (click)="openInfo()">help</mat-icon>
+    </div>
+</div>
+
+<div class="content" role="main">
+    <!-- INPUT -->
+    <div class="files">
+        <div class="list" *ngIf="ios_files.length > 0">
+            <h2>Processed files:</h2>
+            <div *ngFor="let file of ios_files">{{file.name}}</div>
+        </div>
+        <div class="drops">
+            <input type="file" #dropsRef id="dropsRef" multiple (change)="onFilechange($event)" />
+            <mat-icon class="drop_icon" aria-label="drop files">post_add</mat-icon>
+            <h3>Drag and drop files here</h3>
+            <h3>or</h3>
+            <h3 for="dropsRef" class="click">Browse your Files</h3>
+        </div>
+    </div>
+    <!-- DISCLAIMER -->
+    <div class="info" *ngIf="ios_files.length == 0">
+        <div class="disclaimer">
+            <div>
+                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+                BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+            </div>
+        </div>
+    </div>
+    <!-- RESULT -->
+    <div class="result" *ngIf="mist_config">
+        <mat-divider></mat-divider>
+        <div class="header">
+            <mat-form-field>
+                <mat-label>Template name</mat-label>
+                <input matInput [(ngModel)]="mist_config.name" (change)="display()">
+            </mat-form-field>
+            <div>
+                <button mat-raised-button color="primary" (click)="save()">Download</button>
+            </div>
+        </div>
+        <div class="template">
+            <pre><code class="raw" [innerHtml]="mist_config_html"></code></pre>
+        </div>
+    </div>
+</div>
