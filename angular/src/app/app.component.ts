@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { IoS, IosFile } from "./ios/ios";
 import { MistTemplate } from "./ios/mist_template";
 import { JsonToHtml } from "./common/functions/json-to-html"
@@ -10,15 +11,29 @@ import { MatDialog, MatDialogRef } from '@angular/material/dialog';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent {
-  title = 'switch_config_converter';
-
+export class AppComponent implements OnInit{
+  title = 'switch migration';
+  
+  github_url!: string;
+  docker_url!: string;
+  disclaimer!: string;
   ios_parser: IoS = new IoS()
   ios_files: IosFile[] = [];
   mist_config!: MistTemplate;
   mist_config_html: string = "";
   json_to_html = new JsonToHtml();
-  constructor(public _dialog: MatDialog) { }
+  constructor(public _dialog: MatDialog, private _http: HttpClient) { }
+
+  //// INIT ////
+  ngOnInit(): void {
+    this._http.get<any>("/api/disclaimer").subscribe({
+      next: data => {
+        if (data.disclaimer) this.disclaimer = data.disclaimer;
+        if (data.github_url) this.github_url = data.github_url;
+        if (data.docker_url) this.docker_url = data.docker_url;
+      }
+    })
+  }
 
   onFilechange(event: any) {
     if (event?.target?.files) {

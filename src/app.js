@@ -36,13 +36,6 @@ try {
         }
     }
 } finally {
-    if (typeof(config.mist_hosts) == 'string') {
-        try {
-            config.mist_hosts = JSON.parse(config.mist_hosts)
-        } catch {
-            config.mist_hosts = default_mist_hosts;
-        }
-    } else if (!config.mist_hosts || typeof(config.mist_hosts != "object")) config.mist_hosts = default_mist_hosts;
     logger.info("Config loaded!")
     global.config = config;
 }
@@ -78,16 +71,19 @@ app.use(express.json({ limit: '1mb' }));
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
+app.use(express.static(__dirname + '/public'));
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-app.use('/bower_components', express.static('../bower_components'));
+//app.use('/bower_components', express.static('../bower_components'));
 
 
 //===============ROUTES=================
 // // User Interface    
 const main = require('./routes/main');
 app.use('/', main);
+const api = require('./routes/api');
+app.use('/api/', api);
 
 //Otherwise
 app.get("*", function(req, res) {

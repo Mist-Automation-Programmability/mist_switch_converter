@@ -30,3 +30,10 @@ span.boolean {
 span.null {
     color: #00008b;
 }
+
+
+/* TODO(mdc-migration): The following rule targets internal classes of dialog that may no longer apply for the MDC version. */
+
+mat-form-field {
+    margin-bottom: -25px;
+}

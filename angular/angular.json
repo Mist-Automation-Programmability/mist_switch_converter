@@ -3,7 +3,7 @@
     "version": 1,
     "newProjectRoot": "projects",
     "projects": {
-        "switch_config_converter": {
+        "mist_switch_migration": {
             "projectType": "application",
             "schematics": {
                 "@schematics/angular:component": {
@@ -20,7 +20,7 @@
                 "build": {
                     "builder": "@angular-devkit/build-angular:browser",
                     "options": {
-                        "outputPath": "dist/switch_config_converter",
+                        "outputPath": "dist/mist_switch_migration",
                         "index": "src/index.html",
                         "main": "src/main.ts",
                         "polyfills": "src/polyfills.ts",
@@ -70,10 +70,10 @@
                     "builder": "@angular-devkit/build-angular:dev-server",
                     "configurations": {
                         "production": {
-                            "browserTarget": "switch_config_converter:build:production"
+                            "browserTarget": "mist_switch_migration:build:production"
                         },
                         "development": {
-                            "browserTarget": "switch_config_converter:build:development"
+                            "browserTarget": "mist_switch_migration:build:development"
                         }
                     },
                     "defaultConfiguration": "development"
@@ -81,7 +81,7 @@
                 "extract-i18n": {
                     "builder": "@angular-devkit/build-angular:extract-i18n",
                     "options": {
-                        "browserTarget": "switch_config_converter:build"
+                        "browserTarget": "mist_switch_migration:build"
                     }
                 },
                 "test": {

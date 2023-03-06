@@ -1,14 +1,16 @@
-<h1 mat-dialog-title>Information</h1>
-<div mat-dialog-content>
-    <div>
-        <div>This site is trying to convert Cisco IOS configuration files to Juniper Mist Switch Templates.</div>
-        <div>All the configuration elements are not converted, only the most common ones.</div>
+<div style="padding: 1em">
+    <h1 mat-dialog-title>Information</h1>
+    <div mat-dialog-content>
+        <div>
+            <div>This site is trying to convert Cisco IOS configuration files to Juniper Mist Switch Templates.</div>
+            <div>All the configuration elements are not converted, only the most common ones.</div>
+        </div>
+        <div>
+            <div>Your configuration files are not sent to the server. All the processing is directly done inside your web browser.</div>
+            <div>If you device to automatically deploy the template to Mist from here, the template content will be first sent to a 3rd part server then to the Mist Cloud.</div>
+        </div>
     </div>
-    <div>
-        <div>Your configuration files are not sent to the server. All the processing is directly done inside your web browser.</div>
-        <div>If you device to automatically deploy the template to Mist from here, the template content will be first sent to a 3rd part server then to the Mist Cloud.</div>
+    <div mat-dialog-actions style="display: flex;justify-content: flex-end;">
+        <button mat-raised-button color="primary" (click)="close()">Close</button>
     </div>
-</div>
-<div mat-dialog-actions style="display: flex;justify-content: flex-end;">
-    <button mat-raised-button (click)="close()">Close</button>
 </div>

@@ -25,7 +25,7 @@ module.exports = function(config) {
             suppressAll: true // removes the duplicated traces
         },
         coverageReporter: {
-            dir: require('path').join(__dirname, './coverage/switch_config_converter'),
+            dir: require('path').join(__dirname, './coverage/mist_switch_migration'),
             subdir: '.',
             reporters: [
                 { type: 'html' },

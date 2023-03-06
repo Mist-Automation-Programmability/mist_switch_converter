@@ -4,5 +4,5 @@
 cd angular
 ng build --deploy-url /ng/ 
 rm -rf ../src/public/ng/*
-cp ./dist/mist-rogue-monitor/* ../src/public/ng
-cp ./dist/mist-rogue-monitor/index.html ../src/views/index.html
+cp -r ./dist/mist_switch_migration/* ../src/public/ng
+cp ./dist/mist_switch_migration/index.html ../src/views/index.html

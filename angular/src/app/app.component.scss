@@ -25,11 +25,21 @@
     .disclaimer {
         width: 50em;
         text-align: center;
-        margin: 5em auto;
         text-transform: uppercase;
         font-family: Roboto, "Helvetica Neue", sans-serif;
         font-weight: 100;
         font-size: smaller;
+        margin: 5em auto;
+    }
+    .source {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+    }
+    .source img {
+        margin: 1em;
+        height: 2em;
     }
 }
 
@@ -114,6 +124,7 @@
             display: flex;
             flex-direction: row;
             justify-content: space-between;
+            align-items: center;
             button {
                 background-color: #0096a4;
                 color: white;

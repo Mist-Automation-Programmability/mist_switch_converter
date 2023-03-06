@@ -41,7 +41,7 @@ export class IosParser {
         this.ios_config = [];
         this.vlan_ids_to_exclude = ["1002", "1003", "1004", "1005"];
         this.mist_template = {
-            "name": "temporary_name",
+            "name": "temp_name",
             "ntp_servers": this.ntp,
             "dns_servers": this.dns,
             "dns_suffix": this.domain,
