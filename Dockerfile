@@ -1,4 +1,4 @@
-FROM node:14-alpine
+FROM node:lts-alpine
 LABEL fr.mist-lab.converter.version="0.0.1"
 LABEL fr.mist-lab.converter.release-date="2023-03-06"
 
