@@ -41,35 +41,35 @@ export class IosParser {
         this.ios_config = [];
         this.vlan_ids_to_exclude = ["1002", "1003", "1004", "1005"];
         this.mist_template = {
-            "name": "temp_name",
-            "ntp_servers": this.ntp,
-            "dns_servers": this.dns,
-            "dns_suffix": this.domain,
-            "networks": {},
-            "port_usages": {},
-            "radius_config": {
-                "acct_interim_interval": 0,
-                "acct_servers": [],
-                "auth_servers": [],
-                "auth_servers_retries": 3,
-                "auth_servers_timeout": 5,
-                "coa_enabled": false,
-                "coa_port": 3799
+            name: "temp_name",
+            ntp_servers: this.ntp,
+            dns_servers: this.dns,
+            dns_suffix: this.domain,
+            networks: {},
+            port_usages: {},
+            radius_config: {
+                acct_interim_interval: 0,
+                acct_servers: [],
+                auth_servers: [],
+                auth_servers_retries: 3,
+                auth_servers_timeout: 5,
+                coa_enabled: false,
+                coa_port: 3799
             },
-            "switch_mgmt": {
-                "tacacs": {
-                    "enabled": false,
-                    "tacplus_servers": []
+            switch_mgmt: {
+                tacacs: {
+                    enabled: false,
+                    tacplus_servers: []
                 }
             },
-            "additional_config_cmds": [],
-            "dhcp_snooping": {
-                "enabled": false,
-                "networks": []
+            additional_config_cmds: [],
+            dhcp_snooping: {
+                enabled: false,
+                networks: []
             },
-            "remote_syslog": {
-                "enabled": false,
-                "servers": []
+            remote_syslog: {
+                enabled: false,
+                servers: []
             }
         }
     }
@@ -443,7 +443,7 @@ export class IosParser {
                 if (this.all_port_profile_names.includes(profile_name)) {
                     profile_name = profile_name + "_" + [i];
                 }
-                this.port_profile_names[i] = profile_name.toLowerCase().replace(/\s+/g, "_");
+                this.port_profile_names[i] = profile_name.toLowerCase().replace(/\s+/g, "_").substring(0,31);
             } else {
                 var terms: Terms = {};
                 var max_occurence: number = -1;
@@ -466,7 +466,7 @@ export class IosParser {
                         description_terms.push(key);
                     }
                 }
-                this.port_profile_names[i] = description_terms.join(" ").replace(/\s+/g, "_");
+                this.port_profile_names[i] = description_terms.join(" ").replace(/\s+/g, "_").substring(0,31);
             }
         }
     }
