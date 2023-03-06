@@ -105,6 +105,5 @@
                 }
             }
         }
-    },
-    "defaultProject": "switch_config_converter"
+    }
 }
