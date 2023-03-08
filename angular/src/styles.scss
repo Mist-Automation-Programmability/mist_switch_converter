@@ -31,8 +31,10 @@ span.null {
     color: #00008b;
 }
 
-
-/* TODO(mdc-migration): The following rule targets internal classes of dialog that may no longer apply for the MDC version. */
+app-root {
+    height: 100vh;
+    display: block;
+}
 
 mat-form-field {
     margin-bottom: -25px;

@@ -4,28 +4,41 @@ import { IoS, IosFile } from "./ios/ios";
 import { MistTemplate } from "./ios/mist_template";
 import { JsonToHtml } from "./common/functions/json-to-html"
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-
+import { LogMessage, Logger } from "./services/logger";
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent implements OnInit{
+export class AppComponent implements OnInit {
   title = 'switch migration';
-  
+
   github_url!: string;
   docker_url!: string;
   disclaimer!: string;
-  ios_parser: IoS = new IoS()
   ios_files: IosFile[] = [];
   mist_config!: MistTemplate;
   mist_config_html: string = "";
+  ios_parser: IoS = new IoS(this._logger);
   json_to_html = new JsonToHtml();
-  constructor(public _dialog: MatDialog, private _http: HttpClient) { }
+
+  log_messages: LogMessage[] = [];
+  show_logs: boolean = false;
+  log_columns: string[] = ['level', 'message'];
+
+
+  constructor(
+    public _dialog: MatDialog,
+    private _http: HttpClient,
+    private _logger: Logger
+  ) { }
 
   //// INIT ////
   ngOnInit(): void {
+    // this._logger.logs.subscribe(l => {
+    //   this.log_messages.push(l);
+    // })
     this._http.get<any>("/api/disclaimer").subscribe({
       next: data => {
         if (data.disclaimer) this.disclaimer = data.disclaimer;
@@ -47,6 +60,7 @@ export class AppComponent implements OnInit{
               this.ios_parser.convert(this.ios_files).then((config: MistTemplate) => {
                 this.mist_config = config;
                 this.display();
+                this.log_messages = this._logger.getall().filter(e => e.level != "debug");
               })
             }
           })
@@ -57,7 +71,6 @@ export class AppComponent implements OnInit{
 
   display() {
     this.mist_config_html = this.json_to_html.transform(this.mist_config);
-    console.log(this.mist_config_html)
   }
 
   readfile(file: File): Promise<IosFile> {
@@ -99,6 +112,10 @@ export class AppComponent implements OnInit{
 
   openInfo(): void {
     this._dialog.open(InfoDialog, {});
+  }
+
+  toggleLogs():void{
+    this.show_logs = !this.show_logs;
   }
 }
 

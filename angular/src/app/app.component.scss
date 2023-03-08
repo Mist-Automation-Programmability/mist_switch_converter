@@ -132,8 +132,11 @@
         }
         .template {
             width: 100%;
-            height: calc(100vh - 3em - 360px);
             margin: auto;
+            height: calc(100vh - 3em - 360px);
+        }
+        .template.show_logs {
+            height: calc(100vh - 3em - 360px - 20vh);
         }
     }
 }
@@ -152,4 +155,41 @@ pre {
 
 mat-divider {
     margin: 1em;
+}
+
+.logs {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    .button {
+        cursor: pointer;
+        width: 7em;
+        background-color: #0096a4;
+        color: white;
+        padding: .5em;
+        border-radius: 5px 5px 0 0;
+        border: 1px solid lightgray;
+        display: flex;
+        justify-content: center;
+        user-select: none;
+    }
+    .messages {
+        width: 100%;
+        height: 0px;
+        overflow: auto;
+        background-color: white;
+    }
+    .messages.show_logs {
+        height: 20vh;
+        max-height: 20vh;
+    }
+    .mdc-data-table__header-row {
+        height: 3em;
+    }
+    .mdc-data-table__row {
+        height: 1em;
+    }
 }

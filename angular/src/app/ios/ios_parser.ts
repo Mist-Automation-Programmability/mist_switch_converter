@@ -1,4 +1,5 @@
-import {Vlans, Terms, ProfileConfiguration, MistTemplate} from "./mist_template"
+import { Vlans, Terms, ProfileConfiguration, MistTemplate } from "./mist_template"
+import { Logger } from "./../services/logger";
 
 
 
@@ -22,7 +23,9 @@ export class IosParser {
     vlan_ids_to_exclude: string[];
     mist_template: MistTemplate;
 
-    constructor() {
+    constructor(
+        private _logger: Logger
+    ) {
         this.vlan_prefix = "vlan";
         this.syslog = [];
         this.radius_auth = [];
@@ -41,7 +44,7 @@ export class IosParser {
         this.ios_config = [];
         this.vlan_ids_to_exclude = ["1002", "1003", "1004", "1005"];
         this.mist_template = {
-            name: "temp_name",
+            name: "template_name",
             ntp_servers: this.ntp,
             dns_servers: this.dns,
             dns_suffix: this.domain,
@@ -87,24 +90,25 @@ export class IosParser {
                     switch (config_type) {
                         case "radius":
                             this.parse_radius(config_block);
-                            break
+                            break;
                         case "tacacs":
                             this.parse_tacacs(config_block);
-                            break
-                        case "dhcp_snooping":
-                            break
+                            break;
                         case "port_profiles":
                             this.parse_interface(config_block);
-                            break
+                            break;
                         case "banner":
                             this.banner = config_block.join("\\n").replace(/\r/g, "");
-                            break
+                            break;
                     }
                     config_block = [];
-                    config_type = undefined
+                    config_type = undefined;
                 }
 
-                if (line.startsWith("interface ")) config_type = "port_profiles";
+                if (line.startsWith("interface ")) {
+                    config_type = "port_profiles";
+                    config_block.push(line);
+                }
                 else if (line.startsWith("radius server ")) config_type = "radius";
                 else if (line.startsWith("tacacs server ")) config_type = "tacacs";
                 else if (line.startsWith("ip name-server ")) this.parse_dns(line);
@@ -114,11 +118,13 @@ export class IosParser {
                 else if (line.startsWith("ip dhcp snooping ")) this.parse_dhcp_snooping(line);
                 else if (line.startsWith("banner motd")) config_type = "banner"
             })
-            resolve(true)
+            resolve(true);
         })
     }
 
     parse_vlans(vlan_conf: string[]): Promise<boolean> {
+        var deteted_vlans: number = 0;
+        var new_vlans: number = 0;
         return new Promise((resolve) => {
             if (vlan_conf.length > 0) {
                 vlan_conf.forEach((line: string) => {
@@ -127,25 +133,34 @@ export class IosParser {
                         var vlan_id = splitted_line[0];
                         var vlan_name = splitted_line[1];
                         if (!this.vlan_ids_to_exclude.includes(vlan_id)) {
+                            deteted_vlans += 1;
                             if (this.vlans.hasOwnProperty(vlan_id)) {
-                                if (!this.vlans[vlan_id].includes(vlan_name.toLocaleLowerCase())) this.vlans[vlan_id].push(vlan_name.toLowerCase())
+                                if (!this.vlans[vlan_id].includes(vlan_name.toLocaleLowerCase())) this.vlans[vlan_id].push(vlan_name.toLowerCase());
                             } else {
-                                this.vlans[vlan_id] = [vlan_name.toLowerCase()];
+                                new_vlans += 1;
+                                this.vlans[vlan_id] = [vlan_name.toLowerCase().replace(/[ &-:]+/g, "_")];
                             }
                         }
                     }
                 })
+                this._logger.info(deteted_vlans + " VLANs detected. " + new_vlans + " new VLAN(s) learned");
                 resolve(true);
-            } else resolve(false);
+            } else {
+                this._logger.warning("No VLANs detected");
+                resolve(false);
+            }
         })
     }
 
     private add_dhcp_snooping_vlan(vlan_id: string) {
-        if (!this.dhcp_snooping_vlans.includes(vlan_id)) this.dhcp_snooping_vlans.push(vlan_id);
+        if (!this.dhcp_snooping_vlans.includes(vlan_id)) {
+            this._logger.info("DHCP Snooping: Adding VLAN " + vlan_id );
+            this.dhcp_snooping_vlans.push(vlan_id);
+        }
     }
 
     private parse_dhcp_snooping(dhcp_snooping_line: string) {
-        var new_vlans = dhcp_snooping_line.replace("ip dhcp snooping vlan", "").trim().split(",")
+        var new_vlans = dhcp_snooping_line.replace("ip dhcp snooping vlan", "").trim().split(",");
         new_vlans.forEach(new_entry => {
             if (new_entry.includes("-")) {
                 var start: number = +new_entry.split("-")[0];
@@ -162,8 +177,8 @@ export class IosParser {
         var syslog_port: string = "514";
         var transport_index: number = config.indexOf("transport");
         var port_index: number = config.indexOf("port");
-        if (transport_index > -1) syslog_proto = config[transport_index + 1]
-        if (port_index > -1) syslog_port = config[port_index + 1]
+        if (transport_index > -1) syslog_proto = config[transport_index + 1];
+        if (port_index > -1) syslog_port = config[port_index + 1];
         var new_syslog: string = JSON.stringify({
             "host": syslog_ip, "protocol": syslog_proto, "port": syslog_port, "contents": [
                 {
@@ -172,22 +187,34 @@ export class IosParser {
                 }
             ]
         })
-        if (!this.syslog.includes(new_syslog)) this.syslog.push(new_syslog);
+        if (!this.syslog.includes(new_syslog)) {
+            this._logger.info("SYSLOG servers: Adding " + syslog_ip + " " + syslog_proto + ":" + syslog_port);
+            this.syslog.push(new_syslog);
+        }
     }
 
     private parse_domain(domain_line: string) {
         var new_domain: string = domain_line.replace("ip domain name", "").trim();
-        if (!this.domain.includes(new_domain)) this.domain.push(new_domain);
+        if (!this.domain.includes(new_domain)) {
+            this._logger.info("DNS DOMAINs: Adding " + new_domain);
+            this.domain.push(new_domain);
+        }
     }
 
     private parse_dns(dns_line: string) {
         var new_dns: string = dns_line.replace("ip name-server", "").trim();
-        if (!this.dns.includes(new_dns)) this.dns.push(new_dns);
+        if (!this.dns.includes(new_dns)) {
+            this._logger.info("DNS servers: Adding " + new_dns);
+            this.dns.push(new_dns);
+        }
     }
 
     private parse_ntp(ntp_line: string) {
         var new_ntp: string = ntp_line.replace("ntp server", "").trim();
-        if (!this.ntp.includes(new_ntp)) this.ntp.push(new_ntp);
+        if (!this.ntp.includes(new_ntp)) {
+            this._logger.info("NTP servers: Adding " + new_ntp);
+            this.ntp.push(new_ntp);
+        }
     }
 
     private parse_tacacs(tacas_config: string[]) {
@@ -206,8 +233,10 @@ export class IosParser {
                     "secret": "to_be_replaced",
                     "timeout": 10
                 })
-                if (!this.tacacs.includes(tmp))
-                    this.tacacs.push(tmp)
+                if (!this.tacacs.includes(tmp)) {
+                    this._logger.info("TACACS+ servers: Adding " + tacacs_ip + ":" + tacacs_port);
+                    this.tacacs.push(tmp);
+                }
             }
         })
     }
@@ -225,8 +254,10 @@ export class IosParser {
                         "host": radius_ip,
                         "secret": "to_be_replaced"
                     })
-                    if (!this.radius_auth.includes(tmp))
-                        this.radius_auth.push(tmp)
+                    if (!this.radius_auth.includes(tmp)) {
+                        this._logger.info("RADIUS Auth servers: Adding " + radius_ip + ":" + config[auth_port_index + 1]);
+                        this.radius_auth.push(tmp);
+                    }
                 }
                 if (acct_port_index > -1) {
                     var tmp = JSON.stringify({
@@ -234,8 +265,10 @@ export class IosParser {
                         "host": radius_ip,
                         "secret": "to_be_replaced"
                     })
-                    if (!this.radius_acct.includes(tmp))
-                        this.radius_acct.push(tmp)
+                    if (!this.radius_acct.includes(tmp)) {
+                        this._logger.info("RADIUS Acct servers: Adding " + radius_ip + ":" + config[auth_port_index + 1]);
+                        this.radius_acct.push(tmp);
+                    }
                 }
             }
         })
@@ -243,6 +276,8 @@ export class IosParser {
 
 
     private parse_interface(interface_config: string[]) {
+        var interface_name: string | undefined = undefined;
+
         var vlan_access: string | undefined = undefined;
         var vlan_trunk_native: string | undefined = undefined;
         var vlan_trunk_allowed: string[] = [];
@@ -292,7 +327,8 @@ export class IosParser {
 
 
         interface_config.forEach(line => {
-            if (line.trim().startsWith("description")) profile_name = line.replace("description", "").trim().toString();
+            if (line.trim().startsWith("interface")) interface_name = line.replace("interface", "").trim()
+            else if (line.trim().startsWith("description")) profile_name = line.replace("description", "").trim().toString();
             else if (line.trim().startsWith("switchport mode")) mode = line.replace("switchport mode", "").trim();
             else if (line.trim().startsWith("switchport access vlan")) vlan_access = line.replace("switchport access vlan", "").trim();
             else if (line.trim().startsWith("switchport voice vlan")) voip_network = line.replace("switchport voice vlan", "").trim();
@@ -336,19 +372,24 @@ export class IosParser {
             }
         })
 
-        if (speed != "auto" && duplex != "auto") disable_autoneg = true;
+        if (speed != "auto" && duplex != "auto") {
+            disable_autoneg = true;
+            this._logger.info("Interface " + interface_name + ": \"speed\" and/or \"duplex\". Disabling auto_neg");
+        }
+
         if (enable_mac_auth && port_auth == undefined) {
             port_auth = "dot1x";
             mac_auth_only = true;
+            this._logger.info("Interface " + interface_name + ": \"mab\" configured without \"dot1x pae authenticator\". Enabling \"mac_auth_only\"");
         }
 
         if (mode == "access") {
             if (vlan_access != undefined) this.add_vlan(vlan_access);
             else vlan_access = "1";
-            var port_network = this.get_vlan(vlan_access)
-            profile_configuration.mode = "access"
-            profile_configuration.port_network = port_network
-
+            var port_network = this.get_vlan(vlan_access);
+            profile_configuration.mode = "access";
+            profile_configuration.port_network = port_network;
+            this._logger.info("Interface " + interface_name + ": \"switchport mode access\" and \"switchport access vlan " + vlan_access + "\"");
         }
         else {
             this.add_vlan(vlan_trunk_native, vlan_trunk_allowed);
@@ -367,6 +408,13 @@ export class IosParser {
             profile_configuration.port_network = port_network;
             profile_configuration.networks = networks;
             profile_configuration.all_networks = all_networks;
+
+            var message = "Interface " + interface_name + ": \"switchport mode trunk\" with";
+            if (vlan_trunk_native) message += " \"switchport trunk native vlan " + vlan_trunk_native + "\" and";
+            if (vlan_trunk_allowed.length == 0) message += " ALL networks allowed";
+            else message += " \"switchport trunk allowed vlan " + vlan_trunk_allowed + "\"";
+            this._logger.info(message);
+
         }
 
 
@@ -389,16 +437,17 @@ export class IosParser {
         profile_configuration.voip_network = voip_network;
         profile_configuration.persist_mac = persist_mac;
 
-        this.add_profile(profile_name, profile_configuration, interface_config);
+        if (!interface_name) interface_name = "unknown interface";
+        this.add_profile(interface_name, profile_name, profile_configuration, interface_config);
     }
 
     private add_vlan(vlan: string | undefined = undefined, vlans: string[] | undefined = undefined) {
         if (vlan && !this.vlans.hasOwnProperty(vlan)) {
-            this.vlans[vlan] = [this.vlan_prefix + vlan]
+            this.vlans[vlan] = [this.vlan_prefix + vlan];
         }
         if (vlans) vlans.forEach(vlan => {
             if (vlan && !this.vlans.hasOwnProperty(vlan)) {
-                this.vlans[vlan] = [this.vlan_prefix + vlan]
+                this.vlans[vlan] = [this.vlan_prefix + vlan];
             }
         })
     }
@@ -406,32 +455,36 @@ export class IosParser {
     private get_vlan(vlan_id: string | undefined) {
         if (vlan_id != undefined) {
             try {
-                if (this.vlans.hasOwnProperty(vlan_id)) return this.vlans[vlan_id][0]
+                if (this.vlans.hasOwnProperty(vlan_id)) return this.vlans[vlan_id][0];
                 else {
-                    console.error("unable to find vlan name for vlan_id " + vlan_id)
-                    console.error(this.vlans)
+                    this._logger.error("unable to find vlan name for vlan_id " + vlan_id);
+                    console.error(this.vlans);
                 }
             } catch {
-                console.error("error when trying to get vlan name for vlan_id " + vlan_id)
-                console.error(this.vlans)
+                this._logger.error("error when trying to get vlan name for vlan_id " + vlan_id);
+                console.error(this.vlans);
             }
         }
         return undefined;
     }
 
-    private add_profile(profile_name: string, profile_configuration: object, interface_config: string[]) {
+    private add_profile(interface_name: string, profile_name: string, profile_configuration: object, interface_config: string[]) {
         var str_profile_configuration = JSON.stringify(profile_configuration);
         var index = this.port_profile_configs.indexOf(str_profile_configuration);
 
-        if (!profile_name) profile_name = "null";
+        if (!profile_name) {
+            this._logger.warning("Interface " + interface_name + ": No description detected for this interface");
+            profile_name = "unknown";
+        }
 
         if (index < 0) {
-            this.ios_config.push(interface_config.join("\r\n"))
+            this.ios_config.push(interface_config.join("\r\n"));
             this.port_profile_configs.push(str_profile_configuration);
-            this.ios_descriptions.push([profile_name])
+            this.ios_descriptions.push([profile_name]);
+            this._logger.info("New interface profile added");
         } else {
             if (!this.ios_descriptions[index].includes(profile_name)) {
-                this.ios_descriptions[index].push(profile_name)
+                this.ios_descriptions[index].push(profile_name);
             }
         }
     }
@@ -443,8 +496,10 @@ export class IosParser {
                 if (this.all_port_profile_names.includes(profile_name)) {
                     profile_name = profile_name + "_" + [i];
                 }
-                this.port_profile_names[i] = profile_name.toLowerCase().replace(/\s+/g, "_").substring(0,31);
+                const pname = profile_name.toLowerCase().replace(/[ &-:]+/g, "_").substring(0, 31);
+                this.port_profile_names[i] = pname;
             } else {
+                this._logger.warning("Mutliple entries found for this profile: " + this.ios_descriptions[i].toString());
                 var terms: Terms = {};
                 var max_occurence: number = -1;
                 var description_terms: string[] = [];
@@ -466,14 +521,16 @@ export class IosParser {
                         description_terms.push(key);
                     }
                 }
-                this.port_profile_names[i] = description_terms.join(" ").replace(/\s+/g, "_").substring(0,31);
+                const pname = description_terms.join(" ").replace(/\s+/g, "_").substring(0, 31);
+                this._logger.info("Profile name generated: " + pname);
+                this.port_profile_names[i] = pname;
             }
         }
     }
 
     async generate_template() {
         for (var vlan_id in this.vlans) {
-            if (this.vlans[vlan_id].length > 1) console.warn("WARNING: VLAN " + vlan_id + " has multiple names. Using the first one...")
+            if (this.vlans[vlan_id].length > 1) this._logger.warning("WARNING: VLAN " + vlan_id + " has multiple names. Using the first one...")
             this.mist_template.networks[this.vlans[vlan_id][0]] = { "vlan_id": vlan_id };
         }
         // this.vlans.forEach((vlan_id:string)=>{
@@ -495,8 +552,8 @@ export class IosParser {
             })
         }
         if (this.banner.length > 0) {
-            this.mist_template.additional_config_cmds.push("set groups banner system login message \"" + this.banner.replace('"', '\\\"').replace("'", '\\\'') + "\"")
-            this.mist_template.additional_config_cmds.push("set apply-groups banner")
+            this.mist_template.additional_config_cmds.push("set groups banner system login message \"" + this.banner.replace('"', '\\\"').replace("'", '\\\'') + "\"");
+            this.mist_template.additional_config_cmds.push("set apply-groups banner");
         }
         if (this.dhcp_snooping_vlans.length > 0) {
             this.mist_template.dhcp_snooping.enabled = true;

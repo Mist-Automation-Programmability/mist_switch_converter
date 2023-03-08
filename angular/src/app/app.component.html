@@ -53,8 +53,25 @@
                 <button mat-raised-button color="primary" (click)="save()">Download</button>
             </div>
         </div>
-        <div class="template">
+        <div class="template" [class.show_logs]="show_logs">
             <pre><code class="raw" [innerHtml]="mist_config_html"></code></pre>
         </div>
+    </div>
+</div>
+<div class="logs" *ngIf="log_messages.length>0">
+    <div class="button" (click)="toggleLogs()">Show Logs</div>
+    <div [class.show_logs]="show_logs" class="messages">
+        <table mat-table [dataSource]="log_messages">
+            <ng-container matColumnDef="level">
+                <th mat-header-cell *matHeaderCellDef> Level </th>
+                <td mat-cell *matCellDef="let element"> {{element.level}} </td>
+            </ng-container>
+            <ng-container matColumnDef="message">
+                <th mat-header-cell *matHeaderCellDef> Message </th>
+                <td mat-cell *matCellDef="let element"> {{element.message}} </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="log_columns; sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: log_columns;"></tr>
+        </table>
     </div>
 </div>
