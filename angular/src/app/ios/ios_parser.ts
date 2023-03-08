@@ -154,7 +154,7 @@ export class IosParser {
 
     private add_dhcp_snooping_vlan(vlan_id: string) {
         if (!this.dhcp_snooping_vlans.includes(vlan_id)) {
-            this._logger.info("DHCP Snooping: Adding VLAN " + vlan_id );
+            this._logger.info("DHCP Snooping: Adding VLAN " + vlan_id);
             this.dhcp_snooping_vlans.push(vlan_id);
         }
     }
@@ -194,7 +194,7 @@ export class IosParser {
     }
 
     private parse_domain(domain_line: string) {
-        var new_domain: string = domain_line.replace("ip domain name", "").trim();
+        var new_domain: string = domain_line.replace("ip domain name", "").trim().split(" ")[0];
         if (!this.domain.includes(new_domain)) {
             this._logger.info("DNS DOMAINs: Adding " + new_domain);
             this.domain.push(new_domain);
@@ -202,7 +202,7 @@ export class IosParser {
     }
 
     private parse_dns(dns_line: string) {
-        var new_dns: string = dns_line.replace("ip name-server", "").trim();
+        var new_dns: string = dns_line.replace("ip name-server", "").trim().split(" ")[0];
         if (!this.dns.includes(new_dns)) {
             this._logger.info("DNS servers: Adding " + new_dns);
             this.dns.push(new_dns);
@@ -210,7 +210,7 @@ export class IosParser {
     }
 
     private parse_ntp(ntp_line: string) {
-        var new_ntp: string = ntp_line.replace("ntp server", "").trim();
+        var new_ntp: string = ntp_line.replace("ntp server", "").trim().split(" ")[0];
         if (!this.ntp.includes(new_ntp)) {
             this._logger.info("NTP servers: Adding " + new_ntp);
             this.ntp.push(new_ntp);
@@ -552,8 +552,17 @@ export class IosParser {
             })
         }
         if (this.banner.length > 0) {
-            this.mist_template.additional_config_cmds.push("set groups banner system login message \"" + this.banner.replace('"', '\\\"').replace("'", '\\\'') + "\"");
-            this.mist_template.additional_config_cmds.push("set apply-groups banner");
+            var banner_already_configured: boolean = false;
+            for (let line of this.mist_template.additional_config_cmds) {
+                if (line.startsWith("set groups banner system login message")) {
+                    banner_already_configured = true;
+                    break;
+                }
+            }
+            if (!banner_already_configured) {
+                this.mist_template.additional_config_cmds.push("set groups banner system login message \"" + this.banner.replace('"', '\\\"').replace("'", '\\\'') + "\"");
+                this.mist_template.additional_config_cmds.push("set apply-groups banner");
+            }
         }
         if (this.dhcp_snooping_vlans.length > 0) {
             this.mist_template.dhcp_snooping.enabled = true;
