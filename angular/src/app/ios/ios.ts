@@ -78,7 +78,6 @@ export class IoS {
         return new Promise((resolve) => {
             var i = 0;
             ios_files.forEach((ios_file: IosFile) => {
-                console.log(ios_file.name);
                 this.process_config(ios_file).then((res) => {
                     if (!res) this._logger.error("Error when reading configuration list from " + ios_file.name)
                     i++;
