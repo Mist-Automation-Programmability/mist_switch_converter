@@ -20,29 +20,6 @@
     }
 }
 
-.info {
-    margin: 5em;
-    .disclaimer {
-        width: 50em;
-        text-align: center;
-        text-transform: uppercase;
-        font-family: Roboto, "Helvetica Neue", sans-serif;
-        font-weight: 100;
-        font-size: smaller;
-        margin: 5em auto;
-    }
-    .source {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: center;
-    }
-    .source img {
-        margin: 1em;
-        height: 2em;
-    }
-}
-
 .content {
     display: flex;
     flex-direction: column;
@@ -59,16 +36,46 @@
         cursor: default;
         .list {
             width: 45%;
+            margin: auto;
             display: flex;
             flex-direction: column;
             max-height: 208px;
-            overflow: auto;
             background: white;
             border: 1px solid lightgray;
             border-radius: 10px;
-            padding: 0 1em;
-            div:hover {
-                background-color: lightgrey;
+            h2 {
+                padding: 0 1em;
+                border-bottom: 1px solid lightgray;
+                background-color: #eeeeee;
+                margin: 0;
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                div {
+                    height: 1.5em;
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    margin-right: .6em;
+                    color: gray;
+                    transition: color .2s ease-in-out;
+                }
+                div.enabled {
+                    cursor: pointer;
+                    color: black;
+                }
+                div.enabled:hover {
+                    color: #e80000;
+                }
+            }
+            mat-selection-list {
+                height: 200px;
+                overflow-y: scroll;
+            }
+            mat-list-option {
+                padding: 0 0 0 1em;
+                height: 2em;
             }
         }
         .drops {
@@ -119,21 +126,40 @@
             }
         }
     }
+    .info {
+        margin: 5em;
+        .disclaimer {
+            width: 50em;
+            text-align: center;
+            text-transform: uppercase;
+            font-family: Roboto, "Helvetica Neue", sans-serif;
+            font-weight: 100;
+            font-size: smaller;
+            margin: 5em auto;
+        }
+        .source {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+        .source img {
+            margin: 1em;
+            height: 2em;
+        }
+    }
     .result {
         .header {
             display: flex;
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
-            button {
-                background-color: #0096a4;
-                color: white;
-            }
         }
         .template {
             width: 100%;
             margin: auto;
             height: calc(100vh - 3em - 360px);
+            transition: height .5s ease-in-out;
         }
         .template.show_logs {
             height: calc(100vh - 3em - 360px - 20vh);
@@ -176,11 +202,17 @@ mat-divider {
         justify-content: center;
         user-select: none;
     }
+    button {
+        margin-right: 1em;
+        font-size: smaller;
+        width: 10em;
+    }
     .messages {
         width: 100%;
         height: 0px;
         overflow: auto;
         background-color: white;
+        transition: height .5s ease-in-out
     }
     .messages.show_logs {
         height: 20vh;
@@ -191,5 +223,24 @@ mat-divider {
     }
     .mdc-data-table__row {
         height: 1em;
+    }
+    .info {
+        color: green;
+    }
+    .warning {
+        color: orange;
+    }
+    .error {
+        color: red;
+    }
+    .critical {
+        color: purple;
+    }
+}
+
+.dialog {
+    .mat-mdc-raised-button {
+        background-color: #0096a4 !important;
+        color: white;
     }
 }

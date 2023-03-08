@@ -1,16 +1,29 @@
-<div style="padding: 1em">
+<div class="dialog">
     <h1 mat-dialog-title>Information</h1>
     <div mat-dialog-content>
         <div>
-            <div>This site is trying to convert Cisco IOS configuration files to Juniper Mist Switch Templates.</div>
-            <div>All the configuration elements are not converted, only the most common ones.</div>
+            <div>The purpose of this site is to convert Cisco IOS configuration files to Juniper Mist Switch Templates.
+            </div>
+            <div>Only the following components are converted:</div>
+            <ul>
+                <li>NTP Servers</li>
+                <li>DNS Server</li>
+                <li>DNS Domain</li>
+                <li>RADIUS Authentication and Accounting Servers</li>
+                <li>TACACS+ Servers</li>
+                <li>SYSLOG Servers</li>
+                <li>VLANs</li>
+                <li>DHCP Snooping</li>
+                <li>Part of the port profiles based on the Cisco switch ports configuration</li>
+                <li>CLI Banner</li>
+            </ul>
         </div>
         <div>
-            <div>Your configuration files are not sent to the server. All the processing is directly done inside your web browser.</div>
-            <div>If you device to automatically deploy the template to Mist from here, the template content will be first sent to a 3rd part server then to the Mist Cloud.</div>
+            <div>Your configuration files are <b>not</b> sent to the server. All the processing is directly done inside your web browser.</div>
+            <!-- <div>If you device to automatically deploy the template to Mist from here, the template content will be first sent to a 3rd part server then to the Mist Cloud.</div> -->
         </div>
     </div>
     <div mat-dialog-actions style="display: flex;justify-content: flex-end;">
-        <button mat-raised-button color="primary" (click)="close()">Close</button>
+        <button mat-raised-button mat-dialog-close>Close</button>
     </div>
 </div>

@@ -5,6 +5,8 @@ import { MistTemplate } from "./ios/mist_template";
 import { JsonToHtml } from "./common/functions/json-to-html"
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { LogMessage, Logger } from "./services/logger";
+import { MatListOption, MatSelectionListChange } from '@angular/material/list';
+import { IosParser } from './ios/ios_parser';
 
 @Component({
   selector: 'app-root',
@@ -18,7 +20,8 @@ export class AppComponent implements OnInit {
   docker_url!: string;
   disclaimer!: string;
   ios_files: IosFile[] = [];
-  mist_config!: MistTemplate;
+  ios_files_selected: IosFile[] = [];
+  mist_config: MistTemplate|undefined = undefined;
   mist_config_html: string = "";
   ios_parser: IoS = new IoS(this._logger);
   json_to_html = new JsonToHtml();
@@ -52,21 +55,56 @@ export class AppComponent implements OnInit {
     if (event?.target?.files) {
       for (var index in Object(event.target.files)) {
         var done = 0;
-        if (event.target.files[index].type == "text/plain") {
+        var file = event.target.files[index];
+        if (file.type == "text/plain" || (typeof(file.name)=="string" && file.name.match(/\.cfg$|\.config$|\.txt$/))) {
           this.readfile(event.target.files[index]).then((res) => {
             this.addIosFile(res);
             done += 1;
-            if (done == event.target.files.length) {
-              this.ios_parser.convert(this.ios_files).then((config: MistTemplate) => {
-                this.mist_config = config;
-                this.display();
-                this.log_messages = this._logger.getall().filter(e => e.level != "debug");
-              })
-            }
+            if (done == event.target.files.length) this.processFiles();
           })
         }
       }
     }
+  }
+
+  selectedFile(event: MatSelectionListChange) {    
+    event.options.forEach((selection: MatListOption) => {
+      var file = selection.value;
+      var selected = selection.selected;
+      var index = this.ios_files_selected.indexOf(file);
+      if (selected && index < 0) this.ios_files_selected.push(file);
+      else if (!selected && index > -1) {
+        this.ios_files_selected.splice(index, 1);
+      }
+    })
+  }
+
+  deleteFiles(): void {
+    if (this.ios_files_selected.length > 0) {
+      this.ios_files_selected.forEach((file: IosFile) => {
+        var index = this.ios_files.indexOf(file);
+        if (index > -1) {
+          this.ios_files.splice(index, 1);
+        }
+      })
+      this.ios_files_selected = [];
+      this.reinitMistTemplate();
+      this.processFiles();
+    }
+  }
+
+  reinitMistTemplate(){
+    this.mist_config_html = "";
+    this.mist_config = undefined;
+    this.ios_parser = new IoS(this._logger);
+  }
+
+  processFiles(): void {
+    this.ios_parser.convert(this.ios_files).then((config: MistTemplate) => {
+      this.mist_config = config;
+      this.display();
+      this.log_messages = this._logger.getall().filter(e => e.level != "debug");
+    })
   }
 
   display() {
@@ -106,7 +144,7 @@ export class AppComponent implements OnInit {
     var a = document.createElement('a');
     var file = new Blob([JSON.stringify(this.mist_config, undefined, 4)], { type: "text/plain" });
     a.href = URL.createObjectURL(file);
-    a.download = this.mist_config.name.replace(" ", "_") + ".json";
+    a.download = this.mist_config?.name.replace(" ", "_") + ".json";
     a.click();
   }
 
@@ -114,7 +152,7 @@ export class AppComponent implements OnInit {
     this._dialog.open(InfoDialog, {});
   }
 
-  toggleLogs():void{
+  toggleLogs(): void {
     this.show_logs = !this.show_logs;
   }
 }
@@ -122,13 +160,11 @@ export class AppComponent implements OnInit {
 @Component({
   selector: 'info',
   templateUrl: 'info.html',
+  styleUrls: ['./app.component.scss']
 })
 export class InfoDialog {
   constructor(
     public _dialogRef: MatDialogRef<InfoDialog>
   ) { }
 
-  close(): void {
-    this._dialogRef.close();
-  }
 }

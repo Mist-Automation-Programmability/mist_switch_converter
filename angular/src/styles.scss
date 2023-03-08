@@ -1,3 +1,14 @@
+@use '@angular/material'as mat;
+@include mat.core();
+$mist-primary-palette: (50: #e0f8f7, 100: #b3edeb, 200: #82e1e0, 300: #50d4d5, 400: #29cace, 500: #00c1c9, 600: #00b1b7, 700: #009b9e, 800: #018787, 900: #05635e, contrast: (50: rgba(black, 0.87), 100: rgba(black, 0.87), 200: rgba(black, 0.87), 300: rgba(black, 0.87), 400: rgba(black, 0.87), 500: rgba(black, 0.87), 600: rgba(black, 0.87), 700: white, 800: white, 900: white));
+$mist-accent-palette: (50: #f1f8e5, 100: #ddedbf, 200: #c5e195, 300: #add669, 400:#99cd43, 500: #86c410, 600: #76b403, 700: #60a000, 800: #4a8d00, 900: #1a6b00, contrast: (50: rgba(black, 0.87), 100: rgba(black, 0.87), 200: rgba(black, 0.87), 300: rgba(black, 0.87), 400: rgba(black, 0.87), 500: rgba(black, 0.87), 600: rgba(black, 0.87), 700: white, 800: white, 900: white));
+$mist-warn-palette: (50: #f9e7e9, 100: #f0c3c5, 200: #d58a86, 300: #c05e5a, 400: #c33d35, 500: #c02918, 600: #b31f18, 700: #a31514, 800: #960d0d, 900: #870101, contrast: (50: rgba(black, 0.87), 100: rgba(black, 0.87), 200: rgba(black, 0.87), 300: rgba(black, 0.87), 400: white, 500: white, 600: white, 700: white, 800: white, 900: white));
+$mist-primary: mat.define-palette($mist-primary-palette, 800, 300, 900);
+$mist-accent: mat.define-palette($mist-accent-palette, 800, 300, 900);
+$mist-warn: mat.define-palette($mist-warn-palette, 800, 300, 900);
+$mist-theme: mat.define-light-theme((color:(primary:$mist-primary, accent: $mist-accent, warn: $mist-warn)));
+@include mat.all-component-themes($mist-theme);
+
 /* You can add global styles to this file, and also import other style files */
 
 html,
@@ -38,4 +49,13 @@ app-root {
 
 mat-form-field {
     margin-bottom: -25px;
+}
+
+.mdc-checkbox__background:enabled {
+    background-color: #0096a4 !important;
+    border-color: #0096a4 !important;
+}
+
+.mdc-list-item__primary-text {
+    font-size: small !important;
 }
