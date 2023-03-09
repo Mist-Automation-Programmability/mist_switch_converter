@@ -14,23 +14,23 @@
 <div class="content" role="main">
     <!-- INPUT -->
     <div *ngIf="ios_files.length==0" style="height: calc(100vh / 20)"></div>
-    <div class="files">
+    <div class="files" [class.dragover]="dragover">
         <div class="list" *ngIf="ios_files.length > 0">
             <h2>
                 <span>
                     Processed files
                 </span>
-                <div [class.enabled]="files.selectedOptions.selected.length > 0" (click)="deleteFiles()">
+                <div [class.enabled]="files.selectedOptions.selected.length > 0" (click)="removeIosFile()">
                     <mat-icon>delete_forever</mat-icon>
                 </div>
             </h2>
-            <mat-selection-list #files (selectionChange)="selectedFile($event)">
+            <mat-selection-list #files (selectionChange)="selectFile($event)">
                 <mat-list-option color="primary" *ngFor="let file of ios_files" [value]="file">
                     {{file.name}}
                 </mat-list-option>
             </mat-selection-list>
         </div>
-        <div class="drops">
+        <div class="drops" [class.dragover]="dragover" dropContainer>
             <input type="file" #dropsRef id="dropsRef" multiple (change)="onFilechange($event)" />
             <div>
                 <mat-icon class="drop_icon" aria-label="drop files">post_add</mat-icon>
@@ -56,12 +56,21 @@
     <div class="result" *ngIf="mist_config">
         <mat-divider></mat-divider>
         <div class="header">
-            <mat-form-field>
-                <mat-label>Template name</mat-label>
-                <input matInput [(ngModel)]="mist_config.name" (change)="display()">
-            </mat-form-field>
-            <div>
+            <div class="export">
+                <mat-form-field>
+                    <mat-label>Template name</mat-label>
+                    <input matInput [(ngModel)]="mist_config.name" (change)="display()">
+                </mat-form-field>
+
                 <button mat-raised-button color="primary" (click)="save()">Download</button>
+            </div>
+            <div class="warning">
+                <div>
+                    Please validate the generated configuration.
+                </div>
+                <div>
+                    Passwords from the Cisco configuration were replaced with "to_be_replaced".
+                </div>
             </div>
         </div>
         <div class="template" [class.show_logs]="show_logs">

@@ -2,6 +2,8 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { AppComponent, InfoDialog } from './app.component';
+import { DropContainerDirective } from './common/directive/dragndrop';
+
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
@@ -16,7 +18,8 @@ import { MatTableModule } from '@angular/material/table';
 
 @NgModule({
   declarations: [
-    AppComponent, InfoDialog
+    AppComponent, InfoDialog,
+    DropContainerDirective
   ],
   imports: [
     BrowserModule,

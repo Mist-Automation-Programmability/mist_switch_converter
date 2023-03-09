@@ -92,6 +92,8 @@
             border: dashed 1px gray;
             position: relative;
             border-radius: 20px;
+            transition: opacity 0.1s ease-in-out;
+            transition: background-color 0.1s ease-in-out;
             input {
                 opacity: 0;
                 position: absolute;
@@ -154,6 +156,22 @@
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
+            .export {
+                display: flex;
+                align-items: center;
+                width: 24em;
+                justify-content: space-between;
+            }
+        }
+        .warning {
+            font-size: smaller;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #c33d35;
+            padding: .5em;
+            border-radius: 5px;
+            color: #c33d35;
         }
         .template {
             width: 100%;
@@ -177,6 +195,10 @@ pre {
     color: darkslateblue;
     overflow: auto;
     height: 100%;
+    code {
+        font-size: small;
+        line-height: 1.5em;
+    }
 }
 
 mat-divider {
@@ -219,10 +241,13 @@ mat-divider {
         max-height: 20vh;
     }
     .mdc-data-table__header-row {
-        height: 3em;
+        height: 2em;
     }
     .mdc-data-table__row {
-        height: 1em;
+        height: 1.2em;
+        td {
+            font-size: small;
+        }
     }
     .info {
         color: green;
