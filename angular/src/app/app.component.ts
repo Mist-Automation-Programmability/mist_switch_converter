@@ -1,12 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { IoS, IosFile } from "./ios/ios";
-import { MistTemplate } from "./ios/mist_template";
+import { IoS, IosFile } from "./converters/ios/ios";
+import { MistTemplate } from "./converters/mist_template";
 import { JsonToHtml } from "./common/function/json-to-html"
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { LogMessage, Logger } from "./services/logger";
 import { MatListOption, MatSelectionListChange } from '@angular/material/list';
-import { IosParser } from './ios/ios_parser';
 
 @Component({
   selector: 'app-root',

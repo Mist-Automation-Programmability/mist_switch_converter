@@ -1,5 +1,5 @@
-import { Vlans, Terms, ProfileConfiguration, MistTemplate } from "./mist_template"
-import { Logger } from "./../services/logger";
+import { Vlans, Terms, ProfileConfiguration, MistTemplate } from "../mist_template"
+import { Logger } from "./../../services/logger";
 
 
 

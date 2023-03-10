@@ -1,6 +1,6 @@
 import { IosParser } from "./ios_parser";
-import { MistTemplate } from "./mist_template";
-import { Logger } from "./../services/logger";
+import { MistTemplate } from "../mist_template";
+import { Logger } from "./../../services/logger";
 
 export interface IosFile {
     name: string,
@@ -52,12 +52,15 @@ export class IoS {
             if (has_vlan_list) {
                 this._logger.info("VLAN database extracted from "+ios_file.name+", processing it")
                 this.mist_config.parse_vlans(vlan).then((res) => resolve(res));
-            } else this._logger.warning("No VLAN database found in the file");
+            } else {
+                this._logger.warning("No VLAN database found in the file");
+                resolve(false);
+        }
         })
     }
 
 
-    private read_vlans(ios_files: IosFile[]): Promise<boolean> {
+    read_vlans(ios_files: IosFile[]): Promise<boolean> {
         this._logger.info("Reading VLANs from config files started");
         return new Promise((resolve) => {
             var i = 0;
@@ -73,7 +76,7 @@ export class IoS {
         })
     }
 
-    private read_config(ios_files: IosFile[]): Promise<boolean> {
+    read_config(ios_files: IosFile[]): Promise<boolean> {
         this._logger.info("Reading configuration from config files started");
         return new Promise((resolve) => {
             var i = 0;
