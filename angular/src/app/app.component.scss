@@ -16,7 +16,20 @@
     .help {
         display: flex;
         align-items: center;
-        height: 100%;
+        border-radius: 5px;
+        margin: .5em;
+        height: 2em;
+        transition: background-color .1s ease-in-out;
+        img {
+            cursor: pointer;
+            padding: 0 1em;
+            filter: invert(29%) sepia(47%) saturate(3279%) hue-rotate(160deg) brightness(94%) contrast(99%);
+            height: 2em;
+            cursor: pointer;
+        }
+    }
+    .help:hover {
+        background-color: #0000003b;
     }
 }
 
@@ -76,6 +89,52 @@
             mat-list-option {
                 padding: 0 0 0 1em;
                 height: 2em;
+                .file-container {
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    .fileformat {
+                        border-radius: 15px;
+                        padding: 0px 4px;
+                        font-size: smaller;
+                        border: 1px solid;
+                        width: 5em;
+                        display: flex;
+                        justify-content: center;
+                        height: 1.5em;
+                        align-items: center;
+                    }
+                    .fileformat.cisco {
+                        color: #00bceb;
+                        border-color: #00bceb;
+                        background-color: #00bceb3b;
+                    }
+                    .fileformat.juniper {
+                        color: green;
+                        border-color: green;
+                        background-color: #00800040;
+                    }
+                    .fileformat.unknown {
+                        color: red;
+                        border-color: red;
+                        background-color: #ff000029;
+                    }
+                    .filename {
+                        margin: 0 1em;
+                    }
+                    img {
+                        height: 1.5em;
+                    }
+                    img.success {
+                        filter: invert(29%) sepia(47%) saturate(3279%) hue-rotate(160deg) brightness(94%) contrast(99%);
+                    }
+                    img.warning {
+                        filter: invert(53%) sepia(32%) saturate(7476%) hue-rotate(1deg) brightness(96%) contrast(90%);
+                    }
+                    img.error {
+                        filter: invert(10%) sepia(90%) saturate(5160%) hue-rotate(332deg) brightness(98%) contrast(105%);
+                    }
+                }
             }
         }
         .drops {
@@ -154,24 +213,30 @@
         .header {
             display: flex;
             flex-direction: row;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: center;
+            height: 4em;
             .export {
                 display: flex;
                 align-items: center;
                 width: 24em;
                 justify-content: space-between;
             }
-        }
-        .warning {
-            font-size: smaller;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            border: 1px solid #c33d35;
-            padding: .5em;
-            border-radius: 5px;
-            color: #c33d35;
+            .warning {
+                font-size: smaller;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                border: 1px solid #c33d35;
+                padding: .5em;
+                border-radius: 5px;
+                color: #c33d35;
+                height: 4em;
+                margin-right: 2em;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
         }
         .template {
             width: 100%;

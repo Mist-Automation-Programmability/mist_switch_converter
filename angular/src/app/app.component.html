@@ -7,26 +7,32 @@
         </div>
     </div>
     <div class="help">
-        <mat-icon style="cursor: pointer; padding: 0 1em" (click)="openInfo()">help</mat-icon>
+        <img src="images/ico_help.svg" (click)="openInfo()" />
     </div>
 </div>
 
 <div class="content" role="main">
     <!-- INPUT -->
-    <div *ngIf="ios_files.length==0" style="height: calc(100vh / 20)"></div>
+    <div *ngIf="config_files.length==0" style="height: calc(100vh / 20)"></div>
     <div class="files" [class.dragover]="dragover">
-        <div class="list" *ngIf="ios_files.length > 0">
+        <div class="list" *ngIf="config_files.length > 0">
             <h2>
                 <span>
                     Processed files
                 </span>
-                <div [class.enabled]="files.selectedOptions.selected.length > 0" (click)="removeIosFile()">
+                <div [class.enabled]="files.selectedOptions.selected.length > 0" (click)="removeConfigFile()">
                     <mat-icon>delete_forever</mat-icon>
                 </div>
             </h2>
             <mat-selection-list #files (selectionChange)="selectFile($event)">
-                <mat-list-option color="primary" *ngFor="let file of ios_files" [value]="file">
-                    {{file.name}}
+                <mat-list-option color="primary" *ngFor="let file of config_files" [value]="file">
+                    <div class="file-container">
+                        <div class="fileformat" [ngClass]="file.format.toLowerCase()">{{file.format}}</div>
+                        <div class="filename">{{file.name}}</div>
+                        <img *ngIf="file.format=='unknown'" src="images/ico_error.svg" class="error" [matTooltip]="file.error_message" />
+                        <img *ngIf="file.format != 'unknown' && (!file.success_config || !file.success_vlan)" src="images/ico_warning.svg" class="warning" [matTooltip]="file.error_message" />
+                        <img *ngIf="file.success_config && file.success_vlan" src="images/ico_success.svg" class="success" matTooltip="Configuration file processed" />
+                    </div>
                 </mat-list-option>
             </mat-selection-list>
         </div>
@@ -35,13 +41,13 @@
             <div>
                 <mat-icon class="drop_icon" aria-label="drop files">post_add</mat-icon>
             </div>
-            <h3>Drag and drop files here</h3>
+            <h3>Drop your configuration files here</h3>
             <h3>or</h3>
             <button for="dropsRef" mat-raised-button color="primary">Browse your Files</button>
         </div>
     </div>
     <!-- DISCLAIMER -->
-    <div class="info" *ngIf="ios_files.length == 0">
+    <div class="info" *ngIf="config_files.length == 0">
         <div class="disclaimer">
             <div>
                 {{disclaimer}}
@@ -53,24 +59,24 @@
         </div>
     </div>
     <!-- RESULT -->
-    <div class="result" *ngIf="mist_config">
+    <div class="result" *ngIf="config_parser.process_done">
         <mat-divider></mat-divider>
         <div class="header">
-            <div class="export">
-                <mat-form-field>
-                    <mat-label>Template name</mat-label>
-                    <input matInput [(ngModel)]="mist_config.name" (change)="display()">
-                </mat-form-field>
-
-                <button mat-raised-button color="primary" (click)="save()">Download</button>
-            </div>
             <div class="warning">
                 <div>
                     Please validate the generated configuration.
                 </div>
                 <div>
-                    Passwords from the Cisco configuration were replaced with "to_be_replaced".
+                    Passwords from the configuration files were replaced with "to_be_replaced".
                 </div>
+            </div>
+            <div class="export">
+                <mat-form-field>
+                    <mat-label>Template name</mat-label>
+                    <input matInput [(ngModel)]="config_parser.mist_template.name" (change)="display()">
+                </mat-form-field>
+
+                <button mat-raised-button color="primary" (click)="save()">Download</button>
             </div>
         </div>
         <div class="template" [class.show_logs]="show_logs">
@@ -87,7 +93,8 @@
             <ng-container matColumnDef="level">
                 <th mat-header-cell *matHeaderCellDef> Level </th>
                 <td mat-cell *matCellDef="let element">
-                    <span [ngClass]="element.level">{{element.level}}</span></td>
+                    <span [ngClass]="element.level">{{element.level}}</span>
+                </td>
             </ng-container>
             <ng-container matColumnDef="message">
                 <th mat-header-cell *matHeaderCellDef> Message </th>
