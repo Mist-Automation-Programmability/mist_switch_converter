@@ -58,6 +58,13 @@
             <a *ngIf="docker_url" href={{docker_url}} target="_blank"><img src="images/docker.png"></a>
         </div>
     </div>
+    <!-- PROCESSIN -->
+    <div *ngIf="config_files.length > 0 && !config_parser.process_done">
+        <mat-divider></mat-divider>
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+
+
+    </div>
     <!-- RESULT -->
     <div class="result" *ngIf="config_parser.process_done">
         <mat-divider></mat-divider>
