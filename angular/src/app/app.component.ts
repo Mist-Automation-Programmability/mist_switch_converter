@@ -112,7 +112,7 @@ export class AppComponent implements OnInit {
           const config_file: ConfigFile = {
             name: file.name,
             config: (reader.result as string)?.split('\n'),
-            format: "unknown",
+            format: "Unknown",
             success_vlan: undefined,
             success_config: undefined,
             error_message: "Unknown error"
@@ -237,7 +237,7 @@ export class AppComponent implements OnInit {
       this._logger.info("Reading configuration from config files started");
       this.config_files.forEach((file: ConfigFile) => {
         this.config_parser.read_config(file).then((success) => {
-          if (!success) file.error_message = "Unable to parse the configuration"
+          if (!success && file.error_message == "Unknown error") file.error_message = "Unable to parse the configuration"
           file.success_config = success;
           i += 1;
           if (i == this.config_files.length) resolve(null);

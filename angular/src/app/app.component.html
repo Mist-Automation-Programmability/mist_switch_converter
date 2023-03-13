@@ -29,8 +29,8 @@
                     <div class="file-container">
                         <div class="fileformat" [ngClass]="file.format.toLowerCase()">{{file.format}}</div>
                         <div class="filename">{{file.name}}</div>
-                        <img *ngIf="file.format=='unknown'" src="images/ico_error.svg" class="error" [matTooltip]="file.error_message" />
-                        <img *ngIf="file.format != 'unknown' && (!file.success_config || !file.success_vlan)" src="images/ico_warning.svg" class="warning" [matTooltip]="file.error_message" />
+                        <img *ngIf="file.format=='Unknown'" src="images/ico_error.svg" class="error" [matTooltip]="file.error_message" />
+                        <img *ngIf="file.format != 'Unknown' && (!file.success_config || !file.success_vlan)" src="images/ico_warning.svg" class="warning" [matTooltip]="file.error_message" />
                         <img *ngIf="file.success_config && file.success_vlan" src="images/ico_success.svg" class="success" matTooltip="Configuration file processed" />
                     </div>
                 </mat-list-option>

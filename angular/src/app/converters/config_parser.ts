@@ -6,7 +6,7 @@ import { VlansInterface, TermsInterface, MistTemplateInterface } from "./mist_te
 export interface ConfigFile {
     name: string,
     config: string[],
-    format: string ,
+    format: string,
     success_vlan: boolean | undefined,
     success_config: boolean | undefined,
     error_message: string
@@ -35,21 +35,21 @@ export class ConfigParser {
     ios_config: string[];
     mist_template: MistTemplateInterface;
     config_data: ConfigData = {
-        vlan_prefix : "vlan",
-        syslog : [],
-        radius_auth : [],
-        radius_acct : [],
-        tacacs : [],
-        ntp : [],
-        dns : [],
-        domain : [],
-        vlans : {},
-        banner : "",
-        dhcp_snooping_vlans : [],
-        port_profile_configs : [],
-        port_profile_names : [],
-        all_port_profile_names : [],
-        port_descriptions : [],
+        vlan_prefix: "vlan",
+        syslog: [],
+        radius_auth: [],
+        radius_acct: [],
+        tacacs: [],
+        ntp: [],
+        dns: [],
+        domain: [],
+        vlans: {},
+        banner: "",
+        dhcp_snooping_vlans: [],
+        port_profile_configs: [],
+        port_profile_names: [],
+        all_port_profile_names: [],
+        port_descriptions: [],
     }
     process_done: boolean = false;
 
@@ -226,7 +226,7 @@ export class ConfigParser {
             var i = 0;
             config_files.forEach((config_file: ConfigFile) => {
                 this.process_config(config_file).then((res) => {
-                    if (!res) this._logger.error("Error when reading configuration list from " + config_file.name)
+                    if (!res) this._logger.error("Error when reading configuration from " + config_file.name)
                     i++;
                     if (i == config_files.length) {
                         resolve(true);
@@ -238,12 +238,12 @@ export class ConfigParser {
     private detect_source_all(config_files: ConfigFile[]): Promise<boolean> {
         return new Promise((resolve) => {
             config_files.forEach((file: ConfigFile) => {
-                this._logger.info("Detecting type of file for "+file.name);
+                this._logger.info("Detecting type of file for " + file.name);
                 file.config.forEach((line: string) => {
                     if (line.startsWith("Current configuration")) file.format = "Cisco";
                     else if (line.startsWith("set version")) file.format = "Juniper";
                 })
-                this._logger.info(file.name+" is detected as "+ file.format+" type");
+                this._logger.info(file.name + " is detected as " + file.format + " type");
             })
             resolve(true)
         })
@@ -268,7 +268,11 @@ export class ConfigParser {
 
     read_vlans(config_file: ConfigFile): Promise<boolean> {
         return new Promise((resolve) => {
-            this.process_vlans(config_file).then((res) => {
+            if (config_file.format == "Unknown") {
+                this._logger.error("Unable to determinate the type of file. Please check the format of the file " + config_file.name);
+                config_file.error_message = "Unable to determinate the type of file. check validate the format of the file " + config_file.name;
+                resolve(false);
+            } else this.process_vlans(config_file).then((res) => {
                 if (!res) this._logger.error("Error when reading VLANs list from " + config_file.name)
                 config_file.success_vlan = res;
                 resolve(res);
@@ -278,10 +282,17 @@ export class ConfigParser {
 
     read_config(config_file: ConfigFile): Promise<boolean> {
         return new Promise((resolve) => {
-                this.process_config(config_file).then((res) => {
-                    if (!res) this._logger.error("Error when reading configuration list from " + config_file.name)
-                    resolve(res);
-                });
+            if (config_file.format == "Unknown") {
+                this._logger.error("Unable to determinate the type of file. Please check the format of the file " + config_file.name);
+                config_file.error_message = "Unable to determinate the type of file. check validate the format of the file " + config_file.name;
+                resolve(false);
+            } else this.process_config(config_file).then((res) => {
+                if (!res) {
+                    this._logger.error("Error when reading configuration from " + config_file.name);
+                    config_file.error_message = "Error when reading configuration from " + config_file.name;
+                }
+                resolve(res);
+            });
         })
     }
 
