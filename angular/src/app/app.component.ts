@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { IoS, IosFile } from "./converters/ios/ios";
-import { MistTemplate } from "./converters/mist_template";
+import { ConfigParser, ConfigFile } from "./converters/config_parser";
 import { JsonToHtml } from "./common/function/json-to-html"
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { LogMessage, Logger } from "./services/logger";
@@ -19,13 +18,12 @@ export class AppComponent implements OnInit {
   docker_url!: string;
   disclaimer!: string;
 
-  dragover:boolean = false;
+  dragover: boolean = false;
 
-  ios_files: IosFile[] = [];
-  ios_files_selected: IosFile[] = [];
-  mist_config: MistTemplate|undefined = undefined;
+  config_files: ConfigFile[] = [];
+  config_files_selected: ConfigFile[] = [];
   mist_config_html: string = "";
-  ios_parser: IoS = new IoS(this._logger);
+  config_parser: ConfigParser = new ConfigParser(this._logger);
   json_to_html = new JsonToHtml();
 
   log_messages: LogMessage[] = [];
@@ -56,9 +54,9 @@ export class AppComponent implements OnInit {
       for (var index in Object(event.target.files)) {
         var done = 0;
         var file = event.target.files[index];
-        if (file.type == "text/plain" || (typeof(file.name)=="string" && file.name.match(/\.cfg$|\.config$|\.txt$/))) {
+        if (file.type == "text/plain" || (typeof (file.name) == "string" && file.name.match(/\.cfg$|\.config$|\.txt$/))) {
           this.readfile(event.target.files[index]).then((res) => {
-            this.addIosFile(res);
+            this.addConfigFile(res);
             done += 1;
             if (done == event.target.files.length) this.processFiles();
           })
@@ -67,23 +65,27 @@ export class AppComponent implements OnInit {
     }
   }
 
-  addIosFile(file: IosFile) {
-    const index = this.ios_files.findIndex(f => f.name == file.name);
-    if (index > -1) this.ios_files[index] = file;
-    else this.ios_files.push(file);
+  addConfigFile(file: ConfigFile) {
+    const index = this.config_files.findIndex(f => f.name == file.name);
+    if (index > -1) this.config_files[index] = file;
+    else this.config_files.push(file);
   }
 
-  readfile(file: File): Promise<IosFile> {
+  readfile(file: File): Promise<ConfigFile> {
     return new Promise((resolve) => {
       if (file) {
         var reader = new FileReader();
         reader.readAsText(file, "UTF-8");
         reader.onload = function (e) {
-          const ios_file: IosFile = {
+          const config_file: ConfigFile = {
             name: file.name,
-            config: (reader.result as string)?.split('\n')
+            config: (reader.result as string)?.split('\n'),
+            format: "unknown",
+            success_vlan: undefined,
+            success_config: undefined,
+            error_message: "Unknown error"
           };
-          resolve(ios_file)
+          resolve(config_file)
         }
         reader.onerror = function (evt) {
           console.log("error reading file " + file.name);
@@ -93,49 +95,98 @@ export class AppComponent implements OnInit {
   }
 
   // SELECT AND DELETE FILES //
-  selectFile(event: MatSelectionListChange) {    
+  selectFile(event: MatSelectionListChange) {
     event.options.forEach((selection: MatListOption) => {
       var file = selection.value;
       var selected = selection.selected;
-      var index = this.ios_files_selected.indexOf(file);
-      if (selected && index < 0) this.ios_files_selected.push(file);
+      var index = this.config_files_selected.indexOf(file);
+      if (selected && index < 0) this.config_files_selected.push(file);
       else if (!selected && index > -1) {
-        this.ios_files_selected.splice(index, 1);
+        this.config_files_selected.splice(index, 1);
       }
     })
   }
 
-  removeIosFile() {
-    if (this.ios_files_selected.length > 0) {
-      this.ios_files_selected.forEach((file: IosFile) => {
-        var index = this.ios_files.indexOf(file);
+  removeConfigFile() {
+    if (this.config_files_selected.length > 0) {
+      this.config_files_selected.forEach((file: ConfigFile) => {
+        var index = this.config_files.indexOf(file);
         if (index > -1) {
-          this.ios_files.splice(index, 1);
+          this.config_files.splice(index, 1);
         }
       })
-      this.ios_files_selected = [];
+      this.config_files_selected = [];
       this.reinitMistTemplate();
       this.processFiles();
     }
   }
 
   //// TEMPLATE MANAGEMENT ////
-  reinitMistTemplate(){
+  reinitMistTemplate() {
     this.mist_config_html = "";
-    this.mist_config = undefined;
-    this.ios_parser = new IoS(this._logger);
+    this.config_parser = new ConfigParser(this._logger);
   }
 
   processFiles(): void {
-    this.ios_parser.convert(this.ios_files).then((config: MistTemplate) => {
-      this.mist_config = config;
-      this.display();
-      this.log_messages = this._logger.getall().filter(e => e.level != "debug");
+    this.detect_source().then(() => {
+      this.parse_vlans().then(() => {
+        this.parse_config().then(() => {
+          this.config_parser.generate_profile_names();
+          this.config_parser.generate_template();
+          this.log_messages = this._logger.getall().filter(e => e.level != "debug");
+          this.display();
+        });
+      });
+    });
+  }
+
+
+  detect_source(): Promise<null> {
+    return new Promise((resolve) => {
+      var i = 0;
+      this._logger.info("Detecting file type");
+      this.config_files.forEach((file: ConfigFile) => {
+        this.config_parser.detect_source(file).then((success) => {
+          i += 1;
+          if (i == this.config_files.length) resolve(null);
+        })
+      })
+    })
+  }
+
+  parse_vlans(): Promise<null> {
+    return new Promise((resolve) => {
+      var i = 0;
+      this._logger.info("Reading VLANs from config files started");
+      this.config_files.forEach((file: ConfigFile) => {
+        this.config_parser.read_vlans(file).then((success) => {
+          if (!success && file.format == "Cisco") file.error_message = "Unable to parse the VLAN database"
+          else if (!success) file.error_message = "Unable to retrieve the VLAN list"
+          file.success_vlan = success;
+          i += 1;
+          if (i == this.config_files.length) resolve(null);
+        })
+      })
+    })
+  }
+
+  parse_config(): Promise<null> {
+    return new Promise((resolve) => {
+      var i = 0;
+      this._logger.info("Reading configuration from config files started");
+      this.config_files.forEach((file: ConfigFile) => {
+        this.config_parser.read_config(file).then((success) => {
+          if (!success) file.error_message = "Unable to parse the configuration"
+          file.success_config = success;
+          i += 1;
+          if (i == this.config_files.length) resolve(null);
+        })
+      })
     })
   }
 
   display() {
-    this.mist_config_html = this.json_to_html.transform(this.mist_config, 2);
+    this.mist_config_html = this.json_to_html.transform(this.config_parser.mist_template, 2);
   }
 
 
@@ -143,9 +194,9 @@ export class AppComponent implements OnInit {
   //// EXPORT ////
   save() {
     var a = document.createElement('a');
-    var file = new Blob([JSON.stringify(this.mist_config, undefined, 4)], { type: "text/plain" });
+    var file = new Blob([JSON.stringify(this.config_parser.mist_template, undefined, 4)], { type: "text/plain" });
     a.href = URL.createObjectURL(file);
-    a.download = this.mist_config?.name.replace(" ", "_") + ".json";
+    a.download = this.config_parser.mist_template?.name.replace(" ", "_") + ".json";
     a.click();
   }
 

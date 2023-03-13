@@ -1,4 +1,4 @@
-export interface MistTemplate {
+export interface MistTemplateInterface {
     name: string,
     ntp_servers: object,
     dns_servers: string[],
@@ -9,7 +9,7 @@ export interface MistTemplate {
         }
     },
     port_usages: {
-        [key: string]: ProfileConfiguration
+        [key: string]: ProfileConfigurationInterface
     },
     radius_config: {
         acct_interim_interval: number,
@@ -37,7 +37,7 @@ export interface MistTemplate {
     }
 }
 
-export interface ProfileConfiguration {
+export interface ProfileConfigurationInterface {
     all_networks: boolean,
     disable_autoneg: boolean,
     disabled: boolean,
@@ -59,10 +59,10 @@ export interface ProfileConfiguration {
     persist_mac: boolean
 }
 
-export interface Vlans {
+export interface VlansInterface {
     [key: string]: string[]
 }
 
-export interface Terms {
+export interface TermsInterface {
     [key: string]: number
 }

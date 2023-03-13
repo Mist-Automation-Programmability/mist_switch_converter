@@ -24,12 +24,15 @@ export class Logger {
         this.addEvent("debug", message);
     }
     info(message: string) {
+        //console.info(message);
         this.addEvent("info", message);
     }
     warning(message: string) {
+        //console.warn(message);
         this.addEvent("warning", message);
     }
     error(message: string) {
+        //console.error(message);
         this.addEvent("error", message);
     }
     critical(message: string) {
