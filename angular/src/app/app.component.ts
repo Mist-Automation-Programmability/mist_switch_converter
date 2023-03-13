@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ConfigParser, ConfigFile } from "./converters/config_parser";
 import { JsonToHtml } from "./common/function/json-to-html"
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { LogMessage, Logger } from "./services/logger";
 import { MatListOption, MatSelectionListChange } from '@angular/material/list';
+import { ViewChild } from '@angular/core';
+
 
 @Component({
   selector: 'app-root',
@@ -13,7 +15,9 @@ import { MatListOption, MatSelectionListChange } from '@angular/material/list';
 })
 export class AppComponent implements OnInit {
   title = 'switch migration';
-
+  @ViewChild('dropsRef')
+  drop_element: ElementRef;
+  
   github_url!: string;
   docker_url!: string;
   disclaimer!: string;
@@ -30,14 +34,18 @@ export class AppComponent implements OnInit {
   show_logs: boolean = false;
   log_columns: string[] = ['level', 'message'];
 
-
   constructor(
     public _dialog: MatDialog,
     private _http: HttpClient,
     private _logger: Logger
   ) { }
 
-  //// INIT ////
+  /********************************************************
+   * INIT
+   *******************************************************/
+  /**
+   * Just used to retrieve the message from the main page
+   */
   ngOnInit(): void {
     this._http.get<any>("/api/disclaimer").subscribe({
       next: data => {
@@ -48,29 +56,53 @@ export class AppComponent implements OnInit {
     })
   }
 
-  //// FILES MANAGEMENT ////
-  onFilechange(event: any) {
+  /********************************************************
+   * FILES PROCESSING
+   *******************************************************/
+  /**
+   * Function triggered when file(s) are dropped/selected
+   * Check if the file is "test/plain" type or if its extension is .cfg, .config, .txt, then read it and add it to the config_files list
+   * Once all files are read, call the function to process them
+   * @param event 
+   */
+  onFilechange(event: any): void {
     if (event?.target?.files) {
+      console.log(event?.target)
       for (var index in Object(event.target.files)) {
         var done = 0;
         var file = event.target.files[index];
         if (file.type == "text/plain" || (typeof (file.name) == "string" && file.name.match(/\.cfg$|\.config$|\.txt$/))) {
-          this.readfile(event.target.files[index]).then((res) => {
-            this.addConfigFile(res);
+          this.readfile(event.target.files[index]).then((config_file) => {
+            this.addConfigFile(config_file);
             done += 1;
-            if (done == event.target.files.length) this.processFiles();
+            if (done == event.target.files.length) {
+              this.drop_element.nativeElement.value="";
+              this.reinitMistTemplate();
+              this.processFiles();
+            }
           })
         }
       }
     }
   }
 
-  addConfigFile(file: ConfigFile) {
+  /**
+   * Function to add a ConfigFile to the list. If the file is already in the list, drop it
+   * @param file ConfigFile
+   */
+  addConfigFile(file: ConfigFile): void {
+    console.log(file)
+    console.log(this.config_files)
     const index = this.config_files.findIndex(f => f.name == file.name);
-    if (index > -1) this.config_files[index] = file;
-    else this.config_files.push(file);
+    if (index < 0) this.config_files.push(file);
+    else this.config_files[index] = file;
   }
 
+  /**
+   * Function to read the dropped/selected file and add it to the config_files list
+   * @param file 
+   * @returns Promise 
+   */
   readfile(file: File): Promise<ConfigFile> {
     return new Promise((resolve) => {
       if (file) {
@@ -94,7 +126,13 @@ export class AppComponent implements OnInit {
     })
   }
 
-  // SELECT AND DELETE FILES //
+  /********************************************************
+   * SELECT AND DELETE FILES
+   *******************************************************/
+  /**
+   * Function to keep track of selected files from the list
+   * @param event 
+   */
   selectFile(event: MatSelectionListChange) {
     event.options.forEach((selection: MatListOption) => {
       var file = selection.value;
@@ -107,6 +145,9 @@ export class AppComponent implements OnInit {
     })
   }
 
+  /**
+   * Function to remove the files selected on the list
+   */
   removeConfigFile() {
     if (this.config_files_selected.length > 0) {
       this.config_files_selected.forEach((file: ConfigFile) => {
@@ -121,12 +162,22 @@ export class AppComponent implements OnInit {
     }
   }
 
-  //// TEMPLATE MANAGEMENT ////
+  /********************************************************
+   * TEMPLATE MANAGEMENT 
+   *******************************************************/
+
+  /**
+   * function to clear the configuration and the logs. Called when a file is added/remove
+   */
   reinitMistTemplate() {
     this.mist_config_html = "";
     this.config_parser = new ConfigParser(this._logger);
   }
 
+  /**
+   * CORE function to process the files. 
+   * @returns void
+   */
   processFiles(): void {
     this.detect_source().then(() => {
       this.parse_vlans().then(() => {
@@ -140,7 +191,10 @@ export class AppComponent implements OnInit {
     });
   }
 
-
+  /**
+   * loop over each file and call the function to identify the file type (Cisco, Juniper, ...)
+   * @returns Promise
+   */
   detect_source(): Promise<null> {
     return new Promise((resolve) => {
       var i = 0;
@@ -154,15 +208,18 @@ export class AppComponent implements OnInit {
     })
   }
 
+  /**
+   * loop over each file and call the function to parse the VLANS
+   * @returns Promise
+   */
   parse_vlans(): Promise<null> {
     return new Promise((resolve) => {
       var i = 0;
       this._logger.info("Reading VLANs from config files started");
       this.config_files.forEach((file: ConfigFile) => {
         this.config_parser.read_vlans(file).then((success) => {
-          if (!success && file.format == "Cisco") file.error_message = "Unable to parse the VLAN database"
-          else if (!success) file.error_message = "Unable to retrieve the VLAN list"
-          file.success_vlan = success;
+          if (!success && file.format == "Cisco") file.error_message = "Unable to parse the VLAN database";
+          else if (!success) file.error_message = "Unable to retrieve the VLAN list";
           i += 1;
           if (i == this.config_files.length) resolve(null);
         })
@@ -170,6 +227,10 @@ export class AppComponent implements OnInit {
     })
   }
 
+  /**
+   * loop over each file and call the function to parse the configuration
+   * @returns Promise
+   */
   parse_config(): Promise<null> {
     return new Promise((resolve) => {
       var i = 0;
@@ -185,13 +246,19 @@ export class AppComponent implements OnInit {
     })
   }
 
+  /**
+   * Generate the HTML version of the Mist template
+   */
   display() {
     this.mist_config_html = this.json_to_html.transform(this.config_parser.mist_template, 2);
   }
 
-
-
-  //// EXPORT ////
+  /********************************************************
+   * EXPORT
+   *******************************************************/
+  /**
+   * Function to export/download the mist template.
+   */
   save() {
     var a = document.createElement('a');
     var file = new Blob([JSON.stringify(this.config_parser.mist_template, undefined, 4)], { type: "text/plain" });
@@ -200,7 +267,9 @@ export class AppComponent implements OnInit {
     a.click();
   }
 
-  //// INFOS ////
+  /********************************************************
+   * INFOS AND LOGS
+   *******************************************************/
   openInfo(): void {
     this._dialog.open(InfoDialog, {});
   }
