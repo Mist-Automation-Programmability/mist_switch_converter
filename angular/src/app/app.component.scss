@@ -329,8 +329,11 @@ mat-divider {
 }
 
 .dialog {
-    .mat-mdc-raised-button {
-        background-color: #0096a4 !important;
-        color: white;
+    div {
+        font-size: small;
+        pre {
+            font-size: small;
+            line-height: 1.1;
+        }
     }
 }

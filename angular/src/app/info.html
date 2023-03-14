@@ -22,14 +22,37 @@
         </div>
         <br>
         <div>
-            <div>To get a good result, each file must contain the configuration from a single switch and must contain the result of the following commands: </div>
-            <ul>
-                <li>show vlan brief</li>
-                <li>show running-config</li>
-            </ul>
+            <div>To get a good result, each Cisco file must contain the configuration from a single switch with the result of the following commands (the result of the <samp>show vlan brief</samp> is optional but recommanded. It is possible to use the short
+                commands): </div>
+            <pre>
+            <samp>
+cisco-sw#show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Gi1/0/2, Gi1/0/4, Gi1/0/5
+....
+
+cisco-sw#show running-config
+Building configuration...
+
+Current configuration : 39742 bytes
+!
+! Last configuration change at 09:42:44 CET Thu Oct 6 2022
+!
+version 17.3
+service timestamps debug datetime msec localtime
+service timestamps log datetime msec localtime
+service password-encryption
+service call-home
+no platform punt-keepalive disable-kernel-core
+!
+hostname cisco-sw
+...
+            </samp></pre>
         </div>
     </div>
     <div mat-dialog-actions style="display: flex;justify-content: flex-end;">
-        <button mat-raised-button mat-dialog-close>Close</button>
+        <button mat-raised-button color="primary" mat-dialog-close>Close</button>
     </div>
 </div>
