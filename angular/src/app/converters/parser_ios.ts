@@ -1,6 +1,6 @@
 import { ProfileConfigurationInterface } from "./mist_template"
 import { Logger } from "../services/logger";
-import { ConfigData, ConfigFile } from "./config_parser";
+import { ConfigData, ConfigFile } from "./parser_main";
 
 
 export class IosParser {
@@ -116,12 +116,13 @@ export class IosParser {
                         var vlan_id = splitted_line[0];
                         var vlan_name = splitted_line[1];
                         if (!this.vlan_ids_to_exclude.includes(vlan_id)) {
+                            vlan_name = vlan_name.toLowerCase().replace(/[ &:-]+/g, "_");
                             deteted_vlans += 1;
                             if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
-                                if (!this.config_data.vlans[vlan_id].includes(vlan_name.toLocaleLowerCase())) this.config_data.vlans[vlan_id].push(vlan_name.toLowerCase());
+                                if (!this.config_data.vlans[vlan_id].includes(vlan_name)) this.config_data.vlans[vlan_id].push(vlan_name);
                             } else {
                                 new_vlans += 1;
-                                this.config_data.vlans[vlan_id] = [vlan_name.toLowerCase().replace(/[ &-:]+/g, "_")];
+                                this.config_data.vlans[vlan_id] = [vlan_name];
                             }
                         }
                     }

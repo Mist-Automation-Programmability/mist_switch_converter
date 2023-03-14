@@ -1,6 +1,6 @@
 import { Component, ElementRef, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { ConfigParser, ConfigFile } from "./converters/config_parser";
+import { ConfigParser, ConfigFile } from "./converters/parser_main";
 import { JsonToHtml } from "./common/function/json-to-html"
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { LogMessage, Logger } from "./services/logger";
