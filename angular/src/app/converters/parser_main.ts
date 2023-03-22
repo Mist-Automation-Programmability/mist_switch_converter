@@ -1,7 +1,7 @@
 import { IosParser } from "./parser_ios";
 import { JuniperParser } from "./parser_juniper";
 import { Logger } from "../services/logger";
-import { VlansInterface, TermsInterface, MistTemplateInterface } from "./mist_template"
+import { VlansElements, TermsElements, MistTemplateElement } from "./mist_template"
 
 
 export interface ConfigFile {
@@ -14,33 +14,41 @@ export interface ConfigFile {
 }
 
 export interface ConfigData {
-    vlan_prefix: string;
-    syslog: string[];
-    radius_auth: string[];
-    radius_acct: string[];
-    tacacs: string[];
-    ntp: string[];
-    dns: string[];
-    domain: string[];
-    vlans: VlansInterface;
-    banner: string;
-    dhcp_snooping_vlans: string[];
-    port_profile_configs: string[];
-    port_profile_names: string[];
-    all_port_profile_names: string[];
-    port_descriptions: string[][];
+    vlan_prefix: string,
+    syslog: string[],
+    radius_auth: string[],
+    radius_acct: string[],
+    radius_coa: {},
+    tacacs_auth: string[],
+    tacacs_acct: string[],
+    ntp: string[],
+    dns: string[],
+    domain: string[],
+    vlans: VlansElements,
+    banner: string,
+    dhcp_snooping_vlans: string[],
+    port_profile_configs: string[],
+    port_profile_names: string[],
+    all_port_profile_names: string[],
+    port_descriptions: string[][],
+    interface_range_names: string[][],
+    interface_names: string[][],
 
 }
 
 export class ConfigParser {
     ios_config: string[];
-    mist_template: MistTemplateInterface;
+    mist_template: MistTemplateElement;
     config_data: ConfigData = {
         vlan_prefix: "vlan",
         syslog: [],
         radius_auth: [],
         radius_acct: [],
-        tacacs: [],
+        radius_coa: {
+            "coa_enabled": false,
+            "coa_port": 3799},
+        tacacs_auth: [],
+        tacacs_acct: [],
         ntp: [],
         dns: [],
         domain: [],
@@ -51,6 +59,8 @@ export class ConfigParser {
         port_profile_names: [],
         all_port_profile_names: [],
         port_descriptions: [],
+        interface_range_names: [],
+        interface_names: []
     }
     process_done: boolean = false;
 
@@ -78,7 +88,8 @@ export class ConfigParser {
             switch_mgmt: {
                 tacacs: {
                     enabled: false,
-                    tacplus_servers: []
+                    tacplus_servers: [],
+                    acct_servers: []
                 }
             },
             additional_config_cmds: [],
@@ -98,20 +109,16 @@ export class ConfigParser {
 
     async generate_profile_names() {
         for (var i = 0; i < this.config_data.port_descriptions.length; i++) {
-            if (this.config_data.port_descriptions[i].length == 1) {
-                var profile_name = this.config_data.port_descriptions[i][0];
-                if (this.config_data.all_port_profile_names.includes(profile_name)) {
-                    profile_name = profile_name + "_" + [i];
-                }
-                const pname = profile_name.toLowerCase().replace(/[ &-:]+/g, "_").substring(0, 31);
-                this.config_data.port_profile_names[i] = pname;
-            } else {
+            var profile_name:string;
+            if (this.config_data.interface_range_names[i].length > 0) profile_name = this.config_data.interface_range_names[i].join("_");
+            else if (this.config_data.port_descriptions[i].length == 1) profile_name = this.config_data.port_descriptions[i][0];
+            else if (this.config_data.port_descriptions[i].length > 1) {
                 this._logger.warning("Mutliple entries found for this profile: " + this.config_data.port_descriptions[i].toString());
-                var terms: TermsInterface = {};
+                var terms: TermsElements = {};
                 var max_occurence: number = -1;
                 var description_terms: string[] = [];
                 this.config_data.port_descriptions[i].forEach(description => {
-                    description.split(" ").forEach(desc_term => {
+                    description.split(/ |_|-/).forEach(desc_term => {
                         var term = desc_term.toLowerCase().trim().replace("(", "").replace(")", "");
                         if (!["null", "-", ""].includes(term)) {
                             if (!terms.hasOwnProperty(term)) {
@@ -128,10 +135,14 @@ export class ConfigParser {
                         description_terms.push(key);
                     }
                 }
-                const pname = description_terms.join(" ").replace(/\s+/g, "_").substring(0, 31);
-                this._logger.info("Profile name generated: " + pname);
-                this.config_data.port_profile_names[i] = pname;
+                profile_name = description_terms.join(" ").replace(/\s+/g, "_").substring(0, 31);
+                this._logger.info("Profile name generated: " + profile_name);
+            } else profile_name = "unknown";
+            if (this.config_data.all_port_profile_names.includes(profile_name)) {
+                profile_name = profile_name + "_" + [i];
             }
+            const pname = profile_name.toLowerCase().replace(/[ &:-]+/g, "_").substring(0, 31);
+            this.config_data.port_profile_names[i] = pname;
         }
     }
 
@@ -152,10 +163,13 @@ export class ConfigParser {
         this.config_data.radius_acct.forEach((radius_acct: string) => {
             this.mist_template.radius_config.acct_servers.push(JSON.parse(radius_acct));
         })
-        if (this.config_data.tacacs.length > 0) {
+        if (this.config_data.tacacs_auth.length > 0) {
             this.mist_template.switch_mgmt.tacacs.enabled = true;
-            this.config_data.tacacs.forEach((tacplus_server: string) => {
+            this.config_data.tacacs_auth.forEach((tacplus_server: string) => {
                 this.mist_template.switch_mgmt.tacacs.tacplus_servers.push(JSON.parse(tacplus_server))
+            })
+            this.config_data.tacacs_acct.forEach((tacplus_server: string) => {
+                this.mist_template.switch_mgmt.tacacs.acct_servers.push(JSON.parse(tacplus_server))
             })
         }
         if (this.config_data.banner.length > 0) {
@@ -192,9 +206,7 @@ export class ConfigParser {
             if (config_file.format == "Cisco") {
                 this.parser_ios.process_config(config_file).then((res) => resolve(res));
             } else if (config_file.format == "Juniper"){
-                console.log("junip")
-                resolve(true)
-//                this.parser_juniper.process_config(config_file).then((res) => resolve(res))
+                this.parser_juniper.process_config(config_file).then((res) => resolve(res))
             }
             else resolve(false);
         })
@@ -304,7 +316,7 @@ export class ConfigParser {
             resolve(true)
         })
     }
-    auto_convert(config_files: ConfigFile[]): Promise<MistTemplateInterface> {
+    auto_convert(config_files: ConfigFile[]): Promise<MistTemplateElement> {
         return new Promise((resolve) => {
             var i = 0;
             this.detect_source_all(config_files).then((res) => {

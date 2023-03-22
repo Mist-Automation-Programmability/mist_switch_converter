@@ -1,4 +1,4 @@
-export interface MistTemplateInterface {
+export interface MistTemplateElement {
     name: string,
     ntp_servers: object,
     dns_servers: string[],
@@ -9,7 +9,7 @@ export interface MistTemplateInterface {
         }
     },
     port_usages: {
-        [key: string]: ProfileConfigurationInterface
+        [key: string]: ProfileConfigurationElement
     },
     radius_config: {
         acct_interim_interval: number,
@@ -23,7 +23,8 @@ export interface MistTemplateInterface {
     switch_mgmt: {
         tacacs: {
             enabled: boolean,
-            tacplus_servers: object[]
+            tacplus_servers: object[],
+            acct_servers: object[]
         }
     },
     additional_config_cmds: string[],
@@ -37,7 +38,7 @@ export interface MistTemplateInterface {
     }
 }
 
-export interface ProfileConfigurationInterface {
+export interface ProfileConfigurationElement {
     all_networks: boolean,
     disable_autoneg: boolean,
     disabled: boolean,
@@ -47,6 +48,7 @@ export interface ProfileConfigurationInterface {
     enable_qos: boolean,
     mac_auth_only: boolean,
     mac_limit: number | undefined,
+    guest_network: string | undefined,
     mode: string | undefined,
     mtu: string | undefined,
     poe_disabled: boolean,
@@ -56,13 +58,14 @@ export interface ProfileConfigurationInterface {
     rejected_network: string | undefined,
     port_network: string | undefined,
     voip_network: string | undefined,
-    persist_mac: boolean
+    persist_mac: boolean,
+    bypass_auth_when_server_down: boolean,
 }
 
-export interface VlansInterface {
+export interface VlansElements {
     [key: string]: string[]
 }
 
-export interface TermsInterface {
+export interface TermsElements {
     [key: string]: number
 }

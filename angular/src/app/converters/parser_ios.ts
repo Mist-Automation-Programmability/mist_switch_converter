@@ -1,4 +1,4 @@
-import { ProfileConfigurationInterface } from "./mist_template"
+import { ProfileConfigurationElement } from "./mist_template"
 import { Logger } from "../services/logger";
 import { ConfigData, ConfigFile } from "./parser_main";
 
@@ -217,9 +217,13 @@ export class IosParser {
                     "secret": "to_be_replaced",
                     "timeout": 10
                 })
-                if (!this.config_data.tacacs.includes(tmp)) {
+                if (!this.config_data.tacacs_auth.includes(tmp)) {
                     this._ios_logger.info("TACACS+ servers: Adding " + tacacs_ip + ":" + tacacs_port);
-                    this.config_data.tacacs.push(tmp);
+                    this.config_data.tacacs_auth.push(tmp);
+                }
+                if (!this.config_data.tacacs_acct.includes(tmp)) {
+                    this._ios_logger.info("TACACS+ servers: Adding " + tacacs_ip + ":" + tacacs_port);
+                    this.config_data.tacacs_acct.push(tmp);
                 }
             }
         })
@@ -250,7 +254,7 @@ export class IosParser {
                         "secret": "to_be_replaced"
                     })
                     if (!this.config_data.radius_acct.includes(tmp)) {
-                        this._ios_logger.info("RADIUS Acct servers: Adding " + radius_ip + ":" + config[auth_port_index + 1]);
+                        this._ios_logger.info("RADIUS Acct servers: Adding " + radius_ip + ":" + config[auth_port_index + 1]);  
                         this.config_data.radius_acct.push(tmp);
                     }
                 }
@@ -286,7 +290,7 @@ export class IosParser {
         var stp_edge: boolean = true;
         var profile_name: string = "";
 
-        var profile_configuration: ProfileConfigurationInterface = {
+        var profile_configuration: ProfileConfigurationElement = {
             all_networks: false,
             disable_autoneg: false,
             disabled: false,
@@ -305,7 +309,9 @@ export class IosParser {
             stp_edge: false,
             voip_network: undefined,
             port_network: undefined,
-            persist_mac: false
+            persist_mac: false,
+            guest_network: undefined,
+            bypass_auth_when_server_down: false
         }
 
 
@@ -422,7 +428,7 @@ export class IosParser {
         profile_configuration.persist_mac = persist_mac;
 
         if (!interface_name) interface_name = "unknown interface";
-        this.add_profile(interface_name, profile_name, profile_configuration, interface_config);
+        this.add_profile(interface_name, profile_name, profile_configuration);
     }
 
     private add_vlan(vlan: string | undefined = undefined, vlans: string[] | undefined = undefined) {
@@ -452,7 +458,7 @@ export class IosParser {
         return undefined;
     }
 
-    private add_profile(interface_name: string, profile_name: string, profile_configuration: object, interface_config: string[]) {
+    private add_profile(interface_name: string, profile_name: string, profile_configuration: object) {
         var str_profile_configuration = JSON.stringify(profile_configuration);
         var index = this.config_data.port_profile_configs.indexOf(str_profile_configuration);
 
@@ -462,13 +468,15 @@ export class IosParser {
         }
 
         if (index < 0) {
-            //this.config_data.ios_config.push(interface_config.join("\r\n"));
             this.config_data.port_profile_configs.push(str_profile_configuration);
             this.config_data.port_descriptions.push([profile_name]);
+            this.config_data.interface_range_names.push([]);
+            this.config_data.interface_names.push([interface_name]);
             this._ios_logger.info("New interface profile added");
         } else {
             if (!this.config_data.port_descriptions[index].includes(profile_name)) {
                 this.config_data.port_descriptions[index].push(profile_name);
+                this.config_data.interface_names[index].push(interface_name);
             }
         }
     }
