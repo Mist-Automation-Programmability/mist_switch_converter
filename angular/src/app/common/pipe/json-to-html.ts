@@ -9,28 +9,32 @@ export class JsonToHtml implements PipeTransform {
     }
 
     private isArray(key: string, inc: number, data: any[], is_last: boolean, indent: number): string {
-        var html = "<div>" + this.isKey(key, inc, indent) + "[</div>"
-        data.forEach((value, idx) => {
-            var last = true;
-            if (idx < data.length - 1) last = false;
-            if (value == null) html += this.isNull(key, inc + 1, last, indent);
-            else if (typeof (value) == "string") html += this.isString("", inc + 1, value, last, indent);
-            else if (typeof (value) == "number") html += this.isNumber("", inc + 1, value, last, indent);
-            else if (typeof (value) == "boolean") html += this.isBoolean("", inc + 1, value, last, indent);
-            else if (Array.isArray(value)) html += this.isArray("", inc + 1, value, last, indent);
-            else html += this.isObject("", inc + 1, value, last, indent);
-        })
-        html += "<div>" + " ".repeat(inc * indent) + "]"
+        if (data.length == 0) var html = "<div>" + this.isKey(key, inc, indent) + "[ ]";
+        else {
+            var html = "<div>" + this.isKey(key, inc, indent) + "[</div>"
+            data.forEach((value, idx) => {
+                var last = true;
+                if (idx < data.length - 1) last = false;
+                if (value == null) html += this.isNull(key, inc + 1, last, indent);
+                else if (typeof (value) == "string") html += this.isString("", inc + 1, value, last, indent);
+                else if (typeof (value) == "number") html += this.isNumber("", inc + 1, value, last, indent);
+                else if (typeof (value) == "boolean") html += this.isBoolean("", inc + 1, value, last, indent);
+                else if (Array.isArray(value)) html += this.isArray("", inc + 1, value, last, indent);
+                else html += this.isObject("", inc + 1, value, last, indent);
+            })
+            html += "<div>" + " ".repeat(inc * indent) + "]"
+        }  
         if (!is_last) html += ","
         html += "</div>"
         return html;
     }
     private isObject(key: string, inc: number, data: Object, is_last: boolean, indent: number): string {
-        // if (data == {}) var html = this.isEmptyObj(key, inc, true, indent);
-        // else {
-            var html = "<div>" + this.isKey(key, inc, indent) + "{</div>"
-            const length = Object.keys(data).length;
+
+        const length = Object.keys(data).length;
+        if (length == 0) var html = "<div>" + this.isKey(key, inc, indent) + "{ }";
+        else {
             var i = 0;
+            var html = "<div>" + this.isKey(key, inc, indent) + "{</div>"
             for (const key in data) {
                 i += 1;
                 var last = true;
@@ -44,7 +48,7 @@ export class JsonToHtml implements PipeTransform {
                 else html += this.isObject(key, inc + 1, value, last, indent);
             }
             html += "<div>" + " ".repeat(inc * indent) + "}"
-       // }
+        }
         if (!is_last) html += ","
         html += "</div>"
         return html
@@ -81,7 +85,7 @@ export class JsonToHtml implements PipeTransform {
     //     return html
     // }
     private isNull(key: string, inc: number = 0, is_last: boolean, indent: number): string {
-        var html =  "<div>" + this.isKey(key, inc, indent) + "<span class='null'>null</span>";
+        var html = "<div>" + this.isKey(key, inc, indent) + "<span class='null'>null</span>";
         if (!is_last) html += ","
         html += "</div>"
         return html
