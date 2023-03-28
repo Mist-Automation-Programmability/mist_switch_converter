@@ -69,3 +69,16 @@ export interface VlansElements {
 export interface TermsElements {
     [key: string]: number
 }
+
+export interface SyslogElement {
+    ip:string,
+    protocol: string,
+    port:string
+}
+
+export interface TacacsElement {
+    host:string,
+    port:string,
+    secret:string,
+    timeout:number
+}

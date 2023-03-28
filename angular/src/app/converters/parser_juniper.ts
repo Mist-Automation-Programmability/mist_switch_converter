@@ -1,15 +1,26 @@
 import { ProfileConfigurationElement, VlansElements } from "./mist_template"
 import { Logger } from "../services/logger";
-import { ConfigData, ConfigFile } from "./parser_main";
+import { ConfigFile } from "./parser_main";
+import { ConfigData } from "./parser_config";
 
-interface InterfaceRangesElement {
+
+interface JunosInterfaceElements {
     [key: string]: {
-        ports: InterfaceRangePortElement[],
-        profile: ProfileConfigurationElement
+        desc: string,
+        profile: ProfileConfigurationElement,
+        blocks: string[]
     }
 }
 
-interface InterfaceRangePortElement {
+interface JunosInterfaceRangesElement {
+    [key: string]: {
+        ports: JunosInterfaceRangePortElement[],
+        profile: ProfileConfigurationElement,
+        blocks: string[]
+    }
+}
+
+interface JunosInterfaceRangePortElement {
     int_type: string,
     fpc_min: number,
     fpc_max: number,
@@ -19,19 +30,11 @@ interface InterfaceRangePortElement {
     port_max: number,
 }
 
-interface JunosProfileElement {
-    desc: string,
-    profile: ProfileConfigurationElement
-}
-
-interface JunosInterfaceElements {
-    [key: string]: JunosProfileElement
-}
-
-
 export class JuniperParser {
 
-    interface_ranges: InterfaceRangesElement = {};
+    interface_ranges: JunosInterfaceRangesElement = {};
+    filename: string = "";
+    hostname: string = "";
 
     constructor(
         private _juniper_logger: Logger,
@@ -54,18 +57,18 @@ export class JuniperParser {
                 };
             })
             if (has_vlan_list) {
-                this._juniper_logger.info("VLAN database extracted from " + config_file.name + ", processing it")
-                this.parse_vlans(vlan).then((res) => {
+                this._juniper_logger.info("VLAN database extracted from " + config_file.name + ", processing it", config_file.name)
+                this.parse_vlans(vlan, config_file.name).then((res) => {
                     resolve(res)
                 });
             } else {
-                this._juniper_logger.warning("No VLAN database found in the file");
+                this._juniper_logger.warning("No VLAN database found in the file", config_file.name);
                 resolve(false);
             }
         })
     }
-    
-    private parse_vlans(vlan_conf: string[]): Promise<boolean> {
+
+    private parse_vlans(vlan_conf: string[], filename:string): Promise<boolean> {
         return new Promise((resolve) => {
             var deteted_vlans: number = 0;
             var new_vlans: number = 0;
@@ -88,27 +91,29 @@ export class JuniperParser {
                         }
                     }
                 })
-                this._juniper_logger.info(deteted_vlans + " VLANs detected. " + new_vlans + " new VLAN(s) learned");
+                this._juniper_logger.info(deteted_vlans + " VLANs detected. " + new_vlans + " new VLAN(s) learned", filename);
                 resolve(true);
             } else {
-                this._juniper_logger.warning("No VLANs detected");
+                this._juniper_logger.warning("No VLANs detected", filename);
                 resolve(false);
             }
         })
     }
-    
+
     /*****************************************************************************
      * CONFIG
      ****************************************************************************/
     // CONFIG ENTRY
     process_config(config_file: ConfigFile): Promise<boolean> {
         return new Promise((resolve) => {
+            this.filename = config_file.name;
+            this.hostname = "";
             this.interface_ranges = {};
             var config: string[] = [];
             config_file.config.forEach((line: string) => {
                 if (line.startsWith("set")) config.push(line)
             })
-            this._juniper_logger.info("Configuration extracted from " + config_file.name + ", processing it")
+            this._juniper_logger.info("Configuration extracted from " + config_file.name + ", processing it", this.filename)
             this.parse_config(config).then((res) => resolve(res));
         })
     }
@@ -144,7 +149,8 @@ export class JuniperParser {
                 else if (line.startsWith("set system name-server ")) this.parse_dns(line);
                 else if (line.startsWith("set system domain-search ")) this.parse_domain(line);
                 else if (line.startsWith("set system ntp server ")) this.parse_ntp(line);
-                else if (line.startsWith("set system login message")) this.config_data.banner = line.replace("set system login message", "").trim().replace(/^"|"$/g, "").replace(/\\n/g, "\\\\n");
+                else if (line.startsWith("set system login message ")) this.config_data.banner = line.replace("set system login message ", "").trim().replace(/^"|"$/g, "").replace(/\\n/g, "\\\\n");
+                else if (line.startsWith("set system host-name ")) this.hostname = line.replace("set system host-name ", "").trim().replace(/^"|"$/g, "").replace(/\\n/g, "\\\\n");
             })
             this.parse_radius(radius_blocks);
             this.parse_tacacs_auth(tacacs_auth_blocks);
@@ -161,7 +167,7 @@ export class JuniperParser {
     /************************* DHCP SNOOPING *************************/
     private add_dhcp_snooping_vlan(vlan_id: string) {
         if (!this.config_data.dhcp_snooping_vlans.includes(vlan_id)) {
-            this._juniper_logger.info("DHCP Snooping: Adding VLAN " + vlan_id);
+            this._juniper_logger.info("DHCP Snooping: Adding VLAN " + vlan_id, this.filename);
             this.config_data.dhcp_snooping_vlans.push(vlan_id);
         }
     }
@@ -185,96 +191,46 @@ export class JuniperParser {
     }
 
     /************************* SYSLOG *************************/
-    private add_syslog(syslog_ip: string, syslog_proto: string, syslog_port: string): void {
-        var new_syslog: string = JSON.stringify({
-            "host": syslog_ip, "protocol": syslog_proto, "port": syslog_port, "contents": [
-                {
-                    "facility": "any",
-                    "severity": "any"
-                }
-            ]
-        })
-        if (!this.config_data.syslog.includes(new_syslog)) {
-            this._juniper_logger.info("SYSLOG servers: Adding " + syslog_ip + " " + syslog_proto + ":" + syslog_port);
-            this.config_data.syslog.push(new_syslog);
-        }
-    }
-
     private parse_syslog(syslog_lines: string[]): void {
         var syslog_ip: string = ""
         var syslog_port: string = "514"
         var syslog_proto: string = "udp"
         syslog_lines.forEach((line: string, index: number) => {
             var syslog_config: string[] = line.replace("set system syslog host", "").trim().split(" ");
-            if (syslog_ip && syslog_ip != syslog_config[0]) this.add_syslog(syslog_ip, syslog_proto, syslog_port);
+            if (syslog_ip && syslog_ip != syslog_config[0]) this.config_data.add_syslog(syslog_ip, syslog_proto, syslog_port);
             if (!syslog_ip || syslog_ip != syslog_config[0]) syslog_ip = syslog_config[0];
             if (syslog_config[1] == "port") syslog_port = syslog_config[2];
-            if (index == syslog_lines.length - 1) this.add_syslog(syslog_ip, syslog_proto, syslog_port);
+            if (index == syslog_lines.length - 1) this.config_data.add_syslog(syslog_ip, syslog_proto, syslog_port);
         })
     }
 
     /************************* DOMAIN/DNS/NTP *************************/
     private parse_domain(domain_line: string) {
         var new_domain: string = domain_line.replace("set system domain-search", "").trim().split(" ")[0];
-        if (!this.config_data.domain.includes(new_domain)) {
-            this._juniper_logger.info("DNS DOMAINs: Adding " + new_domain);
-            this.config_data.domain.push(new_domain);
-        }
+        this.config_data.add_domain(new_domain, this.filename);
     }
 
     private parse_dns(dns_line: string) {
         var new_dns: string = dns_line.replace("set system name-server", "").trim().split(" ")[0];
-        if (!this.config_data.dns.includes(new_dns)) {
-            this._juniper_logger.info("DNS servers: Adding " + new_dns);
-            this.config_data.dns.push(new_dns);
-        }
+        this.config_data.add_dns(new_dns, this.filename);
     }
 
     private parse_ntp(ntp_line: string) {
         var new_ntp: string = ntp_line.replace("set system ntp server", "").trim().split(" ")[0];
-        if (!this.config_data.ntp.includes(new_ntp)) {
-            this._juniper_logger.info("NTP servers: Adding " + new_ntp);
-            this.config_data.ntp.push(new_ntp);
-        }
+        this.config_data.add_ntp(new_ntp, this.filename);
     }
 
     /************************* TACACS *************************/
-    private add_tacacs_auth(tacacs_ip: string, tacacs_port: string) {
-        var tmp = JSON.stringify({
-            "host": tacacs_ip,
-            "port": tacacs_port,
-            "secret": "to_be_replaced",
-            "timeout": 10
-        })
-        if (!this.config_data.tacacs_auth.includes(tmp)) {
-            this._juniper_logger.info("TACACS+ Auth servers: Adding " + tacacs_ip + ":" + tacacs_port);
-            this.config_data.tacacs_auth.push(tmp);
-        }
-    }
-
     private async parse_tacacs_auth(tacas_lines: string[]) {
         var tacacs_ip: string = "";
         var tacacs_port: string = "";
         tacas_lines.forEach((line: string, index: number) => {
             var tacacs_config: string[] = line.replace("set system tacplus-server ", "").trim().split(" ");
-            if (tacacs_ip && tacacs_ip != tacacs_config[0]) this.add_tacacs_auth(tacacs_ip, tacacs_port);
+            if (tacacs_ip && tacacs_ip != tacacs_config[0]) this.config_data.add_tacacs_auth(tacacs_ip, tacacs_port, this.filename);
             if (!tacacs_ip || tacacs_ip != tacacs_config[0]) tacacs_ip = tacacs_config[0];
             if (tacacs_config[1] == "port") tacacs_port = tacacs_config[2];
-            if (index == tacas_lines.length - 1) this.add_tacacs_auth(tacacs_ip, tacacs_port);
+            if (index == tacas_lines.length - 1) this.config_data.add_tacacs_auth(tacacs_ip, tacacs_port, this.filename);
         })
-    }
-
-    private add_tacacs_acct(tacacs_ip: string, tacacs_port: string) {
-        var tmp = JSON.stringify({
-            "host": tacacs_ip,
-            "port": tacacs_port,
-            "secret": "to_be_replaced",
-            "timeout": 10
-        })
-        if (!this.config_data.tacacs_acct.includes(tmp)) {
-            this._juniper_logger.info("TACACS+ Acct servers: Adding " + tacacs_ip + ":" + tacacs_port);
-            this.config_data.tacacs_acct.push(tmp);
-        }
     }
 
     private parse_tacacs_acct(tacas_lines: string[]): void {
@@ -282,43 +238,18 @@ export class JuniperParser {
         var tacacs_port: string = "";
         tacas_lines.forEach((line: string, index: number) => {
             var tacacs_config: string[] = line.replace("set system accounting destination tacplus server ", "").trim().split(" ");
-            if (tacacs_ip && tacacs_ip != tacacs_config[0]) this.add_tacacs_acct(tacacs_ip, tacacs_port);
+            if (tacacs_ip && tacacs_ip != tacacs_config[0]) this.config_data.add_tacacs_acct(tacacs_ip, tacacs_port, this.filename);
             if (!tacacs_ip || tacacs_ip != tacacs_config[0]) tacacs_ip = tacacs_config[0];
             if (tacacs_config[1] == "port") tacacs_port = tacacs_config[2];
-            if (index == tacas_lines.length - 1) this.add_tacacs_acct(tacacs_ip, tacacs_port);
+            if (index == tacas_lines.length - 1) this.config_data.add_tacacs_acct(tacacs_ip, tacacs_port, this.filename);
         })
     }
 
     /************************* RADIUS *************************/
     private add_radius(radius_ip: string, radius_auth_port: string, radius_acct_port: string, radius_coa_port: string, radius_timeout: number) {
-        if (radius_auth_port) {
-            var tmp = JSON.stringify({
-                "host": radius_ip,
-                "port": radius_auth_port,
-                "secret": "to_be_replaced",
-                "timeout": radius_timeout
-            })
-            if (!this.config_data.radius_auth.includes(tmp)) {
-                this._juniper_logger.info("RADIUS Auth servers: Adding " + radius_ip + ":" + radius_auth_port);
-                this.config_data.radius_auth.push(tmp);
-            }
-        }
-        if (radius_acct_port) {
-            var tmp = JSON.stringify({
-                "host": radius_ip,
-                "port": radius_acct_port,
-                "secret": "to_be_replaced",
-                "timeout": radius_timeout
-            })
-            if (!this.config_data.radius_acct.includes(tmp)) {
-                this._juniper_logger.info("RADIUS Acct servers: Adding " + radius_ip + ":" + radius_acct_port);
-                this.config_data.radius_acct.push(tmp);
-            }
-            if (radius_coa_port) this.config_data.radius_coa = {
-                "coa_enabled": true,
-                "coa_port": radius_coa_port
-            }
-        }
+        if (radius_auth_port) this.config_data.add_radius_auth(radius_ip, radius_auth_port, radius_timeout, this.filename);
+        if (radius_acct_port) this.config_data.add_radius_acct(radius_ip, radius_acct_port, radius_timeout, this.filename);
+        if (radius_coa_port) this.config_data.add_radius_coa(radius_coa_port, this.filename);
     }
 
     private async parse_radius(radius_lines: string[]): Promise<void> {
@@ -358,13 +289,14 @@ export class JuniperParser {
     }
 
     /************************* INTERFACE RANGES *************************/
-    private add_interface_range(ir_name: string, ports: InterfaceRangePortElement): void {
+    private add_interface_range(ir_name: string, ports: JunosInterfaceRangePortElement): void {
         if (ir_name in this.interface_ranges) {
             this.interface_ranges[ir_name].ports.push(ports)
         } else {
             this.interface_ranges[ir_name] = {
                 ports: [ports],
-                profile: this.default_inteface()
+                profile: this.default_inteface(),
+                blocks: []
             }
         }
     }
@@ -372,9 +304,9 @@ export class JuniperParser {
     private get_interface_range(ir_name: string): ProfileConfigurationElement {
         return this.interface_ranges[ir_name].profile;
     }
-    
+
     private async parse_interface_ranges(interface_range_lines: string[]) {
-        const re_interface_member: RegExp = /^set interfaces interface-range (?<name>[^ ]+) member "?(?<type>[a-z]+)-\[?(?<fpc>[0-9-]+)\]?\/\[?(?<pic>[0-9-]+)\]?\/\[?(?<port>[0-9-]+)\]?"?$/;
+        const re_interface_member: RegExp = /^set interfaces interface-range (?<name>[^ ]+) member "?(?<type>[a-z]+)-\[?(?<fpc>[0-9-]+)\]?\/\[?(?<pic>[0-9-]+)\]?\/\[?(?<port>[0-9-]+)\]?"?/;
         const re_interface_member_range: RegExp = /^set interfaces interface-range (?<name>[^ ]+) member-range (?<type>[a-z]+)-(?<fpc_min>[0-9-]+)\/(?<pic_min>[0-9-]+)\/(?<port_min>[0-9-]+) to ([a-z]+)-(?<fpc_max>[0-9-]+)\/(?<pic_max>[0-9-]+)\/(?<port_max>[0-9-]+)/
         interface_range_lines.forEach((line: string) => {
             if (line.match(re_interface_member)) {
@@ -388,7 +320,7 @@ export class JuniperParser {
                     var [fpc_min, fpc_max] = this.parse_interface_ranges_num(ir_fpc);
                     var [pic_min, pic_max] = this.parse_interface_ranges_num(ir_pic);
                     var [port_min, port_max] = this.parse_interface_ranges_num(ir_port);
-                    var ports: InterfaceRangePortElement = {
+                    var ports: JunosInterfaceRangePortElement = {
                         fpc_min: fpc_min,
                         fpc_max: fpc_max,
                         pic_min: pic_min,
@@ -399,7 +331,7 @@ export class JuniperParser {
                     };
                     this.add_interface_range(ir_name, ports);
                 } else {
-                    this._juniper_logger.warning("Unable to parse " + line)
+                    this._juniper_logger.warning("Unable to parse " + line, this.filename)
                 }
             } else if (line.match(re_interface_member_range)) {
                 var ir_data = re_interface_member_range.exec(line.replace("\r", ""))
@@ -416,7 +348,7 @@ export class JuniperParser {
                     ir_pic_min >= 0 && ir_pic_max >= 0 &&
                     ir_port_min >= 0 && ir_port_max >= 0
                 ) {
-                    var ports: InterfaceRangePortElement = {
+                    var ports: JunosInterfaceRangePortElement = {
                         int_type: ir_type,
                         fpc_min: ir_fpc_min,
                         fpc_max: ir_fpc_max,
@@ -427,22 +359,23 @@ export class JuniperParser {
                     };
                     this.add_interface_range(ir_name, ports);
                 } else {
-                    this._juniper_logger.warning("Unable to parse " + line)
+                    this._juniper_logger.warning("Unable to parse " + line, this.filename)
                 }
             } else {
                 var data = line.replace("set interfaces interface-range ", "").trim();
                 var port = data.split(" ")[0].trim().split(".")[0];
                 var entry = this.get_interface_range(port);
-                this.parse_config_test(port, entry, data);
+                this.parse_config_profile(port, entry, data);
             }
         })
     }
 
-    private find_interface_ranges(interface_name: string): [string[], ProfileConfigurationElement] | [string[], undefined] {
+    private find_interface_ranges(interface_name: string): [string[], string[], ProfileConfigurationElement] | [string[], string[], undefined] {
         const re_interface_range: RegExp = /^(?<type>[a-z]+)-\[?(?<fpc>[0-9-]+)\]?\/\[?(?<pic>[0-9-]+)\]?\/\[?(?<port>[0-9-]+)\]?"?$/;
         const data = re_interface_range.exec(interface_name);
-        var assigned_ir_names: string[] = []
-        var assigned_ir_profiles: ProfileConfigurationElement[] = []
+        var assigned_ir_names: string[] = [];
+        var assigned_ir_blocks: string[] = [];
+        var assigned_ir_profiles: ProfileConfigurationElement[] = [];
         if (data) {
             for (var ir_name in this.interface_ranges) {
                 var ir_ports = this.interface_ranges[ir_name].ports;
@@ -455,20 +388,21 @@ export class JuniperParser {
                     )
                     if (ir && !assigned_ir_names.includes(ir_name)) {
                         assigned_ir_names.push(ir_name);
+                        assigned_ir_blocks = assigned_ir_blocks.concat(this.interface_ranges[ir_name].blocks);
                         assigned_ir_profiles.push(this.interface_ranges[ir_name].profile);
                     }
                 }
             }
-            if (assigned_ir_names.length == 1) return [assigned_ir_names, assigned_ir_profiles[0]];
+            if (assigned_ir_names.length == 1) return [assigned_ir_names, assigned_ir_blocks, assigned_ir_profiles[0]];
             if (assigned_ir_names.length > 1) {
                 var profile: ProfileConfigurationElement = this.default_inteface();
                 for (var i = 0; i < assigned_ir_profiles.length; i++) {
                     profile = this.merge_profiles(assigned_ir_profiles[i], profile);
                 }
-                return [assigned_ir_names, profile];
+                return [assigned_ir_names, assigned_ir_blocks, profile];
             }
         }
-        return [[], undefined]
+        return [[], [], undefined]
     }
 
     /************************* JUNIPER PARSER COMMON  *************************/
@@ -525,23 +459,29 @@ export class JuniperParser {
     }
 
     // Function to find or create entry for a specific port
-    private get_inteface_from_junos_interfaces(port: string, junos_interfaces: JunosInterfaceElements,): ProfileConfigurationElement {
-        var entry = junos_interfaces[port]?.profile;
-        if (!entry) {
-            if (port in this.interface_ranges) var entry = this.interface_ranges[port].profile;
+    private get_inteface_from_junos_interfaces(port: string, junos_interfaces: JunosInterfaceElements,): [ProfileConfigurationElement, string[]] {
+        var profile = junos_interfaces[port]?.profile;
+        var blocks = junos_interfaces[port]?.blocks;
+        if (!profile) {
+            if (port in this.interface_ranges) {
+                profile = this.interface_ranges[port].profile;
+                blocks = this.interface_ranges[port].blocks;
+            }
             else {
-                var tmp = { desc: "", profile: this.default_inteface() }
+                var tmp = { desc: "", profile: this.default_inteface(), blocks: [] }
                 junos_interfaces[port] = tmp;
-                var entry = tmp.profile;
+                profile = tmp.profile;
+                blocks = tmp.blocks;
             }
         }
-        return entry;
+        return [profile, blocks];
     }
 
+    /************************* INTERFACE *************************/
     private parse_description(desc_line: string, port: string, junos_interfaces: JunosInterfaceElements): void {
         if (port in junos_interfaces) var entry = junos_interfaces[port];
         else {
-            var entry = { desc: "", profile: this.default_inteface() }
+            entry = { desc: "", profile: this.default_inteface(), blocks: [] }
             junos_interfaces[port] = entry;
         }
         entry.desc = desc_line.replace(port + " description", "").replace(/\"/g, "").trim();;
@@ -551,13 +491,16 @@ export class JuniperParser {
         dot1x_lines.forEach((line: string) => {
             var data = line.replace("set protocols dot1x authenticator interface ", " ").trim();
             var port = data.split(" ")[0].trim();
-            var entry = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+            var profile
+            var blocks
+            [profile, blocks] = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+            blocks.push(line);
 
-            entry.port_auth = "dot1x";
-            if (data.trim().startsWith(port + " mac-radius authentication-protocol ")) entry.enable_mac_auth = true;
-            else if (data.trim().startsWith(port + " mac-radius restrict")) entry.mac_auth_only = true;
-            else if (data.trim().startsWith(port + " guest-vlan ")) entry.guest_network = data.replace(port + " guest-vlan ", "").trim();
-            else if (data.trim().startsWith(port + " server-fail use-cache")) entry.bypass_auth_when_server_down = true;
+            profile.port_auth = "dot1x";
+            if (data.trim().startsWith(port + " mac-radius authentication-protocol ")) profile.enable_mac_auth = true;
+            else if (data.trim().startsWith(port + " mac-radius restrict")) profile.mac_auth_only = true;
+            else if (data.trim().startsWith(port + " guest-vlan ")) profile.guest_network = data.replace(port + " guest-vlan ", "").trim();
+            else if (data.trim().startsWith(port + " server-fail use-cache")) profile.bypass_auth_when_server_down = true;
         })
     }
 
@@ -565,8 +508,11 @@ export class JuniperParser {
         qos_lines.forEach((line: string) => {
             var data = line.replace("set class-of-service interfaces ", " ").trim();
             var port = data.split(" ")[0].trim();
-            var entry = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
-            entry.enable_qos = true;
+            var profile
+            var blocks
+            [profile, blocks] = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+            blocks.push(line);
+            profile.enable_qos = true;
         })
     }
 
@@ -576,8 +522,11 @@ export class JuniperParser {
             var port = data.split(" ")[0].trim();
             var config = data.split(" ")[1];
             if (config && config.trim() == "disable") {
-                var entry = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
-                entry.poe_disabled = true;
+                var profile
+                var blocks
+                [profile, blocks] = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+                blocks.push(line);
+                profile.poe_disabled = true;
             }
         })
     }
@@ -588,8 +537,11 @@ export class JuniperParser {
             var port = data.split(" ")[0].trim();
             var config = data.split(" ")[1];
             if (config && config.trim() == "edge") {
-                var entry = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
-                entry.stp_edge = true;
+                var profile
+                var blocks
+                [profile, blocks] = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+                blocks.push(line);
+                profile.stp_edge = true;
             }
         })
     }
@@ -607,17 +559,20 @@ export class JuniperParser {
             if (data) {
                 var port = data.split(" ")[0].trim();
                 var config = data.split(" ")[1].trim();
-                var entry = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+                var profile
+                var blocks
+                [profile, blocks] = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+                blocks.push(line);
                 if (config == "interface-mac-limit") {
                     var mac_limit: number = Number(data.replace(port + " interface-mac-limit ", "").trim());
-                    if (mac_limit) entry.mac_limit = mac_limit;
+                    if (mac_limit) profile.mac_limit = mac_limit;
                 }
-                else if (config_type == "voip" && config == "vlan") entry.voip_network = data.replace(port + " vlan ", "").trim();
+                else if (config_type == "voip" && config == "vlan") profile.voip_network = data.replace(port + " vlan ", "").trim();
             }
         })
     }
 
-    private parse_config_test(name: string, entry: ProfileConfigurationElement, data: string) {
+    private parse_config_profile(name: string, entry: ProfileConfigurationElement, data: string) {
         if (data.trim().startsWith(name + " disabled ")) entry.disabled = true;
         else if (data.trim().startsWith(name + " mtu ")) entry.mtu = data.replace(name + " mtu ", "").trim();
         else if (data.trim().startsWith(name + " speed ")) {
@@ -625,10 +580,29 @@ export class JuniperParser {
         }
         else if (data.trim().startsWith(name + " link-mode ")) entry.duplex = data.replace(name + " link-mode ", "").split("-")[0].trim();
         else if (data.trim().startsWith(name + " ether-options no-auto-negotiation")) entry.disable_autoneg = true;
-        else if (data.trim().startsWith(name + " native-vlan-id ")) entry.port_network = this.get_vlan(data.replace(name + " native-vlan-id ", "").trim());
+        else if (data.trim().startsWith(name + " native-vlan-id ")) entry.port_network = this.config_data.get_vlan(data.replace(name + " native-vlan-id ", "").trim(), this.filename);
         else if (data.trim().includes(" family ethernet-switching vlan members ")) {
             var vlan = data.split("members")[1].trim();
             if (vlan == "all") entry.all_networks = true;
+            else if (vlan.includes("-")) {
+                const vlan_start: number = Number(vlan.split("-")[0]);
+                const vlan_end: number = Number(vlan.split("-")[1]);
+                if (vlan_start > 0 && vlan_end > 0) {
+                    if (vlan_end - vlan_start > 100) {
+                        for (var vlan_id in this.config_data.vlans) {
+                            if (Number(vlan_id) >= vlan_start && Number(vlan_id) <= vlan_end) {
+                                entry.networks!.push(vlan_id);
+                            }
+                        }
+                    } else {
+                        for (var vlan_curr = vlan_start; vlan_curr <= vlan_end; vlan_curr++) {
+                            var new_vlan = this.config_data.get_vlan(vlan_curr.toString(), this.filename);
+                            if (typeof new_vlan == "string") entry.networks!.push(new_vlan);
+                            //else this._juniper_logger.error("Missing VLAN " + new_vlan, this.filename);
+                        }
+                    }
+                } else this._juniper_logger.error("Unable to parse VLANs in " + data, this.filename);
+            }
             else entry.networks!.push(vlan);
         }
         else if (data.trim().includes(" family ethernet-switching interface-mode trunk")) entry.mode = "trunk";
@@ -646,9 +620,12 @@ export class JuniperParser {
             var port = data.split(" ")[0].trim().split(".")[0];
 
             if (!port.startsWith("irb") && !port.startsWith("me") && !port.startsWith("vme") && !port.startsWith("em") && !port.startsWith("lo")) {
-                var entry = this.get_inteface_from_junos_interfaces(port, junos_interfaces);
+                var profile
+                var blocks
+                [profile, blocks] = this.get_inteface_from_junos_interfaces(port, junos_interfaces);
+                blocks.push(line);
                 if (data.trim().startsWith(port + " description ")) this.parse_description(data, port, junos_interfaces);
-                else this.parse_config_test(port, entry, data);
+                else this.parse_config_profile(port, profile, data);
             }
         })
 
@@ -663,10 +640,10 @@ export class JuniperParser {
                 if (interface_data.all_networks) message += " ALL networks allowed";
                 else message += " \"switchport trunk allowed vlan\" " + interface_data.networks;
             }
-            this._juniper_logger.info(message);
+            this._juniper_logger.info(message, this.filename);
 
             if (interface_data.speed != "auto" && interface_data.duplex != "auto") {
-                this._juniper_logger.info("Interface " + interface_name + ": \"speed\" and/or \"duplex\". Disabling auto_neg");
+                this._juniper_logger.info("Interface " + interface_name + ": \"speed\" and/or \"duplex\". Disabling auto_neg", this.filename);
             }
 
 
@@ -674,7 +651,7 @@ export class JuniperParser {
                 message = "Interface " + interface_name + ": dot1x enabled";
                 if (interface_data.mac_auth_only) message += " with MAC Auth only";
                 else if (interface_data.enable_mac_auth) message += " with MAC Auth";
-                this._juniper_logger.info(message);
+                this._juniper_logger.info(message, this.filename);
             }
 
         }
@@ -682,57 +659,8 @@ export class JuniperParser {
         this.add_profile(junos_interfaces);
     }
 
-    private get_vlan(vlan_id: string) {
-        if (vlan_id) {
-            try {
-                if (this.config_data.vlans.hasOwnProperty(vlan_id)) return this.config_data.vlans[vlan_id][0];
-                else {
-                    this._juniper_logger.error("unable to find vlan name for vlan_id " + vlan_id);
-                    console.error(vlan_id);
-                    console.error(this.config_data.vlans);
-                }
-            } catch {
-                this._juniper_logger.error("error when trying to get vlan name for vlan_id " + vlan_id);
-                console.error(vlan_id);
-                console.error(this.config_data.vlans);
-            }
-        }
-        return undefined;
-    }
 
-
-
-    private save_interface(interface_name: string, interface_config: ProfileConfigurationElement, description: string | undefined, range_names: string[]) {
-        var str_profile_configuration = JSON.stringify(interface_config);
-        var index = this.config_data.port_profile_configs.indexOf(str_profile_configuration);
-        if (index < 0) {
-            this.config_data.port_profile_configs.push(str_profile_configuration);
-            if (description) this.config_data.port_descriptions.push([description]);
-            else this.config_data.port_descriptions.push([]);
-
-            this.config_data.interface_names.push([interface_name]);
-            this.config_data.interface_range_names.push(range_names);
-            this._juniper_logger.info("New interface profile added");
-        } else {
-            if (description && !this.config_data.port_descriptions[index].includes(description)) this.config_data.port_descriptions[index].push(description);
-            range_names.forEach((range_name: string) => {
-                if (!this.config_data.interface_range_names[index].includes(range_name)) this.config_data.interface_range_names[index].push(range_name);
-            })
-            this.config_data.interface_names[index].push(interface_name);
-        }
-    }
-
-    private check_vlan(vlan_string: string): string {
-        try {
-            var vlan_id: number = Number(vlan_string);
-            if (vlan_id > 0) var vlan_name = this.get_vlan(vlan_id.toString());
-            if (vlan_name) return vlan_name
-        } catch {
-            return vlan_string;
-        }
-        return vlan_string;
-    }
-
+    /************************* SAVE DATA *************************/
     private check_generated_profiles(profile: ProfileConfigurationElement): void {
         if (profile.mode == "access" && profile.networks && !profile.port_network) {
             profile.port_network = profile.networks[0];
@@ -751,20 +679,34 @@ export class JuniperParser {
         }
     }
 
+    private check_vlan(vlan_string: string): string {
+        try {
+            var vlan_id: number = Number(vlan_string);
+            if (vlan_id > 0) var vlan_name = this.config_data.get_vlan(vlan_id.toString(), this.filename);
+            if (vlan_name) return vlan_name
+        } catch {
+            return vlan_string;
+        }
+        return vlan_string;
+    }
 
     private add_profile(junos_interfaces: JunosInterfaceElements) {
         for (var interface_name in junos_interfaces) {
             var range_names: string[] = [];
+            var range_blocks: string[] = [];
             var range_profile: ProfileConfigurationElement | undefined;
-            [range_names, range_profile] = this.find_interface_ranges(interface_name);
+            [range_names, range_blocks, range_profile] = this.find_interface_ranges(interface_name);
 
             if (range_names && range_profile) {
                 var interface_config: ProfileConfigurationElement = this.merge_profiles(junos_interfaces[interface_name].profile, range_profile);
+                junos_interfaces[interface_name].blocks = junos_interfaces[interface_name].blocks.concat(range_blocks);
             }
             else {
                 var interface_config: ProfileConfigurationElement = junos_interfaces[interface_name].profile;
             }
-            this.save_interface(interface_name, interface_config, junos_interfaces[interface_name].desc, range_names)
+
+            var uuid = this.config_data.add_profile(interface_config, interface_name, junos_interfaces[interface_name].desc, range_names, this.filename);
+            this.config_data.add_interface(this.filename, this.hostname, interface_name, uuid, "Junos", junos_interfaces[interface_name].blocks);
         }
     }
 

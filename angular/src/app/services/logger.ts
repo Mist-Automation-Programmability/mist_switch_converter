@@ -3,6 +3,7 @@ import { Subject } from 'rxjs';
 
 export interface LogMessage {
     level: string,
+    file:string,
     message: string
 }
 
@@ -20,28 +21,29 @@ export class Logger {
     constructor() { }
 
     // Service message commands
-    debug(message: string) {
-        this.addEvent("debug", message);
+    debug(message: string, file:string="") {
+        this.addEvent("debug", message, file);
     }
-    info(message: string) {
+    info(message: string, file:string="") {
         //console.info(message);
-        this.addEvent("info", message);
+        this.addEvent("info", message, file);
     }
-    warning(message: string) {
+    warning(message: string, file:string="") {
         //console.warn(message);
-        this.addEvent("warning", message);
+        this.addEvent("warning", message, file);
     }
-    error(message: string) {
+    error(message: string, file:string="") {
         //console.error(message);
-        this.addEvent("error", message);
+        this.addEvent("error", message, file);
     }
-    critical(message: string) {
-        this.addEvent("critical", message);
+    critical(message: string, file:string="") {
+        this.addEvent("critical", message, file);
     }
 
-    private addEvent(level: string, message: string) {
+    private addEvent(level: string, message: string, file:string) {
         const new_event: LogMessage = {
             level: level,
+            file: file,
             message: message
         };
         this.logMessages.push(new_event);
