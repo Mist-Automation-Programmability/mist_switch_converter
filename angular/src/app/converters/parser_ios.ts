@@ -60,7 +60,7 @@ export class IosParser {
                         var vlan_id = splitted_line[0];
                         var vlan_name = splitted_line[1];
                         if (!this.vlan_ids_to_exclude.includes(vlan_id)) {
-                            vlan_name = vlan_name.toLowerCase().replace(/[ &:-]+/g, "_");
+                            vlan_name = vlan_name.toLowerCase().replace(/[ &:\*\"-]+/g, "_");
                             deteted_vlans += 1;
                             if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
                                 if (!this.config_data.vlans[vlan_id].includes(vlan_name)) this.config_data.vlans[vlan_id].push(vlan_name);
@@ -91,14 +91,14 @@ export class IosParser {
             this.hostname = "";
             var config: string[] = [];
             var end_keyword: boolean = false;
-            var current: string | undefined = undefined;
+            var current: string | undefined = "config";
             config_file.config.forEach((line: string) => {
                 if (current == "config") {
                     if (line == "end") end_keyword = true;
                     if (end_keyword && line.length == 0) current = undefined;
                     else config.push(line)
                 } else if (line.startsWith("Current configuration")) {
-                    current = "config";
+                    config = [];
                 }
             })
             this._ios_logger.info("Configuration extracted from " + config_file.name + ", processing it", this.filename)
@@ -113,7 +113,7 @@ export class IosParser {
             config.forEach((line: string) => {
                 if (config_type == "banner" && !line.startsWith("^C")) {
                     config_block.push(line);
-                } else if (config_type && line.startsWith(" ")) {
+                } else if (config_type && !line.startsWith("!")) {
                     config_block.push(line);
                 } else if (config_type) {
                     switch (config_type) {
@@ -343,6 +343,17 @@ export class IosParser {
                 this._ios_logger.info("Interface " + interface_name + ": \"switchport mode access\" and \"switchport access vlan " + vlan_access + "\"", this.filename);
             }
             else {
+                var corrected_vlan_trunk_allowed:string[] = [];
+                vlan_trunk_allowed.forEach((vlan_id:string)=>{
+                    if (vlan_id.includes("-")) {
+                        const start:number = Number(vlan_id.split("-")[0]);
+                        const end:number = Number(vlan_id.split("-")[1]);
+                        for (var vlan:number = start; vlan <= end; vlan++){
+                            corrected_vlan_trunk_allowed.push(vlan.toString())
+                        }
+                    } else corrected_vlan_trunk_allowed.push(vlan_id);
+                })
+                vlan_trunk_allowed = corrected_vlan_trunk_allowed;
                 this.config_data.add_vlan(vlan_trunk_native, vlan_trunk_allowed);
                 var all_networks = false;
                 var port_network = this.config_data.get_vlan(vlan_trunk_native, this.filename);
