@@ -84,13 +84,9 @@ export class ConfigData {
 
     /************************* VLANS *************************/
     add_vlan(vlan: string | undefined = undefined, vlans: string[] | undefined = undefined) {
-        if (vlan && !this.vlans.hasOwnProperty(vlan)) {
-            this.vlans[vlan] = [this.vlan_prefix + vlan];
-        }
+        if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = [this.vlan_prefix + vlan];
         if (vlans) vlans.forEach(vlan => {
-            if (vlan && !this.vlans.hasOwnProperty(vlan)) {
-                this.vlans[vlan] = [this.vlan_prefix + vlan];
-            }
+            if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = [this.vlan_prefix + vlan];
         })
     }
 
@@ -279,7 +275,7 @@ export class ConfigData {
                 var description_terms: string[] = [];
                 profile.descriptions.forEach(description => {
                     description.split(/ |_|-/).forEach(desc_term => {
-                        var term = desc_term.toLowerCase().trim().replace("(", "").replace(")", "");
+                        var term = desc_term.toLowerCase().replace(/[ &:\*\"\(\)-]/g, "").trim();
                         if (!["null", "-", ""].includes(term)) {
                             if (!terms.hasOwnProperty(term)) {
                                 terms[term] = 1;
@@ -301,7 +297,7 @@ export class ConfigData {
             if (this.generated_profile_names_used.includes(profile_name)) {
                 profile_name = profile_name + "_" + profile.uuid.split("-")[0];
             }
-            const pname = profile_name.toLowerCase().replace(/[ &:-]+/g, "_").substring(0, 31);
+            const pname = profile_name.toLowerCase().replace(/^\W+/, "").replace(/\W+$/, "").trim().replace(/[ &:\*\"-]+/g, "_").substring(0, 31);
             this._config_logger.info("Profile name \"" + pname + "\" assigned to profile " + profile.uuid);
             profile.generated_name = pname;
             this.generated_profile_names_used.push(pname);
@@ -311,7 +307,7 @@ export class ConfigData {
 
     async generate_template() {
         for (var vlan_id in this.vlans) {
-            if (this.vlans[vlan_id].length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple names. Using the first one: \""+this.vlans[vlan_id][0]+"\"")
+            if (this.vlans[vlan_id].length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple names. Using the first one: \"" + this.vlans[vlan_id][0] + "\"")
             this.mist_template.networks[this.vlans[vlan_id][0]] = { "vlan_id": vlan_id };
         }
         this.profiles.forEach((profile: ParsedProfileData) => {
