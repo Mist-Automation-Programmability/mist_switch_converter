@@ -68,6 +68,7 @@
     <!-- RESULT -->
     <div class="result" *ngIf="config_parser.process_done">
         <mat-divider></mat-divider>
+
         <div class="header">
             <div class="warning">
                 <div>
@@ -87,7 +88,15 @@
                 <button mat-raised-button color="primary" (click)="openDetails()">View Details</button>
             </div>
         </div>
-        <div class="template">
+        <div class="file-warning" *ngIf="show_file_warning">
+            <div>
+                The format of some of your files are not optimized for automated processing
+            </div>
+            <div>
+                <button mat-stroked-button (click)="openInfo()">Please check the recommanded file formart</button>
+            </div>
+        </div>
+        <div class="template" [class.show_file_warning]="show_file_warning">
             <pre><code class="raw" [innerHtml]="mist_config_html"></code></pre>
         </div>
     </div>

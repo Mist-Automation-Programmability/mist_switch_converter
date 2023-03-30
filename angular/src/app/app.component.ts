@@ -32,6 +32,7 @@ export class AppComponent implements OnInit {
   json_to_html = new JsonToHtml();
 
   log_messages: LogMessage[] = [];
+  show_file_warning:boolean=false;
 
   constructor(
     public _dialog: MatDialog,
@@ -181,7 +182,10 @@ export class AppComponent implements OnInit {
           this.config_parser.generate();
           this.log_messages = this._logger.getall().filter(e => e.level != "debug");
           this.display();
-          console.log(this.config_parser)
+          this.config_files.forEach((file:ConfigFile)=>{
+            console.log(file)
+            if (!file.success_config || !file.success_vlan) this.show_file_warning = true;
+          })
         });
       });
     });
@@ -267,7 +271,10 @@ export class AppComponent implements OnInit {
    * INFOS AND LOGS
    *******************************************************/
   openInfo(): void {
-    this._dialog.open(InfoDialog, {});
+    this._dialog.open(InfoDialog, {
+      height: '45em',
+      width: '80em'
+    });
   }
 
   openDetails(): void {
@@ -362,7 +369,7 @@ export class DetailsDialog {
     this.details_interface_data = "";
     this.details_interface_template = "";
     const interface_data = this.data.config_data.interfaces.filter(i => i.hostname == this.details_selected_switch && i.interface_name == this.details_selected_interface)[0];
-    this.details_interface_data = interface_data.config_blocks.join("");
+    this.details_interface_data = interface_data.config_blocks.join("\r").replace(/\r\r/g, "\r");
     const template_data = this.data.config_data.profiles.filter(p => p.uuid == interface_data.profile_id)[0]
     this.details_interface_template_name = template_data.generated_name;
     this.details_interface_template = this.json_to_html.transform(template_data.config);

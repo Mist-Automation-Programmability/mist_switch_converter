@@ -246,10 +246,13 @@
             width: 100%;
             margin: auto;
             height: calc(100vh - 3em - 360px);
-            transition: height .5s ease-in-out;
+            pre {
+                height: 100%;
+                overflow: auto;
+            }
         }
-        .template.show_logs {
-            height: calc(100vh - 3em - 360px - 20vh);
+        .template.show_file_warning {
+            height: calc(100vh - 3em - 360px - 60px);
         }
     }
 }
@@ -262,9 +265,11 @@ pre {
     border-radius: 5px;
     padding: 10px 20px;
     color: darkslateblue;
-    overflow: auto;
-    height: 100%;
     code {
+        font-size: small;
+        line-height: 1.5em;
+    }
+    samp {
         font-size: small;
         line-height: 1.5em;
     }
@@ -370,6 +375,73 @@ mat-divider {
         }
         .critical {
             color: purple;
+        }
+    }
+}
+
+.file-warning {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    align-items: center;
+    border-radius: 5px;
+    font-size: small;
+    background: #c33d35;
+    padding: 0.5em 0;
+    color: white;
+    margin-top: 1.5em;
+    justify-content: center;
+    button {
+        font-size: small;
+        height: 2em;
+        color: white;
+        border: 1px solid white;
+        margin: 0 1em;
+    }
+}
+
+.general-container {
+    height: 38em;
+    .general-grid {
+        margin-top: 1em;
+        display: grid;
+        grid-template-columns: 45% 45%;
+        grid-gap: 5%;
+        .general-converted {
+            display: flex;
+            flex-direction: column;
+            .title {
+                border-radius: 5px 5px 0 0;
+                background-color: #0096a4;
+                color: white;
+                font-size: initial;
+                padding: .3em 1em;
+                border: 1px solid lightgray;
+                border-bottom: 0;
+            }
+            .text {
+                border-radius: 0 0 5px 5px;
+                padding: 2em;
+                padding: .1em 2em;
+                border: 1px solid lightgray;
+                border-top: 0;
+            }
+        }
+        .a {
+            grid-column: 1;
+            grid-row: 1;
+        }
+        .b {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        .c {
+            grid-column: 1;
+            grid-row: 3;
+        }
+        .d {
+            grid-column: 2;
+            grid-row: 1/4;
         }
     }
 }

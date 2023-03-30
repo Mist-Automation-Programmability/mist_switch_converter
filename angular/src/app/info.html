@@ -1,29 +1,92 @@
 <div class="dialog">
     <!-- <h1 mat-dialog-title>Information</h1> -->
-    <div mat-dialog-content>
-        <div>
-            <div>The purpose of this site is to convert Cisco IOS configuration files to Juniper Mist Switch Templates.
+    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
+        <!-- LIST -->
+        <mat-tab label="General">
+            <div class="general-container">
+                <div>The purpose of this site is to convert Cisco IOS configuration files to Juniper Mist Switch Templates.
+                </div>
+                <div>Your configuration files are <b>not</b> sent to the server. All the processing is directly done inside your web browser.</div>
+                <mat-divider></mat-divider>
+                <div>Converted parameters:</div>
+                <div class="general-grid">
+                    <div class="general-converted a">
+                        <div class="title">Common parameters</div>
+                        <div class="text">
+                            <div>NTP Servers</div>
+                            <div>DNS Server</div>
+                            <div>DNS Domain</div>
+                            <div>SYSLOG Servers</div>
+                            <div>CLI Banner</div>
+                        </div>
+                    </div>
+                    <div class="general-converted b">
+                        <div class="title">Authentication</div>
+                        <div class="text">
+                            <div>RADIUS Authentication and Accounting Servers</div>
+                            <div>TACACS+ Servers</div>
+                        </div>
+                    </div>
+                    <div class="general-converted c">
+                        <div class="title">VLANs</div>
+                        <div class="text">
+                            <div>VLAN IDs</div>
+                            <div>VLAN Names (For Cisco, requires the VLAN Database)</div>
+                            <div>DHCP Snooping</div>
+                        </div>
+                    </div>
+                    <div class="general-converted d">
+                        <div class="title">Interfaces</div>
+                        <div class="text">
+                            <div>Mode (Access/Trunk)</div>
+                            <div>VLANs (access, native/untaggued, trunk allowed, voice VLAN)</div>
+                            <div>Speed/Duplex or Auto Negociation</div>
+                            <div>Authentication (dot1x, MAC Auth, MAC Auth only, rejected/guest VLAN)</div>
+                            <div>MAC Limit</div>
+                            <div>Persitant MAC</div>
+                            <div>MTU</div>
+                            <div>Auto QoS</div>
+                            <div>PoE (enabled/disabled)</div>
+                            <div>Admin Status (enabled/disabled)</div>
+                            <div>STP Edge</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div>Your configuration files are <b>not</b> sent to the server. All the processing is directly done inside your web browser.</div>
-            <br>
-            <div>Only the following components are converted:</div>
-            <ul>
-                <li>NTP Servers</li>
-                <li>DNS Server</li>
-                <li>DNS Domain</li>
-                <li>RADIUS Authentication and Accounting Servers</li>
-                <li>TACACS+ Servers</li>
-                <li>SYSLOG Servers</li>
-                <li>VLANs</li>
-                <li>DHCP Snooping</li>
-                <li>Part of the port profiles based on the Cisco switch ports configuration</li>
-                <li>CLI Banner</li>
-            </ul>
-        </div>
-        <br>
-        <div>
-            <div>To get a good result, each Cisco file must contain the configuration from a single switch with the result of the following commands (the result of the <samp>show vlan brief</samp> is optional but recommanded. It is possible to use the short
-                commands): </div>
+        </mat-tab>
+        <mat-tab label="Juniper">
+            <div class="text">
+                <div>To get a good result, each Junos file must contain the configuration from a single switch with the result of the <samp>show | display inheritance | display set</samp> command.</div>
+                <div>The Juniper interface-ragnes </div>
+                <div><b>TIPS:</b> you can use the <samp>set cli screen-length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
+            </div>
+            <pre>
+            <samp ngNonBindable>
+root@sw-juniper-01> set cli screen-length 0
+Screen length set to 0
+
+&#123;master:0&#125;
+root@sw-juniper-01> show configuration | display inheritance | display set
+set version 20.4R3-S6.3
+set system host-name sw-juniper-01
+[...]
+set interfaces interface-range default member "ge-0/1/[0-1]"
+set interfaces interface-range default member ge-168/5/2
+set interfaces interface-range reg member ge-0/0/7
+set interfaces interface-range reg member ge-168/5/0
+set interfaces interface-range reg member ge-0/0/6
+set interfaces interface-range iot member ge-168/5/1
+set interfaces interface-range ap member ge-168/5/3
+set interfaces interface-range ap member ge-0/0/8
+[...]
+            </samp></pre>
+        </mat-tab>
+
+        <mat-tab label="Cisco">
+            <div class="text">
+                <div>To get a good result, each Cisco file must contain the configuration from a single switch with the result of the <samp>show running-config</samp> and <samp>show vlan brief</samp> commands.</div>
+                <div><b>TIPS:</b> you can use the <samp>terminal length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
+            </div>
             <pre>
             <samp>
 cisco-sw#terminal length 0
@@ -43,17 +106,11 @@ Current configuration : 39742 bytes
 !
 version 17.3
 service timestamps debug datetime msec localtime
-service timestamps log datetime msec localtime
-service password-encryption
-service call-home
-no platform punt-keepalive disable-kernel-core
-!
-hostname cisco-sw
-...
+[...]
             </samp></pre>
-        </div>
-    </div>
-    <div mat-dialog-actions style="display: flex;justify-content: flex-end;">
-        <button mat-raised-button color="primary" mat-dialog-close>Close</button>
-    </div>
+        </mat-tab>
+    </mat-tab-group>
+</div>
+<div mat-dialog-actions style="display: flex;justify-content: flex-end;">
+    <button mat-raised-button color="primary" mat-dialog-close>Close</button>
 </div>
