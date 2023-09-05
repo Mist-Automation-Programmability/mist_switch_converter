@@ -156,6 +156,7 @@ export class ConfigData {
         var tmp = JSON.stringify({
             "host": tacacs_ip,
             "port": tacacs_port,
+            // deepcode ignore HardcodedNonCryptoSecret: not a real secret...
             "secret": "to_be_replaced",
             "timeout": 10
         })
@@ -168,6 +169,7 @@ export class ConfigData {
         var tmp = JSON.stringify({
             "host": tacacs_ip,
             "port": tacacs_port,
+            // deepcode ignore HardcodedNonCryptoSecret: not a real secret...
             "secret": "to_be_replaced",
             "timeout": 10
         })
@@ -182,6 +184,7 @@ export class ConfigData {
         var tmp = JSON.stringify({
             "port": radius_port,
             "host": radius_ip,
+            // deepcode ignore HardcodedNonCryptoSecret: not a real secret...
             "secret": "to_be_replaced",
             "timeout": radius_timeout
         })
@@ -195,6 +198,7 @@ export class ConfigData {
         var tmp = JSON.stringify({
             "port": radius_port,
             "host": radius_ip,
+            // deepcode ignore HardcodedNonCryptoSecret: not a real secret...
             "secret": "to_be_replaced",
             "timeout": radius_timeout
         })
@@ -263,6 +267,14 @@ export class ConfigData {
         })
     }
 
+    private generate_unique_name(profile_name:string, profile: ParsedProfileData) {
+        var i:number = 0;
+        while (this.generated_profile_names_used.includes(profile_name)) {
+            profile_name = profile_name.substring(0,27) + "_" + profile.uuid.replace(/-/g,"").substring(0+i,4+i);
+        }
+        return profile_name;
+    }
+
     async generate_profile_names() {
         this.profiles.forEach((profile: ParsedProfileData) => {
             var profile_name: string = "profile";
@@ -274,7 +286,10 @@ export class ConfigData {
                 var max_occurence: number = -1;
                 var description_terms: string[] = [];
                 profile.descriptions.forEach(description => {
-                    description.split(/ |_|-/).forEach(desc_term => {
+                    if (description.startsWith("report,managed")){
+                        console.log(description)
+                    }
+                    description.split(/ |_|-|,|:/g).forEach(desc_term => {
                         var term = desc_term.toLowerCase().replace(/[ &:\*\"\(\)-]/g, "").trim();
                         if (!["null", "-", ""].includes(term)) {
                             if (!terms.hasOwnProperty(term)) {
@@ -294,14 +309,12 @@ export class ConfigData {
                 profile_name = description_terms.join(" ").replace(/\s+/g, "_").substring(0, 31);
             }
 
-            if (this.generated_profile_names_used.includes(profile_name)) {
-                profile_name = profile_name + "_" + profile.uuid.split("-")[0];
-            }
-            const pname = profile_name.toLowerCase().replace(/^\W+/, "").replace(/\W+$/, "").trim().replace(/[ &:\*\"-]+/g, "_").substring(0, 31);
-            this._config_logger.info("Profile name \"" + pname + "\" assigned to profile " + profile.uuid);
-            profile.generated_name = pname;
-            this.generated_profile_names_used.push(pname);
-            this.update_interface_profile_name(profile.uuid, pname);
+            profile_name = profile_name.toLowerCase().replace(/^\W+/, "").replace(/\W+$/, "").trim().replace(/[ &:\*\"-]+/g, "_").substring(0, 31);
+            profile_name = this.generate_unique_name(profile_name, profile);
+            this._config_logger.info("Profile name \"" + profile_name + "\" assigned to profile " + profile.uuid);
+            profile.generated_name = profile_name;
+            this.generated_profile_names_used.push(profile_name);
+            this.update_interface_profile_name(profile.uuid, profile_name);
         })
     }
 
@@ -330,7 +343,7 @@ export class ConfigData {
         }
         if (this.banner.length > 0) {
             var banner_already_configured: boolean = false;
-            for (let line of this.mist_template.additional_config_cmds) {
+            for (let line of this.banner ! ) {
                 if (line.startsWith("set groups banner system login message")) {
                     banner_already_configured = true;
                     break;

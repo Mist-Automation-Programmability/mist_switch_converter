@@ -3,9 +3,11 @@
     flex-direction: row;
     justify-content: space-between;
     height: 3em;
+
     img {
         height: 3em;
     }
+
     .logo {
         display: flex;
         flex-direction: row;
@@ -13,6 +15,7 @@
         font-weight: 100;
         color: gray;
     }
+
     .help {
         display: flex;
         align-items: center;
@@ -20,11 +23,13 @@
         margin: 1em;
         height: 2em;
         transition: background-color .1s ease-in-out;
+
         .read {
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 0 0 0 1em;
+
             img {
                 cursor: pointer;
                 padding: 0 1em;
@@ -35,6 +40,7 @@
             }
         }
     }
+
     .help:hover {
         background-color: #0000003b;
     }
@@ -47,6 +53,7 @@
     min-height: 800px;
     max-height: calc(100vh - 42px);
     padding: 1em;
+
     .files {
         display: flex;
         flex-direction: row;
@@ -54,6 +61,7 @@
         height: 15em;
         user-select: none;
         cursor: default;
+
         .list {
             width: 45%;
             margin: auto;
@@ -63,6 +71,7 @@
             background: white;
             border: 1px solid lightgray;
             border-radius: 10px;
+
             h2 {
                 padding: 0 1em;
                 border-bottom: 1px solid lightgray;
@@ -72,6 +81,7 @@
                 flex-direction: row;
                 justify-content: space-between;
                 align-items: center;
+
                 div {
                     height: 1.5em;
                     display: flex;
@@ -81,25 +91,31 @@
                     color: gray;
                     transition: color .2s ease-in-out;
                 }
+
                 div.enabled {
                     cursor: pointer;
                     color: black;
                 }
+
                 div.enabled:hover {
                     color: #e80000;
                 }
             }
+
             mat-selection-list {
                 height: 200px;
                 overflow-y: scroll;
             }
+
             mat-list-option {
                 padding: 0 0 0 1em;
                 height: 2em;
+
                 .file-container {
                     display: flex;
                     flex-direction: row;
                     align-items: center;
+
                     .fileformat {
                         border-radius: 15px;
                         padding: 0px 4px;
@@ -111,39 +127,48 @@
                         height: 1.5em;
                         align-items: center;
                     }
+
                     .fileformat.cisco {
                         color: #00bceb;
                         border-color: #00bceb;
                         background-color: #00bceb3b;
                     }
+
                     .fileformat.juniper {
                         color: green;
                         border-color: green;
                         background-color: #00800040;
                     }
+
                     .fileformat.unknown {
                         color: red;
                         border-color: red;
                         background-color: #ff000029;
                     }
+
                     .filename {
                         margin: 0 1em;
                     }
+
                     img {
                         height: 1.5em;
                     }
+
                     img.success {
                         filter: invert(29%) sepia(47%) saturate(3279%) hue-rotate(160deg) brightness(94%) contrast(99%);
                     }
+
                     img.warning {
                         filter: invert(53%) sepia(32%) saturate(7476%) hue-rotate(1deg) brightness(96%) contrast(90%);
                     }
+
                     img.error {
                         filter: invert(10%) sepia(90%) saturate(5160%) hue-rotate(332deg) brightness(98%) contrast(105%);
                     }
                 }
             }
         }
+
         .drops {
             background: white;
             margin: auto;
@@ -160,6 +185,7 @@
             border-radius: 20px;
             transition: opacity 0.1s ease-in-out;
             transition: background-color 0.1s ease-in-out;
+
             input {
                 opacity: 0;
                 position: absolute;
@@ -170,6 +196,7 @@
                 left: 0;
                 cursor: pointer;
             }
+
             label {
                 color: wheat;
                 width: 180px;
@@ -178,10 +205,12 @@
                 background-color: lightgray;
                 padding: 8px 16px;
             }
+
             h3 {
                 font-size: 15px;
                 font-weight: 400;
             }
+
             .click {
                 background-color: #0096a4;
                 color: white;
@@ -189,13 +218,16 @@
                 border-radius: 15em;
                 border: 1px solid lightgray;
             }
+
             .drop_icon {
                 color: black;
             }
         }
     }
+
     .info {
         margin: 5em;
+
         .disclaimer {
             width: 50em;
             text-align: center;
@@ -205,17 +237,20 @@
             font-size: smaller;
             margin: 5em auto;
         }
+
         .source {
             display: flex;
             flex-direction: row;
             align-items: center;
             justify-content: center;
         }
+
         .source img {
             margin: 1em;
             height: 2em;
         }
     }
+
     .result {
         .header {
             display: flex;
@@ -223,16 +258,19 @@
             justify-content: flex-start;
             align-items: center;
             height: 4em;
+
             .export {
                 display: flex;
                 align-items: center;
                 // width: 24em;
                 justify-content: space-between;
+
                 button {
                     margin: 1em;
                     width: 10em;
                 }
             }
+
             .warning {
                 font-size: smaller;
                 display: flex;
@@ -249,15 +287,18 @@
                 align-items: center;
             }
         }
+
         .template {
             width: 100%;
             margin: auto;
             height: calc(100vh - 3em - 360px);
+
             pre {
                 height: 100%;
                 overflow: auto;
             }
         }
+
         .template.show_file_warning {
             height: calc(100vh - 3em - 360px - 60px);
         }
@@ -272,10 +313,12 @@ pre {
     border-radius: 5px;
     padding: 10px 20px;
     color: darkslateblue;
+
     code {
         font-size: small;
         line-height: 1.5em;
     }
+
     samp {
         font-size: small;
         line-height: 1.5em;
@@ -289,6 +332,7 @@ mat-divider {
 .dialog {
     div {
         font-size: small;
+
         pre {
             font-size: small;
             line-height: 1.1;
@@ -299,50 +343,61 @@ mat-divider {
 .dialog.result {
     mat-form-field.search {
         width: 100%;
+
         button {
             margin: 0 3em;
         }
     }
+
     .table-container {
         max-height: calc(90vh - 165px);
         overflow: auto;
         margin-top: 3px;
     }
+
     .interface-details-container {
         display: flex;
         flex-direction: column;
+
         .interface-details-selector {
             display: flex;
             flex-direction: row;
         }
     }
+
     .interface-details-container {
         max-height: calc(90vh - 108px);
         height: calc(90vh - 108px);
         overflow: auto;
         margin-top: 3px;
+
         mat-form-field {
             margin: 1em;
             width: 15em;
         }
+
         .interface-details-data {
             display: flex;
             flex-direction: row;
             justify-content: space-around;
             align-items: stretch;
+
             .interface-details-source {
                 width: 60%;
             }
+
             .interface-details-template {
                 width: 30%;
             }
         }
     }
+
     .logs-container {
         max-height: calc(90vh - 108px);
         height: calc(90vh - 108px);
         overflow: auto;
         margin-top: 3px;
+
         .logs-button {
             position: absolute;
             width: 100%;
@@ -351,10 +406,12 @@ mat-divider {
             justify-content: flex-end;
             height: 4em;
             align-items: center;
+
             button {
                 margin-right: 3em;
             }
         }
+
         .messages {
             width: 100%;
             height: 0px;
@@ -362,24 +419,31 @@ mat-divider {
             background-color: white;
             transition: height .5s ease-in-out
         }
+
         .mdc-data-table__header-row {
             height: 4em;
         }
+
         .mdc-data-table__row {
             height: 1.2em;
+
             td {
                 font-size: small;
             }
         }
+
         .info {
             color: green;
         }
+
         .warning {
             color: orange;
         }
+
         .error {
             color: red;
         }
+
         .critical {
             color: purple;
         }
@@ -398,6 +462,7 @@ mat-divider {
     color: white;
     margin-top: 1.5em;
     justify-content: center;
+
     button {
         font-size: small;
         height: 2em;
@@ -409,14 +474,17 @@ mat-divider {
 
 .general-container {
     height: 38em;
+
     .general-grid {
         margin-top: 1em;
         display: grid;
         grid-template-columns: 45% 45%;
         grid-gap: 5%;
+
         .general-converted {
             display: flex;
             flex-direction: column;
+
             .title {
                 border-radius: 5px 5px 0 0;
                 background-color: #0096a4;
@@ -426,6 +494,7 @@ mat-divider {
                 border: 1px solid lightgray;
                 border-bottom: 0;
             }
+
             .text {
                 border-radius: 0 0 5px 5px;
                 padding: 2em;
@@ -434,18 +503,22 @@ mat-divider {
                 border-top: 0;
             }
         }
+
         .a {
             grid-column: 1;
             grid-row: 1;
         }
+
         .b {
             grid-column: 1;
             grid-row: 2;
         }
+
         .c {
             grid-column: 1;
             grid-row: 3;
         }
+
         .d {
             grid-column: 2;
             grid-row: 1/4;

@@ -111,7 +111,7 @@ export class IosParser {
             var config_block: string[] = [];
             var config_type: string | undefined = undefined;
             config.forEach((line: string) => {
-                if (config_type == "banner" && !line.startsWith("^C")) {
+                if (config_type == "banner" && (!/^\^C/.test(line))) {
                     config_block.push(line);
                 } else if (config_type && !line.startsWith("!")) {
                     config_block.push(line);
@@ -144,6 +144,7 @@ export class IosParser {
                 else if (line.startsWith("ip domain name ")) this.parse_domain(line);
                 else if (line.startsWith("ntp server ")) this.parse_ntp(line);
                 else if (line.startsWith("logging host ")) this.parse_syslog(line);
+                else if (line.startsWith("snmp-server ")) config_type = "snmp";
                 else if (line.startsWith("ip dhcp snooping ")) this.parse_dhcp_snooping(line);
                 else if (line.startsWith("banner motd ")) config_type = "banner";
                 else if (line.startsWith("hostname ")) this.hostname = line.replace("hostname ", "").trim();
