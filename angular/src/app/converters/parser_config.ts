@@ -270,7 +270,7 @@ export class ConfigData {
     private generate_unique_name(profile_name:string, profile: ParsedProfileData) {
         var i:number = 0;
         while (this.generated_profile_names_used.includes(profile_name)) {
-            profile_name = profile_name.substring(0,27) + "_" + profile.uuid.replace(/-/g,"").substring(0+i,4+i);
+            profile_name = profile_name.substring(0,27) + "-" + profile.uuid.replace(/-/g,"").substring(0+i,4+i);
         }
         return profile_name;
     }
@@ -286,10 +286,7 @@ export class ConfigData {
                 var max_occurence: number = -1;
                 var description_terms: string[] = [];
                 profile.descriptions.forEach(description => {
-                    if (description.startsWith("report,managed")){
-                        console.log(description)
-                    }
-                    description.split(/ |_|-|,|:/g).forEach(desc_term => {
+                    description.split(/ |_|-|:|,/).forEach(desc_term => {
                         var term = desc_term.toLowerCase().replace(/[ &:\*\"\(\)-]/g, "").trim();
                         if (!["null", "-", ""].includes(term)) {
                             if (!terms.hasOwnProperty(term)) {
@@ -297,6 +294,7 @@ export class ConfigData {
                             } else {
                                 terms[term] += 1;
                             }
+                            // note if the term is present for 
                             if (terms[term] > max_occurence) max_occurence = terms[term];
                         }
                     })
@@ -309,7 +307,7 @@ export class ConfigData {
                 profile_name = description_terms.join(" ").replace(/\s+/g, "_").substring(0, 31);
             }
 
-            profile_name = profile_name.toLowerCase().replace(/^\W+/, "").replace(/\W+$/, "").trim().replace(/[ &:\*\"-]+/g, "_").substring(0, 31);
+            profile_name = profile_name.toLowerCase().replace(/^\W+/, "").replace(/\W+$/, "").trim().replace(/[ &:\*\"\-,]+/g, "_").substring(0, 31);
             profile_name = this.generate_unique_name(profile_name, profile);
             this._config_logger.info("Profile name \"" + profile_name + "\" assigned to profile " + profile.uuid);
             profile.generated_name = profile_name;
