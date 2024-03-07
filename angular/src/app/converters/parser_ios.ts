@@ -41,7 +41,6 @@ export class IosParser {
                     }
 
                 } else if (current == "vlan_interface") {
-                    console.log(current_line)
                     if (current_line.startsWith("ip address ")) {
                         var new_vlan: boolean = this.parse_vlan_interface_subnet(interface_vlan_id, current_line, this.filename);
                         if (new_vlan) new_vlan_count += 1;
