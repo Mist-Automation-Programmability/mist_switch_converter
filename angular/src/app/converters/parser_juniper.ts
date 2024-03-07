@@ -1,4 +1,4 @@
-import { ProfileConfigurationElement, VlansElements } from "./mist_template"
+import { ProfileConfigurationElement, VlansElements, VlanMapping} from "./mist_template"
 import { Logger } from "../services/logger";
 import { ConfigFile } from "./parser_main";
 import { ConfigData } from "./parser_config";
@@ -10,6 +10,10 @@ interface JunosInterfaceElements {
         profile: ProfileConfigurationElement,
         blocks: string[]
     }
+}
+
+interface JunosDhcpSnoopingVlansElements {
+        [key: string]:  string[]
 }
 
 interface JunosInterfaceRangesElement {
@@ -49,8 +53,25 @@ export class JuniperParser {
     process_vlans(config_file: ConfigFile): Promise<boolean> {
         return new Promise((resolve) => {
             var vlan: string[] = [];
+            var vlan_subnet_mapping: VlanMapping = {};
             var has_vlan_list: boolean = false;
+            const re_interface_subnet_mapping: RegExp = /set interfaces (?<interface_name>[^ ]+) unit (?<unit_number>[^ ]+) family inet address (?<subnet>[^ ]+)/guis;
             config_file.config.forEach((line: string) => {
+                var test = line.match(re_interface_subnet_mapping);
+                if (test){
+                    var subnet;
+                    var interface_unit;
+                    var regex_result = re_interface_subnet_mapping.exec(line);
+                    interface_unit = regex_result?.groups?.["interface_name"] + "." + regex_result?.groups?.["unit_number"];
+                    if (regex_result?.groups?.["subnet"]) subnet = regex_result?.groups?.["subnet"];
+                    if (subnet && interface_unit){
+                        if (vlan_subnet_mapping.hasOwnProperty(interface_unit)) {
+                            this._juniper_logger.warning("Multiple subnets found for interface " + interface_unit, config_file.name);
+                        } else {
+                            vlan_subnet_mapping[interface_unit] = subnet;
+                        }
+                    }
+                }
                 if (line.startsWith("set vlans")) {
                     vlan.push(line);
                     has_vlan_list = true;
@@ -58,7 +79,7 @@ export class JuniperParser {
             })
             if (has_vlan_list) {
                 this._juniper_logger.info("VLAN database extracted from " + config_file.name + ", processing it", config_file.name)
-                this.parse_vlans(vlan, config_file.name).then((res) => {
+                this.parse_vlans(vlan, vlan_subnet_mapping, config_file.name).then((res) => {
                     resolve(res)
                 });
             } else {
@@ -68,30 +89,53 @@ export class JuniperParser {
         })
     }
 
-    private parse_vlans(vlan_conf: string[], filename:string): Promise<boolean> {
+    private parse_vlans(vlan_conf: string[], vlan_subnet_mapping:VlanMapping, filename:string): Promise<boolean> {
         return new Promise((resolve) => {
-            var deteted_vlans: number = 0;
+            var detected_vlans: number = 0;
             var new_vlans: number = 0;
+            var vlan_mapping: VlanMapping = {}
             const re_vlan: RegExp = /set vlans (?<vlan_name>[^ ]+) vlan-id (?<vlan_id>[0-9]+)/guis;
+            const re_vlan_interface_mapping: RegExp = /set vlans (?<vlan_name>[^ ]+) l3-interface (?<interface_unit>[^ ]+)/guis;
             if (vlan_conf.length > 0) {
                 vlan_conf.forEach((line: string) => {
-                    var test = line.match(re_vlan);
-                    if (test) {
+                    var test_vlan = line.match(re_vlan);
+                    var test_mapping = line.match(re_vlan_interface_mapping);
+                    if (test_vlan) {
                         var regex_result = re_vlan.exec(line);
                         if (regex_result?.groups?.["vlan_id"] && regex_result?.groups?.["vlan_name"]) {
                             var vlan_id = regex_result.groups?.["vlan_id"];
                             var vlan_name = regex_result.groups?.["vlan_name"].toLowerCase().replace(/[ &:-]+/g, "_");
-                            deteted_vlans += 1;
+                            vlan_mapping[vlan_name] = vlan_id;
+                            detected_vlans += 1;
                             if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
-                                if (!this.config_data.vlans[vlan_id].includes(vlan_name)) this.config_data.vlans[vlan_id].push(vlan_name);
+                                if (!this.config_data.vlans[vlan_id].names.includes(vlan_name)) this.config_data.vlans[vlan_id].names.push(vlan_name);
                             } else {
                                 new_vlans += 1;
-                                this.config_data.vlans[vlan_id] = [vlan_name];
+                                this.config_data.vlans[vlan_id] = {"names": [vlan_name], "subnets": []};
+                            }
+                        }
+                    } else if (test_mapping) {
+                        var regex_result = re_vlan_interface_mapping.exec(line);
+                        var subnet: string = "";
+                        var vlan_id: string= "";
+                        if (regex_result?.groups?.["vlan_name"] && regex_result?.groups?.["interface_unit"]) {
+                            var vlan_name = regex_result.groups?.["vlan_name"].toLowerCase().replace(/[ &:-]+/g, "_");
+                            var interface_unit = regex_result.groups?.["interface_unit"];
+                            if (vlan_mapping.hasOwnProperty(vlan_name)) vlan_id = vlan_mapping[vlan_name];
+                            if (vlan_subnet_mapping.hasOwnProperty(interface_unit)) subnet = vlan_subnet_mapping[interface_unit];
+                            if (vlan_id && subnet){
+                                subnet = this.config_data.calculate_cidr(subnet);
+                                if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
+                                    if (!this.config_data.vlans[vlan_id].subnets.includes(subnet)) this.config_data.vlans[vlan_id].subnets.push(subnet);
+                                } else {
+                                    new_vlans += 1;
+                                    this.config_data.vlans[vlan_id] = {"names": [], "subnets": [subnet]};
+                                }   
                             }
                         }
                     }
                 })
-                this._juniper_logger.info(deteted_vlans + " VLANs detected. " + new_vlans + " new VLAN(s) learned", filename);
+                this._juniper_logger.info(detected_vlans + " VLANs detected. " + new_vlans + " new VLAN(s) learned", filename);
                 resolve(true);
             } else {
                 this._juniper_logger.warning("No VLANs detected", filename);
@@ -175,7 +219,7 @@ export class JuniperParser {
     private parse_dhcp_snooping(dhcp_snooping_lines: string[]) {
         const regex_vlan_def = /^set vlans (?<vlan_name>[^ ]+) vlan-id (?<vlan_id>\d+)$/
         const regex_snooping = /^set vlans (?<vlan_name>[^ ]+) forwarding-options dhcp-security$/
-        var vlans: VlansElements = {}
+        var vlans: JunosDhcpSnoopingVlansElements = {}
         dhcp_snooping_lines.forEach((line: string) => {
             var vlan_def = regex_vlan_def.exec(line.replace(/\r/, ""));
             var snoop_def = regex_snooping.exec(line.replace(/\r/, ""));

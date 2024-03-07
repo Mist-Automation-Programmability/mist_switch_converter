@@ -39,6 +39,7 @@ export class ConfigData {
     dns: string[] = [];
     domain: string[] = [];
     vlans: VlansElements = {};
+    generated_vlan_names_used: string[] = [];
     banner = "";
     dhcp_snooping_vlans: string[] = [];
     generated_profile_names_used: string[] = [];
@@ -82,18 +83,35 @@ export class ConfigData {
         }
     };
 
+    /************************* SUBNET ************************/
+    private address_to_number(addr: string):number {
+    return addr.split(".").reduce((acc,cur,i)=> acc += (Number(cur) << ( (3-i) * 8) ) ,0)
+    }
+
+    private mask_to_number(mask:string): number{
+    return (0xffffffff << (32 - Number(mask))) & 0xffffffff;
+    }
+    private number_to_addr(num:number):string{
+        return `${(num >> 24) & 0xff}.${(num >> 16) & 0xff}.${(num >> 8) & 0xff}.${num & 0xff}`
+    }
+    calculate_cidr(cidr:string):string{
+        const [address,mask] = cidr.split("/");
+        const subnet_number = this.address_to_number(address) & this.mask_to_number(mask);
+        return this.number_to_addr(subnet_number) + "/" + mask;
+    }
+
     /************************* VLANS *************************/
     add_vlan(vlan: string | undefined = undefined, vlans: string[] | undefined = undefined) {
-        if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = [this.vlan_prefix + vlan];
+        if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = {"names": [this.vlan_prefix + vlan], "subnets": []};
         if (vlans) vlans.forEach(vlan => {
-            if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = [this.vlan_prefix + vlan];
+            if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = {"names": [this.vlan_prefix + vlan], "subnets": []};
         })
     }
 
     get_vlan(vlan_id: string | undefined, filename: string = "") {
         if (vlan_id != undefined) {
             try {
-                if (this.vlans.hasOwnProperty(vlan_id)) return this.vlans[vlan_id][0];
+                if (this.vlans.hasOwnProperty(vlan_id)) return this.vlans[vlan_id].names[0];
                 // else {
                 //     this._config_logger.error("unable to find vlan name for vlan_id " + vlan_id, filename);
                 //     console.error(this.vlans);
@@ -318,8 +336,20 @@ export class ConfigData {
 
     async generate_template() {
         for (var vlan_id in this.vlans) {
-            if (this.vlans[vlan_id].length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple names. Using the first one: \"" + this.vlans[vlan_id][0] + "\"")
-            this.mist_template.networks[this.vlans[vlan_id][0]] = { "vlan_id": vlan_id };
+            if (this.vlans[vlan_id].names.length == 0) {
+                var vlan_name = "vlan" + vlan_id;
+                this._config_logger.warning("VLAN " + vlan_id + " has doesn't have name. Generating one: \"" + vlan_name + "\"");
+                this.vlans[vlan_id].names.push(vlan_name);
+            } else if (this.vlans[vlan_id].names.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple names. Using the first one: \"" + this.vlans[vlan_id].names[0] + "\"")
+            
+            if (this.vlans[vlan_id].subnets.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple subnets. Using the first one: \"" + this.vlans[vlan_id].subnets[0] + "\"")
+            
+            if (this.vlans[vlan_id].subnets.length > 0) {
+                this.mist_template.networks[this.vlans[vlan_id].names[0]] = { "vlan_id": vlan_id, "subnet": this.vlans[vlan_id].subnets[0]};
+            } else {
+                this.mist_template.networks[this.vlans[vlan_id].names[0]] = { "vlan_id": vlan_id, "subnet": null};
+            }
+            
         }
         this.profiles.forEach((profile: ParsedProfileData) => {
             this.mist_template.port_usages[profile.generated_name] = profile.config;
@@ -355,7 +385,7 @@ export class ConfigData {
         if (this.dhcp_snooping_vlans.length > 0) {
             this.mist_template.dhcp_snooping.enabled = true;
             this.dhcp_snooping_vlans.forEach((vlan_id: string) => {
-                if (this.vlans.hasOwnProperty(vlan_id)) this.mist_template.dhcp_snooping.networks.push(this.vlans[vlan_id][0]);
+                if (this.vlans.hasOwnProperty(vlan_id)) this.mist_template.dhcp_snooping.networks.push(this.vlans[vlan_id].names[0]);
             })
         }
         if (this.syslog.length > 0) {

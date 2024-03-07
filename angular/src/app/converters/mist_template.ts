@@ -6,6 +6,7 @@ export interface MistTemplateElement {
     networks: {
         [key: string]: {
             vlan_id: string | number
+            subnet: string | null
         }
     },
     port_usages: {
@@ -63,7 +64,10 @@ export interface ProfileConfigurationElement {
 }
 
 export interface VlansElements {
-    [key: string]: string[]
+    [key: string]: {
+        names: string[],
+        subnets: string[]
+    }
 }
 
 export interface TermsElements {
@@ -81,4 +85,8 @@ export interface TacacsElement {
     port:string,
     secret:string,
     timeout:number
+}
+
+export interface VlanMapping {
+    [key: string]:  string
 }

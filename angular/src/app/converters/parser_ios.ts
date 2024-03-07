@@ -1,4 +1,4 @@
-import { ProfileConfigurationElement } from "./mist_template"
+import { ProfileConfigurationElement, VlanMapping } from "./mist_template"
 import { Logger } from "../services/logger";
 import { ConfigFile } from "./parser_main";
 import { ConfigData } from "./parser_config";
@@ -23,25 +23,51 @@ export class IosParser {
     // VLAN ENTRY
     process_vlans(config_file: ConfigFile): Promise<boolean> {
         return new Promise((resolve) => {
-            var vlan: string[] = [];
+            var new_vlan_count: number = 0;
+            var current_line: string = "";
+            var interface_vlan_id: string = "";
             var current: string | undefined = undefined;
-            var has_vlan_list: boolean = false;
             config_file.config.forEach((line: string) => {
+
+                current_line = line.replace(/^ +/g, "").replace("\r", "");
+
                 if (current == "vlan") {
-                    if (line.match(/^\d/)) vlan.push(line);
-                    else if (line.match(/^\w/)) {
+                    if (current_line.match(/^\d/)) {
+                        var new_vlan: boolean = this.parse_vlan(current_line, this.filename);
+                        if (new_vlan) new_vlan_count += 1;
+                    }
+                    else if (current_line.match(/^\w/)) {
                         current = undefined;
                     }
-                } else if (line.includes("VLAN Name")) {
+
+                } else if (current == "vlan_interface") {
+                    console.log(current_line)
+                    if (current_line.startsWith("ip address ")) {
+                        var new_vlan: boolean = this.parse_vlan_interface_subnet(interface_vlan_id, current_line, this.filename);
+                        if (new_vlan) new_vlan_count += 1;
+                    } else if (current_line.startsWith("description ")) {
+                        var new_vlan: boolean = this.parse_vlan_interface_description(interface_vlan_id, current_line, this.filename);
+                        if (new_vlan) new_vlan_count += 1;
+                    } else if (current_line.match(/^\W/)) {
+                        current = undefined;
+                        interface_vlan_id = "";
+                    }
+
+                } else if (current_line.includes("VLAN Name")) {
                     current = "vlan";
-                    has_vlan_list = true;
-                };
+                } else if (current_line.startsWith("interface Vlan")) {
+                    interface_vlan_id = current_line.replace("interface Vlan", "");
+                    if (!this.vlan_ids_to_exclude.includes(interface_vlan_id)) {
+                        current = "vlan_interface";
+                    } else {
+                        interface_vlan_id = "";
+                    }
+                }
+
             })
-            if (has_vlan_list) {
-                this._ios_logger.info("VLAN database extracted from " + config_file.name + ", processing it", config_file.name)
-                this.parse_vlans(vlan, config_file.name).then((res) => {
-                    resolve(res)
-                });
+            if (new_vlan_count > 0) {
+                this._ios_logger.info(new_vlan_count + " VLANs extracted from " + config_file.name, config_file.name);
+                resolve(true);
             } else {
                 this._ios_logger.warning("No VLAN database found in the file", config_file.name);
                 resolve(false);
@@ -49,35 +75,65 @@ export class IosParser {
         })
     }
 
-    private parse_vlans(vlan_conf: string[], filename: string): Promise<boolean> {
-        var deteted_vlans: number = 0;
-        var new_vlans: number = 0;
-        return new Promise((resolve) => {
-            if (vlan_conf.length > 0) {
-                vlan_conf.forEach((line: string) => {
-                    if (line.match(/^\d/)) {
-                        var splitted_line = line.split(/\s+/);
-                        var vlan_id = splitted_line[0];
-                        var vlan_name = splitted_line[1];
-                        if (!this.vlan_ids_to_exclude.includes(vlan_id)) {
-                            vlan_name = vlan_name.toLowerCase().replace(/[ &:\*\"-]+/g, "_");
-                            deteted_vlans += 1;
-                            if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
-                                if (!this.config_data.vlans[vlan_id].includes(vlan_name)) this.config_data.vlans[vlan_id].push(vlan_name);
-                            } else {
-                                new_vlans += 1;
-                                this.config_data.vlans[vlan_id] = [vlan_name];
-                            }
-                        }
-                    }
-                })
-                this._ios_logger.info(deteted_vlans + " VLANs detected. " + new_vlans + " new VLAN(s) learned", filename);
-                resolve(true);
+    private parse_vlan_interface_subnet(interface_vlan_id: string, interface_line: string, filename: string): boolean {
+        var subnet = interface_line.replace("ip address ", "");
+        subnet = this.config_data.calculate_cidr(subnet);
+        if (subnet && interface_vlan_id) {
+            if (this.config_data.vlans.hasOwnProperty(interface_vlan_id)) {
+                if (!this.config_data.vlans[interface_vlan_id].subnets.includes(subnet)) {
+                    this._ios_logger.info("Already knwon VLANs " + interface_vlan_id + " detected as a L3 VLAN with subnet " + subnet, filename);
+                    this.config_data.vlans[interface_vlan_id].subnets.push(subnet);
+                }
             } else {
-                this._ios_logger.warning("No VLANs detected", filename);
-                resolve(false);
+                this._ios_logger.info("New VLANs " + interface_vlan_id + " detected as a L3 VLAN with subnet " + subnet, filename);
+                this.config_data.vlans[interface_vlan_id] = { "names": [], "subnets": [subnet] };
+                return true;
             }
-        })
+        }
+        return false;
+    }
+    private parse_vlan_interface_description(interface_vlan_id: string, interface_line: string, filename: string): boolean {
+        var vlan_name = interface_line.replace("description ", "");
+        if (vlan_name && interface_vlan_id) {
+            this.add_vlan_name(vlan_name, interface_vlan_id, filename)
+        }
+        return false;
+    }
+
+    private parse_vlan(vlan_line: string, filename: string): boolean {
+        if (vlan_line.match(/^\d/)) {
+            var splitted_line = vlan_line.split(/\s+/);
+            var vlan_id = splitted_line[0];
+            var vlan_name = splitted_line[1];
+            if (!this.vlan_ids_to_exclude.includes(vlan_id)) {
+                this.add_vlan_name(vlan_name, vlan_id, filename)
+            }
+        }
+        return false;
+    }
+
+    private transform_vlan_name(vlan_name:string, vlan_id:string): string {
+        vlan_name = vlan_name.toLowerCase().replace(/[ &:\*\"-]+/g, "_").substring(0,32);
+        if (this.config_data.generated_vlan_names_used.includes(vlan_name)){
+            if (!this.config_data.vlans.hasOwnProperty(vlan_id) || !this.config_data.vlans[vlan_id].names.includes(vlan_name)) {
+                vlan_name = vlan_name.substring(0,25) + "-vl" + vlan_id;
+            }
+        }
+        return vlan_name;
+    }
+    private add_vlan_name(vlan_name: string, vlan_id:string, filename:string) {
+        vlan_name = this.transform_vlan_name(vlan_name, vlan_id);
+        if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
+            if (!this.config_data.vlans[vlan_id].names.includes(vlan_name)) {
+                this._ios_logger.info("Already knwon VLANs " + vlan_id + " name has been detected: " + vlan_name, filename);
+                this.config_data.vlans[vlan_id].names.push(vlan_name);
+                this.config_data.generated_vlan_names_used.push(vlan_name);
+            }
+        } else {
+            this._ios_logger.info("New VLANs " + vlan_id + " detected with name " + vlan_name, filename);
+            this.config_data.vlans[vlan_id] = { "names": [vlan_name], "subnets": [] };
+            this.config_data.generated_vlan_names_used.push(vlan_name);
+        }
     }
 
 
@@ -344,12 +400,12 @@ export class IosParser {
                 this._ios_logger.info("Interface " + interface_name + ": \"switchport mode access\" and \"switchport access vlan " + vlan_access + "\"", this.filename);
             }
             else {
-                var corrected_vlan_trunk_allowed:string[] = [];
-                vlan_trunk_allowed.forEach((vlan_id:string)=>{
+                var corrected_vlan_trunk_allowed: string[] = [];
+                vlan_trunk_allowed.forEach((vlan_id: string) => {
                     if (vlan_id.includes("-")) {
-                        const start:number = Number(vlan_id.split("-")[0]);
-                        const end:number = Number(vlan_id.split("-")[1]);
-                        for (var vlan:number = start; vlan <= end; vlan++){
+                        const start: number = Number(vlan_id.split("-")[0]);
+                        const end: number = Number(vlan_id.split("-")[1]);
+                        for (var vlan: number = start; vlan <= end; vlan++) {
                             corrected_vlan_trunk_allowed.push(vlan.toString())
                         }
                     } else corrected_vlan_trunk_allowed.push(vlan_id);
