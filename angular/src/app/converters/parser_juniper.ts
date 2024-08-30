@@ -628,7 +628,9 @@ export class JuniperParser {
         else if (data.trim().includes(" family ethernet-switching vlan members ")) {
             var vlan = data.split("members")[1].trim();
             if (vlan == "all") entry.all_networks = true;
-            else if (vlan.includes("-")) {
+            if (vlan.match(/^[0-9]+$/)) entry.networks!.push(vlan); // in case vlan id is used
+            // in case vlan range is defined with integer range 100-110, one-by-one vlan retrive the nam and add it to list entry.networks!.push(new_vlan)
+            if (vlan.match(/^[0-9-]+$/)) {
                 const vlan_start: number = Number(vlan.split("-")[0]);
                 const vlan_end: number = Number(vlan.split("-")[1]);
                 if (vlan_start > 0 && vlan_end > 0) {
@@ -647,7 +649,9 @@ export class JuniperParser {
                     }
                 } else this._juniper_logger.error("Unable to parse VLANs in " + data, this.filename);
             }
-            else entry.networks!.push(vlan);
+            else { // else vlan name is defined, we need replace "-" with "_" and lowercase to mathc MIST standard
+                if (typeof vlan == "string") entry.networks!.push(vlan.toLowerCase().replace(/[ &:-]+/g, "_"));
+            }
         }
         else if (data.trim().includes(" family ethernet-switching interface-mode trunk")) entry.mode = "trunk";
     }
