@@ -313,24 +313,38 @@ export class ConfigData {
         }
     }
 
+    cisco_split(i:string):string {
+        var j : string[]= i.split("/");
+        var fpc: number=0;
+        var pic: number=0;
+        var port: number=0;
+        if (j.length == 3){
+            fpc = Number(j[0])-1;
+            pic= Number(j[1]);
+            port = Number(j[2])-1;
+        } else if (j.length == 2) {
+            fpc = Number(j[0]);
+            port = Number(j[1])-1;
+        } else {
+            port = Number(j[0])-1;
+        }
+        return fpc + "/" + pic + "/" + port;
+    }
     inteface_name_converter(interface_name: string): string {
         var junos_interface_array: string[] = [];
         interface_name.split(",").forEach((iname: string) => {
             if (iname.startsWith("FastEthernet")) {
-                var fpc = iname.replace("FastEthernet", "").split("/")[0];
-                var pic = "0"
-                var port = Number(iname.replace("FastEthernet", "").split("/")[1]) - 1;
-                junos_interface_array.push('fe-' + fpc + "/" + pic + "/" + port);
+                junos_interface_array.push('fe-' + this.cisco_split(iname.replace("FastEthernet", "")));
             } else if (iname.startsWith("GigabitEthernet")) {
-                var fpc = iname.replace("GigabitEthernet", "").split("/")[0];
-                var pic = "0"
-                var port = Number(iname.replace("GigabitEthernet", "").split("/")[1]) - 1;
-                junos_interface_array.push('ge-' + fpc + "/" + pic + "/" + port);
+                junos_interface_array.push('ge-'  + this.cisco_split(iname.replace("GigabitEthernet", "")));
             } else if (iname.startsWith("TenGigabitEthernet")) {
-                var fpc = iname.replace("TenGigabitEthernet", "").split("/")[0];
-                var pic = "0"
-                var port = Number(iname.replace("TenGigabitEthernet", "").split("/")[1]) - 1;
-                junos_interface_array.push('mge-' + fpc + "/" + pic + "/" + port);
+                junos_interface_array.push('mge-' + this.cisco_split(iname.replace("TenGigabitEthernet", "")));
+            } else if (iname.startsWith("TwentyFiveGigE")) {
+                junos_interface_array.push('et-' +this.cisco_split(iname.replace("TwentyFiveGigE", "")));
+            } else if (iname.startsWith("FortyGigabitEthernet")) {
+                junos_interface_array.push('et-' +this.cisco_split(iname.replace("FortyGigabitEthernet", "")));
+            } else if (iname.startsWith("AppGigabitEthernet")) {
+                junos_interface_array.push('ge-' +this.cisco_split(iname.replace("AppGigabitEthernet", "")));
             } else {
                 junos_interface_array.push(iname);
             }
