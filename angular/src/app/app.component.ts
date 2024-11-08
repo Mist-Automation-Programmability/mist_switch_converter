@@ -250,7 +250,7 @@ export class AppComponent implements OnInit {
    * Generate the HTML version of the Mist template
    */
   display() {
-    this.mist_config_html = this.json_to_html.transform(this.config_parser.config_data.mist_template, 2);
+    this.mist_config_html = this.json_to_html.transform(this.config_parser.config_data.mist_template, 2).replace(/\n/g, "\\n");
   }
 
   /********************************************************

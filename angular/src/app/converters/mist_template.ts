@@ -22,11 +22,12 @@ export interface MistTemplateElement {
         coa_port: number
     },
     switch_mgmt: {
+        cli_banner: string | undefined,
         tacacs: {
             enabled: boolean,
             tacplus_servers: object[],
             acct_servers: object[]
-        }
+        },
     },
     additional_config_cmds: string[],
     dhcp_snooping: {
@@ -36,7 +37,28 @@ export interface MistTemplateElement {
     remote_syslog: {
         enabled: boolean,
         servers: object[]
+    },
+    switch_matching: {
+        enabled: boolean,
+        rules: SwitchMatchingRuleElement[]
     }
+}
+
+export interface SwitchMatchingRuleElement {
+    name: string,
+    port_config: {
+        [key: string]: SwitchMatchingRulePortConfigElement
+    },
+    additional_properties?: { [key: string]: string };
+}
+
+export interface SwitchMatchingRulePortConfigElement {
+    ae_disable_lacp: boolean | undefined,
+    ae_idx: number | undefined,
+    ae_lacp_slow: boolean | undefined,
+    aggregated: boolean | undefined,
+    description: string | undefined,
+    usage: string,
 }
 
 export interface ProfileConfigurationElement {
@@ -75,18 +97,18 @@ export interface TermsElements {
 }
 
 export interface SyslogElement {
-    ip:string,
+    ip: string,
     protocol: string,
-    port:string
+    port: string
 }
 
 export interface TacacsElement {
-    host:string,
-    port:string,
-    secret:string,
-    timeout:number
+    host: string,
+    port: string,
+    secret: string,
+    timeout: number
 }
 
 export interface VlanMapping {
-    [key: string]:  string
+    [key: string]: string
 }

@@ -1,4 +1,4 @@
-import { ProfileConfigurationElement, VlansElements, VlanMapping} from "./mist_template"
+import { ProfileConfigurationElement, VlansElements, VlanMapping } from "./mist_template"
 import { Logger } from "../services/logger";
 import { ConfigFile } from "./parser_main";
 import { ConfigData } from "./parser_config";
@@ -13,7 +13,7 @@ interface JunosInterfaceElements {
 }
 
 interface JunosDhcpSnoopingVlansElements {
-        [key: string]:  string[]
+    [key: string]: string[]
 }
 
 interface JunosInterfaceRangesElement {
@@ -58,13 +58,13 @@ export class JuniperParser {
             const re_interface_subnet_mapping: RegExp = /set interfaces (?<interface_name>[^ ]+) unit (?<unit_number>[^ ]+) family inet address (?<subnet>[^ ]+)/guis;
             config_file.config.forEach((line: string) => {
                 var test = line.match(re_interface_subnet_mapping);
-                if (test){
+                if (test) {
                     var subnet;
                     var interface_unit;
                     var regex_result = re_interface_subnet_mapping.exec(line);
                     interface_unit = regex_result?.groups?.["interface_name"] + "." + regex_result?.groups?.["unit_number"];
                     if (regex_result?.groups?.["subnet"]) subnet = regex_result?.groups?.["subnet"];
-                    if (subnet && interface_unit){
+                    if (subnet && interface_unit) {
                         if (vlan_subnet_mapping.hasOwnProperty(interface_unit)) {
                             this._juniper_logger.warning("Multiple subnets found for interface " + interface_unit, config_file.name);
                         } else {
@@ -89,7 +89,7 @@ export class JuniperParser {
         })
     }
 
-    private parse_vlans(vlan_conf: string[], vlan_subnet_mapping:VlanMapping, filename:string): Promise<boolean> {
+    private parse_vlans(vlan_conf: string[], vlan_subnet_mapping: VlanMapping, filename: string): Promise<boolean> {
         return new Promise((resolve) => {
             var detected_vlans: number = 0;
             var new_vlans: number = 0;
@@ -111,26 +111,26 @@ export class JuniperParser {
                                 if (!this.config_data.vlans[vlan_id].names.includes(vlan_name)) this.config_data.vlans[vlan_id].names.push(vlan_name);
                             } else {
                                 new_vlans += 1;
-                                this.config_data.vlans[vlan_id] = {"names": [vlan_name], "subnets": []};
+                                this.config_data.vlans[vlan_id] = { "names": [vlan_name], "subnets": [] };
                             }
                         }
                     } else if (test_mapping) {
                         var regex_result = re_vlan_interface_mapping.exec(line);
                         var subnet: string = "";
-                        var vlan_id: string= "";
+                        var vlan_id: string = "";
                         if (regex_result?.groups?.["vlan_name"] && regex_result?.groups?.["interface_unit"]) {
                             var vlan_name = regex_result.groups?.["vlan_name"].toLowerCase().replace(/[ &:-]+/g, "_");
                             var interface_unit = regex_result.groups?.["interface_unit"];
                             if (vlan_mapping.hasOwnProperty(vlan_name)) vlan_id = vlan_mapping[vlan_name];
                             if (vlan_subnet_mapping.hasOwnProperty(interface_unit)) subnet = vlan_subnet_mapping[interface_unit];
-                            if (vlan_id && subnet){
+                            if (vlan_id && subnet) {
                                 subnet = this.config_data.calculate_cidr(subnet);
                                 if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
                                     if (!this.config_data.vlans[vlan_id].subnets.includes(subnet)) this.config_data.vlans[vlan_id].subnets.push(subnet);
                                 } else {
                                     new_vlans += 1;
-                                    this.config_data.vlans[vlan_id] = {"names": [], "subnets": [subnet]};
-                                }   
+                                    this.config_data.vlans[vlan_id] = { "names": [], "subnets": [subnet] };
+                                }
                             }
                         }
                     }
@@ -193,8 +193,8 @@ export class JuniperParser {
                 else if (line.startsWith("set system name-server ")) this.parse_dns(line);
                 else if (line.startsWith("set system domain-search ")) this.parse_domain(line);
                 else if (line.startsWith("set system ntp server ")) this.parse_ntp(line);
-                else if (line.startsWith("set system login message ")) this.config_data.banner = line.replace("set system login message ", "").trim().replace(/^"|"$/g, "").replace(/\\n/g, "\\\\n");
-                else if (line.startsWith("set system host-name ")) this.hostname = line.replace("set system host-name ", "").trim().replace(/^"|"$/g, "").replace(/\\n/g, "\\\\n");
+                else if (line.startsWith("set system login message ")) this.config_data.cli_banner = line.replace("set system login message ", "").trim().replace(/^"|"$/g, "");
+                else if (line.startsWith("set system host-name ")) this.hostname = line.replace("set system host-name ", "").trim().replace(/^"|"$/g, "");
             })
             this.parse_radius(radius_blocks);
             this.parse_tacacs_auth(tacacs_auth_blocks);
@@ -528,7 +528,7 @@ export class JuniperParser {
             entry = { desc: "", profile: this.default_inteface(), blocks: [] }
             junos_interfaces[port] = entry;
         }
-        entry.desc = desc_line.replace(port + " description", "").replace(/\"/g, "").trim();;
+        entry.desc = desc_line.replace(port + " description ", "").replace(/\"/g, "").trim();;
     }
 
     private parse_interface_dot1x(dot1x_lines: string[], junos_interfaces: JunosInterfaceElements): void {
@@ -619,18 +619,20 @@ export class JuniperParser {
     private parse_config_profile(name: string, entry: ProfileConfigurationElement, data: string) {
         if (data.trim().startsWith(name + " disabled ")) entry.disabled = true;
         else if (data.trim().startsWith(name + " mtu ")) entry.mtu = data.replace(name + " mtu ", "").trim();
-        else if (data.trim().startsWith(name + " speed ")) {
-            entry.speed = data.replace(name + " speed ", "").trim();
-        }
+        else if (data.trim().startsWith(name + " speed ")) entry.speed = data.replace(name + " speed ", "").trim();
         else if (data.trim().startsWith(name + " link-mode ")) entry.duplex = data.replace(name + " link-mode ", "").split("-")[0].trim();
+        else if (data.trim().startsWith(name + " ether-options 802.3ad ")) {
+            var lag_name = data.replace(name + " ether-options 802.3ad ", "");
+            this.config_data.add_lag_interface(this.filename, name, lag_name);
+        }
         else if (data.trim().startsWith(name + " ether-options no-auto-negotiation")) entry.disable_autoneg = true;
         else if (data.trim().startsWith(name + " native-vlan-id ")) entry.port_network = this.config_data.get_vlan(data.replace(name + " native-vlan-id ", "").trim(), this.filename);
         else if (data.trim().includes(" family ethernet-switching vlan members ")) {
             var vlan = data.split("members")[1].trim();
             if (vlan == "all") entry.all_networks = true;
-            if (vlan.match(/^[0-9]+$/)) entry.networks!.push(vlan); // in case vlan id is used
+            else if (vlan.match(/^[0-9]+$/)) entry.networks!.push(vlan); // in case vlan id is used
             // in case vlan range is defined with integer range 100-110, one-by-one vlan retrive the nam and add it to list entry.networks!.push(new_vlan)
-            if (vlan.match(/^[0-9-]+$/)) {
+            else if (vlan.match(/^[0-9-]+$/)) {
                 const vlan_start: number = Number(vlan.split("-")[0]);
                 const vlan_end: number = Number(vlan.split("-")[1]);
                 if (vlan_start > 0 && vlan_end > 0) {
@@ -754,7 +756,7 @@ export class JuniperParser {
             }
 
             var uuid = this.config_data.add_profile(interface_config, interface_name, junos_interfaces[interface_name].desc, range_names, this.filename);
-            this.config_data.add_interface(this.filename, this.hostname, interface_name, uuid, "Junos", junos_interfaces[interface_name].blocks);
+            this.config_data.add_interface(this.filename, this.hostname, interface_name, uuid, "Junos", junos_interfaces[interface_name].blocks, junos_interfaces[interface_name].desc);
         }
     }
 

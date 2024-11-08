@@ -1,5 +1,5 @@
 import { Logger } from "../services/logger";
-import { VlansElements, TermsElements, MistTemplateElement, ProfileConfigurationElement, SyslogElement, TacacsElement } from "./mist_template"
+import { VlansElements, TermsElements, MistTemplateElement, ProfileConfigurationElement, SwitchMatchingRuleElement, SwitchMatchingRulePortConfigElement } from "./mist_template"
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ParsedInterfaceData {
@@ -9,7 +9,8 @@ export interface ParsedInterfaceData {
     profile_id: string,
     profile_name: string,
     config_type: string,
-    config_blocks: string[]
+    config_blocks: string[],
+    description: string,
 }
 
 export interface ParsedProfileData {
@@ -20,6 +21,19 @@ export interface ParsedProfileData {
     interface_ranges: string[],
     config: ProfileConfigurationElement,
     config_string: string
+}
+
+
+export interface ParcedLagInterfacesData {
+    [key: string]: {                    // file name
+        [key: string]: {                // key is lag interface name,
+            index: number,
+            interfaces: string[],
+        }
+    }
+}
+export interface ParcedLagMembersData {
+    [key: string]: string[],           // key is lag interface name, value is list of interfaces part of any lag
 }
 
 export class ConfigData {
@@ -40,10 +54,12 @@ export class ConfigData {
     domain: string[] = [];
     vlans: VlansElements = {};
     generated_vlan_names_used: string[] = [];
-    banner = "";
+    cli_banner = "";
     dhcp_snooping_vlans: string[] = [];
     generated_profile_names_used: string[] = [];
     interfaces: ParsedInterfaceData[] = [];
+    lag_interfaces: ParcedLagInterfacesData = {};
+    lag_members: ParcedLagMembersData = {};
     profiles: ParsedProfileData[] = [];
 
     constructor(
@@ -65,6 +81,7 @@ export class ConfigData {
                 coa_port: 3799
             },
             switch_mgmt: {
+                cli_banner: undefined,
                 tacacs: {
                     enabled: false,
                     tacplus_servers: [],
@@ -79,32 +96,36 @@ export class ConfigData {
             remote_syslog: {
                 enabled: false,
                 servers: []
+            },
+            switch_matching: {
+                enabled: false,
+                rules: []
             }
         }
     };
 
     /************************* SUBNET ************************/
-    private address_to_number(addr: string):number {
-    return addr.split(".").reduce((acc,cur,i)=> acc += (Number(cur) << ( (3-i) * 8) ) ,0)
+    private address_to_number(addr: string): number {
+        return addr.split(".").reduce((acc, cur, i) => acc += (Number(cur) << ((3 - i) * 8)), 0)
     }
 
-    private mask_to_number(mask:string): number{
-    return (0xffffffff << (32 - Number(mask))) & 0xffffffff;
+    private mask_to_number(mask: string): number {
+        return (0xffffffff << (32 - Number(mask))) & 0xffffffff;
     }
-    private number_to_addr(num:number):string{
+    private number_to_addr(num: number): string {
         return `${(num >> 24) & 0xff}.${(num >> 16) & 0xff}.${(num >> 8) & 0xff}.${num & 0xff}`
     }
-    calculate_cidr(cidr:string):string{
-        const [address,mask] = cidr.split("/");
+    calculate_cidr(cidr: string): string {
+        const [address, mask] = cidr.split("/");
         const subnet_number = this.address_to_number(address) & this.mask_to_number(mask);
         return this.number_to_addr(subnet_number) + "/" + mask;
     }
 
     /************************* VLANS *************************/
     add_vlan(vlan: string | undefined = undefined, vlans: string[] | undefined = undefined) {
-        if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = {"names": [this.vlan_prefix + vlan], "subnets": []};
+        if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = { "names": [this.vlan_prefix + vlan], "subnets": [] };
         if (vlans) vlans.forEach(vlan => {
-            if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = {"names": [this.vlan_prefix + vlan], "subnets": []};
+            if (vlan && !this.vlans.hasOwnProperty(vlan)) this.vlans[vlan] = { "names": [this.vlan_prefix + vlan], "subnets": [] };
         })
     }
 
@@ -238,7 +259,7 @@ export class ConfigData {
     }
 
     /************************* INTERFACES *************************/
-    add_interface(file: string, hostname: string, interface_name: string, profile_id: string, config_type: string, config_blocks: string[]): void {
+    add_interface(file: string, hostname: string, interface_name: string, profile_id: string, config_type: string, config_blocks: string[], description: string): void {
         this.interfaces.push({
             file: file,
             hostname: hostname,
@@ -246,8 +267,22 @@ export class ConfigData {
             profile_id: profile_id,
             profile_name: "",
             config_type: config_type,
-            config_blocks: config_blocks
+            config_blocks: config_blocks,
+            description: description
         })
+    }
+
+    add_lag_interface(file: string, lag_interface: string, lag_name: string) {
+        if (!this.lag_interfaces.hasOwnProperty(file)) this.lag_interfaces[file] = {};
+        if (!this.lag_interfaces[file].hasOwnProperty(lag_name)) {
+            this.lag_interfaces[file][lag_name] = {
+                index: Object.keys(this.lag_interfaces[file]).length,
+                interfaces: []
+            };
+        }
+        this.lag_interfaces[file][lag_name].interfaces.push(lag_interface)
+        if (!this.lag_members.hasOwnProperty(file)) this.lag_members[file] = [];
+        this.lag_members[file].push(lag_interface);
     }
 
     /************************* PORT PROFILE *************************/
@@ -278,6 +313,100 @@ export class ConfigData {
         }
     }
 
+    inteface_name_converter(interface_name: string): string {
+        var junos_interface_array: string[] = [];
+        interface_name.split(",").forEach((iname: string) => {
+            if (iname.startsWith("FastEthernet")) {
+                var fpc = iname.replace("FastEthernet", "").split("/")[0];
+                var pic = "0"
+                var port = Number(iname.replace("FastEthernet", "").split("/")[1]) - 1;
+                junos_interface_array.push('fe-' + fpc + "/" + pic + "/" + port);
+            } else if (iname.startsWith("GigabitEthernet")) {
+                var fpc = iname.replace("GigabitEthernet", "").split("/")[0];
+                var pic = "0"
+                var port = Number(iname.replace("GigabitEthernet", "").split("/")[1]) - 1;
+                junos_interface_array.push('ge-' + fpc + "/" + pic + "/" + port);
+            } else if (iname.startsWith("TenGigabitEthernet")) {
+                var fpc = iname.replace("TenGigabitEthernet", "").split("/")[0];
+                var pic = "0"
+                var port = Number(iname.replace("TenGigabitEthernet", "").split("/")[1]) - 1;
+                junos_interface_array.push('mge-' + fpc + "/" + pic + "/" + port);
+            } else {
+                junos_interface_array.push(iname);
+            }
+        })
+        return junos_interface_array.join(",");
+    }
+
+    switch_rule_port_config(interface_name: string, hostname: string, port_config: SwitchMatchingRulePortConfigElement, rules: SwitchMatchingRuleElement[]) {
+        var switch_rule: SwitchMatchingRuleElement
+        var switch_name = hostname;
+        var switch_rule_index = rules.findIndex(i => i.name == switch_name);
+        var juno_interface_name = this.inteface_name_converter(interface_name);
+        if (switch_rule_index < 0) {
+            var match_name = "match_name[0:" + switch_name.length + "]";
+            switch_rule = {
+                name: switch_name,
+                port_config: {
+                    [juno_interface_name]: port_config
+                },
+                [match_name]: switch_name,
+            }
+            rules.push(switch_rule);
+        } else {
+            rules[switch_rule_index].port_config[juno_interface_name] = port_config
+        }
+    }
+
+    add_switch_rules() {
+        var rules: SwitchMatchingRuleElement[] = [];
+        this.interfaces.forEach((interface_data: ParsedInterfaceData) => {
+            var interface_name = interface_data.interface_name;
+            var interface_description: string | undefined;
+            if (interface_data.description != "") interface_description = interface_data.description;
+            if (this.lag_interfaces[interface_data.file].hasOwnProperty(interface_name)) {
+                var ae_index: number = this.lag_interfaces[interface_data.file][interface_name].index;
+                if (interface_name.startsWith("ae") && interface_name.length == 3) {
+                    try {
+                        ae_index = Number(interface_name.replace("ae", ""));
+                    } catch {
+                        console.log("test");
+                    }
+                } else if (interface_name.startsWith("Port-channel")) {
+                    try {
+                        ae_index = Number(interface_name.replace("Port-channel", "")) - 1;
+                    } catch {
+                        console.log("test");
+                    }
+                }
+                var lag_intefaces: string = this.lag_interfaces[interface_data.file][interface_name].interfaces.join(",");
+                var port_config: SwitchMatchingRulePortConfigElement = {
+                    ae_disable_lacp: undefined,
+                    ae_idx: ae_index,
+                    ae_lacp_slow: undefined,
+                    aggregated: true,
+                    description: interface_description,
+                    usage: interface_data.profile_name
+                }
+                this.switch_rule_port_config(lag_intefaces, interface_data.hostname, port_config, rules);
+            } else if (!interface_name.startsWith("ge-168/5/") && !this.lag_members[interface_data.file].includes(interface_name)) {
+                var port_config: SwitchMatchingRulePortConfigElement = {
+                    ae_disable_lacp: undefined,
+                    ae_idx: undefined,
+                    ae_lacp_slow: undefined,
+                    aggregated: undefined,
+                    description: interface_description,
+                    usage: interface_data.profile_name
+                }
+                this.switch_rule_port_config(interface_name, interface_data.hostname, port_config, rules);
+            }
+        })
+        this.mist_template.switch_matching = {
+            enabled: true,
+            rules: rules
+        }
+    }
+
     /************************* PROFILE NAMES *************************/
     private update_interface_profile_name(uuid: string, name: string) {
         this.interfaces.filter(i => i.profile_id == uuid).forEach((interface_data: ParsedInterfaceData) => {
@@ -285,10 +414,10 @@ export class ConfigData {
         })
     }
 
-    private generate_unique_name(profile_name:string, profile: ParsedProfileData) {
-        var i:number = 0;
+    private generate_unique_name(profile_name: string, profile: ParsedProfileData) {
+        var i: number = 0;
         while (this.generated_profile_names_used.includes(profile_name)) {
-            profile_name = profile_name.substring(0,27) + "-" + profile.uuid.replace(/-/g,"").substring(0+i,4+i);
+            profile_name = profile_name.substring(0, 27) + "-" + profile.uuid.replace(/-/g, "").substring(0 + i, 4 + i);
         }
         return profile_name;
     }
@@ -331,6 +460,7 @@ export class ConfigData {
             profile.generated_name = profile_name;
             this.generated_profile_names_used.push(profile_name);
             this.update_interface_profile_name(profile.uuid, profile_name);
+            this.add_switch_rules();
         })
     }
 
@@ -341,15 +471,15 @@ export class ConfigData {
                 this._config_logger.warning("VLAN " + vlan_id + " has doesn't have name. Generating one: \"" + vlan_name + "\"");
                 this.vlans[vlan_id].names.push(vlan_name);
             } else if (this.vlans[vlan_id].names.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple names. Using the first one: \"" + this.vlans[vlan_id].names[0] + "\"")
-            
+
             if (this.vlans[vlan_id].subnets.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple subnets. Using the first one: \"" + this.vlans[vlan_id].subnets[0] + "\"")
-            
+
             if (this.vlans[vlan_id].subnets.length > 0) {
-                this.mist_template.networks[this.vlans[vlan_id].names[0]] = { "vlan_id": vlan_id, "subnet": this.vlans[vlan_id].subnets[0]};
+                this.mist_template.networks[this.vlans[vlan_id].names[0]] = { "vlan_id": vlan_id, "subnet": this.vlans[vlan_id].subnets[0] };
             } else {
-                this.mist_template.networks[this.vlans[vlan_id].names[0]] = { "vlan_id": vlan_id, "subnet": null};
+                this.mist_template.networks[this.vlans[vlan_id].names[0]] = { "vlan_id": vlan_id, "subnet": null };
             }
-            
+
         }
         this.profiles.forEach((profile: ParsedProfileData) => {
             this.mist_template.port_usages[profile.generated_name] = profile.config;
@@ -369,18 +499,8 @@ export class ConfigData {
                 this.mist_template.switch_mgmt.tacacs.acct_servers.push(JSON.parse(tacplus_server))
             })
         }
-        if (this.banner.length > 0) {
-            var banner_already_configured: boolean = false;
-            for (let line of this.banner ! ) {
-                if (line.startsWith("set groups banner system login message")) {
-                    banner_already_configured = true;
-                    break;
-                }
-            }
-            if (!banner_already_configured) {
-                this.mist_template.additional_config_cmds.push("set groups banner system login message \"" + this.banner.replace('"', '\\\"').replace("'", '\\\'') + "\"");
-                this.mist_template.additional_config_cmds.push("set apply-groups banner");
-            }
+        if (this.cli_banner.length > 0) {
+            this.mist_template.switch_mgmt.cli_banner = this.cli_banner.replace('"', '\"').replace("'", '\'').replace(/\\n/g, "\n");
         }
         if (this.dhcp_snooping_vlans.length > 0) {
             this.mist_template.dhcp_snooping.enabled = true;

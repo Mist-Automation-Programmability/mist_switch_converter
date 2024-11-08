@@ -111,16 +111,16 @@ export class IosParser {
         return false;
     }
 
-    private transform_vlan_name(vlan_name:string, vlan_id:string): string {
-        vlan_name = vlan_name.toLowerCase().replace(/[ &:\*\"-]+/g, "_").substring(0,32);
-        if (this.config_data.generated_vlan_names_used.includes(vlan_name)){
+    private transform_vlan_name(vlan_name: string, vlan_id: string): string {
+        vlan_name = vlan_name.toLowerCase().replace(/[ &:\*\"-]+/g, "_").substring(0, 32);
+        if (this.config_data.generated_vlan_names_used.includes(vlan_name)) {
             if (!this.config_data.vlans.hasOwnProperty(vlan_id) || !this.config_data.vlans[vlan_id].names.includes(vlan_name)) {
-                vlan_name = vlan_name.substring(0,25) + "-vl" + vlan_id;
+                vlan_name = vlan_name.substring(0, 25) + "-vl" + vlan_id;
             }
         }
         return vlan_name;
     }
-    private add_vlan_name(vlan_name: string, vlan_id:string, filename:string) {
+    private add_vlan_name(vlan_name: string, vlan_id: string, filename: string) {
         vlan_name = this.transform_vlan_name(vlan_name, vlan_id);
         if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
             if (!this.config_data.vlans[vlan_id].names.includes(vlan_name)) {
@@ -134,7 +134,6 @@ export class IosParser {
             this.config_data.generated_vlan_names_used.push(vlan_name);
         }
     }
-
 
     /*****************************************************************************
      * CONFIG
@@ -182,7 +181,7 @@ export class IosParser {
                             this.parse_interface(config_block);
                             break;
                         case "banner":
-                            this.config_data.banner = config_block.join("\\n").replace(/\r/g, "");
+                            this.config_data.cli_banner = config_block.join("\n").replace(/\r/g, "");
                             break;
                     }
                     config_block = [];
@@ -308,6 +307,7 @@ export class IosParser {
 
         var vlan_access: string | undefined = undefined;
         var vlan_trunk_native: string | undefined = undefined;
+        var vlan_voip_network: string | undefined = undefined;
         var vlan_trunk_allowed: string[] = [];
         var all_networks: boolean = false;
         var networks: string[] = [];
@@ -335,10 +335,15 @@ export class IosParser {
         interface_config.forEach(line => {
             interface_blocks.push(line);
             if (line.trim().startsWith("interface")) interface_name = line.replace("interface", "").trim()
+            else if (line.trim().startsWith("channel-group")) {
+                var channel_group_id :string= line.replace("channel-group", "").trim().split(" ")[0];
+                var lag_name: string = "Port-channel"+channel_group_id
+                this.config_data.add_lag_interface(this.filename, interface_name, lag_name);
+            }
             else if (line.trim().startsWith("description")) interface_description = line.replace("description", "").trim().toString();
             else if (line.trim().startsWith("switchport mode")) mode = line.replace("switchport mode", "").trim();
             else if (line.trim().startsWith("switchport access vlan")) vlan_access = line.replace("switchport access vlan", "").trim();
-            else if (line.trim().startsWith("switchport voice vlan")) voip_network = line.replace("switchport voice vlan", "").trim();
+            else if (line.trim().startsWith("switchport voice vlan")) vlan_voip_network = line.replace("switchport voice vlan", "").trim();
             else if (line.trim().startsWith("switchport trunk native vlan")) vlan_trunk_native = line.replace("switchport trunk native vlan", "").trim();
             else if (line.trim().startsWith("switchport trunk allowed vlan")) vlan_trunk_allowed = line.replace("switchport trunk allowed vlan", "").trim().split(",");
             else if (line.trim().startsWith("dot1x pae authenticator")) port_auth = "dot1x";
@@ -394,6 +399,7 @@ export class IosParser {
                 if (vlan_access != undefined) this.config_data.add_vlan(vlan_access);
                 else vlan_access = "1";
                 var port_network = this.config_data.get_vlan(vlan_access, this.filename);
+                var voip_network = this.config_data.get_vlan(vlan_voip_network, this.filename);
                 profile_configuration.mode = "access";
                 profile_configuration.port_network = port_network;
                 this._ios_logger.info("Interface " + interface_name + ": \"switchport mode access\" and \"switchport access vlan " + vlan_access + "\"", this.filename);
@@ -456,14 +462,14 @@ export class IosParser {
             profile_configuration.persist_mac = persist_mac;
 
             if (!interface_name) interface_name = "unknown interface";
-            this.add_profile(interface_name, interface_blocks, interface_description, profile_configuration);
+            this.add_profile(interface_name, interface_blocks, interface_description, profile_configuration,);
         }
     }
 
 
     private add_profile(interface_name: string, interface_blocks: string[], interface_description: string, interface_config: ProfileConfigurationElement) {
         var uuid = this.config_data.add_profile(interface_config, interface_name, interface_description, [], this.filename);
-        this.config_data.add_interface(this.filename, this.hostname, interface_name, uuid, "Cisco", interface_blocks);
+        this.config_data.add_interface(this.filename, this.hostname, interface_name, uuid, "Cisco", interface_blocks, interface_description);
     }
 
 }
