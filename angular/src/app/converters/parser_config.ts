@@ -313,20 +313,20 @@ export class ConfigData {
         }
     }
 
-    cisco_split(i:string):string {
-        var j : string[]= i.split("/");
-        var fpc: number=0;
-        var pic: number=0;
-        var port: number=0;
-        if (j.length == 3){
-            fpc = Number(j[0])-1;
-            pic= Number(j[1]);
-            port = Number(j[2])-1;
+    cisco_split(i: string): string {
+        var j: string[] = i.split("/");
+        var fpc: number = 0;
+        var pic: number = 0;
+        var port: number = 0;
+        if (j.length == 3) {
+            fpc = Number(j[0]) - 1;
+            pic = Number(j[1]);
+            port = Number(j[2]) - 1;
         } else if (j.length == 2) {
             fpc = Number(j[0]);
-            port = Number(j[1])-1;
+            port = Number(j[1]) - 1;
         } else {
-            port = Number(j[0])-1;
+            port = Number(j[0]) - 1;
         }
         return fpc + "/" + pic + "/" + port;
     }
@@ -336,15 +336,15 @@ export class ConfigData {
             if (iname.startsWith("FastEthernet")) {
                 junos_interface_array.push('fe-' + this.cisco_split(iname.replace("FastEthernet", "")));
             } else if (iname.startsWith("GigabitEthernet")) {
-                junos_interface_array.push('ge-'  + this.cisco_split(iname.replace("GigabitEthernet", "")));
+                junos_interface_array.push('ge-' + this.cisco_split(iname.replace("GigabitEthernet", "")));
             } else if (iname.startsWith("TenGigabitEthernet")) {
                 junos_interface_array.push('mge-' + this.cisco_split(iname.replace("TenGigabitEthernet", "")));
             } else if (iname.startsWith("TwentyFiveGigE")) {
-                junos_interface_array.push('et-' +this.cisco_split(iname.replace("TwentyFiveGigE", "")));
+                junos_interface_array.push('et-' + this.cisco_split(iname.replace("TwentyFiveGigE", "")));
             } else if (iname.startsWith("FortyGigabitEthernet")) {
-                junos_interface_array.push('et-' +this.cisco_split(iname.replace("FortyGigabitEthernet", "")));
+                junos_interface_array.push('et-' + this.cisco_split(iname.replace("FortyGigabitEthernet", "")));
             } else if (iname.startsWith("AppGigabitEthernet")) {
-                junos_interface_array.push('ge-' +this.cisco_split(iname.replace("AppGigabitEthernet", "")));
+                junos_interface_array.push('ge-' + this.cisco_split(iname.replace("AppGigabitEthernet", "")));
             } else {
                 junos_interface_array.push(iname);
             }
@@ -372,13 +372,39 @@ export class ConfigData {
         }
     }
 
+    private is_in_lag(filename:string, interface_name:string){
+        if (!this.lag_members[filename]) {
+            return false;
+        } else if (!this.lag_members[filename].includes(interface_name)) {
+            return false;
+        }
+        return true;
+    }
+    private is_a_lag(filename:string, interface_name:string){
+        if (!this.lag_interfaces[filename]) {
+            return false;
+        } else if (!this.lag_interfaces[filename].hasOwnProperty(interface_name)) {
+            return false;
+        }
+        return true;
+    }
+    private is_excluded(interface_name:string){
+        if (interface_name.startsWith("ge-168/5/")) {
+            return true;
+        } else if (interface_name.startsWith("vlan")) {
+            return true;
+        } 
+        return false;
+    }
+
     add_switch_rules() {
         var rules: SwitchMatchingRuleElement[] = [];
         this.interfaces.forEach((interface_data: ParsedInterfaceData) => {
+            console.log(interface_data)
             var interface_name = interface_data.interface_name;
             var interface_description: string | undefined;
             if (interface_data.description != "") interface_description = interface_data.description;
-            if (this.lag_interfaces[interface_data.file].hasOwnProperty(interface_name)) {
+            if (this.is_a_lag(interface_data.file, interface_name)) {
                 var ae_index: number = this.lag_interfaces[interface_data.file][interface_name].index;
                 if (interface_name.startsWith("ae") && interface_name.length == 3) {
                     try {
@@ -403,7 +429,7 @@ export class ConfigData {
                     usage: interface_data.profile_name
                 }
                 this.switch_rule_port_config(lag_intefaces, interface_data.hostname, port_config, rules);
-            } else if (!interface_name.startsWith("ge-168/5/") && !this.lag_members[interface_data.file].includes(interface_name)) {
+            } else if (!this.is_excluded(interface_name) && !this.is_in_lag(interface_data.file, interface_name)) {
                 var port_config: SwitchMatchingRulePortConfigElement = {
                     ae_disable_lacp: undefined,
                     ae_idx: undefined,
@@ -474,6 +500,7 @@ export class ConfigData {
             profile.generated_name = profile_name;
             this.generated_profile_names_used.push(profile_name);
             this.update_interface_profile_name(profile.uuid, profile_name);
+            console.log(this.interfaces)
             this.add_switch_rules();
         })
     }
