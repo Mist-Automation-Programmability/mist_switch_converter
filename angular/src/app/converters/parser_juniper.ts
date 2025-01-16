@@ -601,17 +601,20 @@ export class JuniperParser {
                 config_type = "voip";
             }
             if (data) {
-                var port = data.split(" ")[0].trim();
-                var config = data.split(" ")[1].trim();
-                var profile
-                var blocks
-                [profile, blocks] = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
-                blocks.push(line);
-                if (config == "interface-mac-limit") {
-                    var mac_limit: number = Number(data.replace(port + " interface-mac-limit ", "").trim());
-                    if (mac_limit) profile.mac_limit = mac_limit;
+                var data_splitted = data.split(" ")
+                if (data_splitted.length > 2) {
+                    var port = data_splitted[0].trim();
+                    var config = data_splitted[1].trim();
+                    var profile
+                    var blocks
+                    [profile, blocks] = this.get_inteface_from_junos_interfaces(port.split(".")[0], junos_interfaces);
+                    blocks.push(line);
+                    if (config == "interface-mac-limit") {
+                        var mac_limit: number = Number(data.replace(port + " interface-mac-limit ", "").trim());
+                        if (mac_limit) profile.mac_limit = mac_limit;
+                    }
+                    else if (config_type == "voip" && config == "vlan") profile.voip_network = data.replace(port + " vlan ", "").trim();
                 }
-                else if (config_type == "voip" && config == "vlan") profile.voip_network = data.replace(port + " vlan ", "").trim();
             }
         })
     }
