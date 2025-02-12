@@ -330,13 +330,16 @@ export class DetailsDialog {
   details_interface_template:string="";
   details_interface_template_name:string="";
   log_messages: LogMessage[] = [];
+  log_messages_displayed: LogMessage[] = [];
   log_columns: string[] = ['level', 'file', 'message'];
-
+  log_levels: string[] = ['Critical', 'Error', 'Warning', 'Info', ];
+  log_levels_selected: string[]=['critical', 'error', 'warning'];
   constructor(
     public _dialogRef: MatDialogRef<DetailsDialog>,
     @Inject(MAT_DIALOG_DATA) public data: {config_data:ConfigData, log_messages: LogMessage[]}
   ) {
     this.log_messages = this.data.log_messages;
+    this.filter_log_messages();
     this.displayed_interfaces = this.data.config_data.interfaces;
     this.data.config_data.interfaces.forEach((interface_data:ParsedInterfaceData)=>{
       if (!this.details_switches.includes(interface_data.hostname)) this.details_switches.push(interface_data.hostname);
@@ -346,6 +349,15 @@ export class DetailsDialog {
     this.details_update_interfaces();
     this.details_selected_interface = this.displayed_interfaces[0].interface_name;
     this.details_update_data();
+  }
+
+  filter_log_messages():void{
+    this.log_messages_displayed = [];
+    this.log_messages.forEach(message => {
+      if (this.log_levels_selected.includes(message.level)) {
+        this.log_messages_displayed.push(message);
+      }
+    })
   }
 
   view_interface_details(hostname:string, interface_name:string):void{

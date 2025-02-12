@@ -1,107 +1,176 @@
 <div class="dialog result">
-    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start" [(selectedIndex)]="selectedIndex">
-        <!-- LIST -->
-        <mat-tab label="Interfaces List">
-            <div mat-dialog-content style="padding: 0;height: calc(90vh - 55px);max-height: calc(90vh - 105px);">
-                <div>
-                    <mat-form-field class="search">
-                        <mat-label>Filter</mat-label>
-                        <input matInput (keyup)="applyFilter($event)" placeholder="Ex. ium" #input>
-                        <button matSuffix mat-raised-button color="primary" (click)="download_list()">Download as CSV</button>
-                    </mat-form-field>
-                    <div class="table-container">
-                        <table mat-table [dataSource]="displayed_interfaces">
-                            <ng-container matColumnDef="switch">
-                                <th mat-header-cell *matHeaderCellDef> Switch </th>
-                                <td mat-cell *matCellDef="let element"> {{element.hostname}} </td>
-                            </ng-container>
-                            <ng-container matColumnDef="interface">
-                                <th mat-header-cell *matHeaderCellDef> Interface </th>
-                                <td mat-cell *matCellDef="let element"> {{element.interface_name}} </td>
-                            </ng-container>
-                            <ng-container matColumnDef="profile">
-                                <th mat-header-cell *matHeaderCellDef> Profile </th>
-                                <td mat-cell *matCellDef="let element"> {{element.profile_name}} </td>
-                            </ng-container>
-                            <ng-container matColumnDef="action">
-                                <th mat-header-cell *matHeaderCellDef style="width: 200px"> </th>
-                                <td mat-cell *matCellDef="let element">
-                                    <button mat-stroked-button color="primary" (click)="view_interface_details(element.hostname, element.interface_name)">View Interface</button>
-                                </td>
-                            </ng-container>
-                            <tr mat-header-row *matHeaderRowDef="displayed_columns; sticky: true"></tr>
-                            <tr mat-row *matRowDef="let row; columns: displayed_columns;"></tr>
+  <mat-tab-group
+    mat-stretch-tabs="false"
+    mat-align-tabs="start"
+    [(selectedIndex)]="selectedIndex"
+    animationDuration="50ms"
+  >
+    <!-- LIST -->
+    <mat-tab label="Interfaces List">
+      <div
+        mat-dialog-content
+        style="
+          padding: 0;
+          height: calc(90vh - 55px);
+          max-height: calc(90vh - 105px);
+        "
+      >
+        <div>
+          <mat-form-field class="search">
+            <mat-label>Filter</mat-label>
+            <input
+              matInput
+              (keyup)="applyFilter($event)"
+              placeholder="Ex. ium"
+              #input
+            />
+            <button
+              matSuffix
+              mat-raised-button
+              color="primary"
+              (click)="download_list()"
+            >
+              Download as CSV
+            </button>
+          </mat-form-field>
+          <div class="table-container">
+            <table mat-table [dataSource]="displayed_interfaces">
+              <ng-container matColumnDef="switch">
+                <th mat-header-cell *matHeaderCellDef>Switch</th>
+                <td mat-cell *matCellDef="let element">{{element.hostname}}</td>
+              </ng-container>
+              <ng-container matColumnDef="interface">
+                <th mat-header-cell *matHeaderCellDef>Interface</th>
+                <td mat-cell *matCellDef="let element">
+                  {{element.interface_name}}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="profile">
+                <th mat-header-cell *matHeaderCellDef>Profile</th>
+                <td mat-cell *matCellDef="let element">
+                  {{element.profile_name}}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="action">
+                <th mat-header-cell *matHeaderCellDef style="width: 200px"></th>
+                <td mat-cell *matCellDef="let element">
+                  <button
+                    mat-stroked-button
+                    color="primary"
+                    (click)="view_interface_details(element.hostname, element.interface_name)"
+                  >
+                    View Interface
+                  </button>
+                </td>
+              </ng-container>
+              <tr
+                mat-header-row
+                *matHeaderRowDef="displayed_columns; sticky: true"
+              ></tr>
+              <tr
+                mat-row
+                *matRowDef="let row; columns: displayed_columns;"
+              ></tr>
 
-                            <tr class="mat-row" *matNoDataRow>
-                                <td class="mat-cell" colspan="4">No data matching the filter "{{input.value}}"</td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
+              <tr class="mat-row" *matNoDataRow>
+                <td class="mat-cell" colspan="4">
+                  No data matching the filter "{{input.value}}"
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+    <!-- DETAILS -->
+    <mat-tab label="Interface Details">
+      <div class="interface-details-container">
+        <div class="interface-details-selector">
+          <mat-form-field appearance="fill">
+            <mat-label>Switch</mat-label>
+            <mat-select
+              [(value)]="details_selected_switch"
+              (selectionChange)="details_update_interfaces()"
+            >
+              <mat-option
+                *ngFor="let switch of details_switches"
+                [value]="switch"
+              >
+                {{switch}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="fill">
+            <mat-label>Interface</mat-label>
+            <mat-select
+              [(value)]="details_selected_interface"
+              (selectionChange)="details_update_data()"
+            >
+              <mat-option
+                *ngFor="let switchport of details_interfaces"
+                [value]="switchport"
+              >
+                {{switchport}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="interface-details-data">
+          <div class="interface-details-source">
+            <div>Switch Port Configuration</div>
+            <pre><code class="raw" [innerHtml]="details_interface_data"></code></pre>
+          </div>
+          <div class="interface-details-template">
+            <div>
+              Template {{details_interface_template_name}} Configuraiton
             </div>
-        </mat-tab>
-        <!-- DETAILS -->
-        <mat-tab label="Interface Details">
-            <div class="interface-details-container">
-                <div class="interface-details-selector">
-                    <mat-form-field appearance="fill">
-                        <mat-label>Switch</mat-label>
-                        <mat-select [(value)]="details_selected_switch" (selectionChange)="details_update_interfaces()">
-                            <mat-option *ngFor="let switch of details_switches" [value]="switch">
-                                {{switch}}
-                            </mat-option>
-                        </mat-select>
-                    </mat-form-field>
-                    <mat-form-field appearance="fill">
-                        <mat-label>Interface</mat-label>
-                        <mat-select [(value)]="details_selected_interface" (selectionChange)="details_update_data()">
-                            <mat-option *ngFor="let switchport of details_interfaces" [value]="switchport">
-                                {{switchport}}
-                            </mat-option>
-                        </mat-select>
-                    </mat-form-field>
-                </div>
-                <div class="interface-details-data">
-                    <div class="interface-details-source">
-                        <div>Switch Port Configuration</div>
-                        <pre><code class="raw" [innerHtml]="details_interface_data"></code></pre>
-                    </div>
-                    <div class="interface-details-template">
-                        <div>Template {{details_interface_template_name}} Configuraiton</div>
-                        <pre><code class="raw" [innerHtml]="details_interface_template"></code></pre>
-                    </div>
-                </div>
-            </div>
-        </mat-tab>
-        <!-- LOGS -->
-        <mat-tab label="Logs">
-            <div class="logs-container">
-                <div class="logs-button">
-                    <button matSuffix mat-raised-button color="primary" (click)="download_logs()">Download as CSV</button>
-                </div>
-                <table mat-table [dataSource]="log_messages">
-                    <ng-container matColumnDef="level">
-                        <th mat-header-cell *matHeaderCellDef> Severity </th>
-                        <td mat-cell *matCellDef="let element">
-                            <span [ngClass]="element.level">{{element.level}}</span>
-                        </td>
-                    </ng-container>
-                    <ng-container matColumnDef="file">
-                        <th mat-header-cell *matHeaderCellDef> File </th>
-                        <td mat-cell *matCellDef="let element"> {{element.file}} </td>
-                    </ng-container>
-                    <ng-container matColumnDef="message">
-                        <th mat-header-cell *matHeaderCellDef>Message</th>
-                        <td mat-cell *matCellDef="let element"> {{element.message}} </td>
-                    </ng-container>
-                    <tr mat-header-row *matHeaderRowDef="log_columns; sticky: true"></tr>
-                    <tr mat-row *matRowDef="let row; columns: log_columns;"></tr>
-                </table>
-            </div>
-        </mat-tab>
-    </mat-tab-group>
+            <pre><code class="raw" [innerHtml]="details_interface_template"></code></pre>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+    <!-- LOGS -->
+    <mat-tab label="Logs">
+      <div class="logs-container">
+        <div class="logs-button">
+          <button
+            matSuffix
+            mat-raised-button
+            color="primary"
+            (click)="download_logs()"
+          >
+            Download as CSV
+          </button>
+          <mat-form-field style="padding: 1em;">
+            <mat-label>Log Level</mat-label>
+            <mat-select multiple [(value)]="log_levels_selected" (selectionChange)="filter_log_messages()">
+                    <mat-option *ngFor="let level of log_levels" [value]="level.toLowerCase()">{{level}}</mat-option>
+            </mat-select> 
+          </mat-form-field>
+        </div>
+        <table mat-table [dataSource]="log_messages_displayed">
+          <ng-container matColumnDef="level">
+            <th mat-header-cell *matHeaderCellDef>Severity</th>
+            <td mat-cell *matCellDef="let element">
+              <span [ngClass]="element.level">{{element.level}}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="file">
+            <th mat-header-cell *matHeaderCellDef>File</th>
+            <td mat-cell *matCellDef="let element">{{element.file}}</td>
+          </ng-container>
+          <ng-container matColumnDef="message">
+            <th mat-header-cell *matHeaderCellDef>Message</th>
+            <td mat-cell *matCellDef="let element">{{element.message}}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="log_columns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: log_columns;"></tr>
+        </table>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
 
-    <div mat-dialog-actions style="display: flex;justify-content: flex-end;">
-        <button mat-raised-button color="primary" mat-dialog-close>Close</button>
-    </div>
+  <div mat-dialog-actions style="display: flex; justify-content: flex-end">
+    <button mat-raised-button color="primary" mat-dialog-close>Close</button>
+  </div>
 </div>
