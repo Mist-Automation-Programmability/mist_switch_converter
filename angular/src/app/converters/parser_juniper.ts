@@ -116,16 +116,18 @@ export class JuniperParser {
                         }
                     } else if (test_mapping) {
                         var regex_result = re_vlan_interface_mapping.exec(line);
-                        var subnet: string = "";
+                        var subnet_cli: string = "";
                         var vlan_id: string = "";
                         if (regex_result?.groups?.["vlan_name"] && regex_result?.groups?.["interface_unit"]) {
                             var vlan_name = regex_result.groups?.["vlan_name"].toLowerCase().replace(/[ &:-]+/g, "_");
                             var interface_unit = regex_result.groups?.["interface_unit"];
                             if (vlan_mapping.hasOwnProperty(vlan_name)) vlan_id = vlan_mapping[vlan_name];
-                            if (vlan_subnet_mapping.hasOwnProperty(interface_unit)) subnet = vlan_subnet_mapping[interface_unit];
-                            if (vlan_id && subnet) {
-                                subnet = this.config_data.calculate_cidr(subnet);
-                                if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
+                            if (vlan_subnet_mapping.hasOwnProperty(interface_unit)) subnet_cli = vlan_subnet_mapping[interface_unit];
+                            if (vlan_id && subnet_cli) {
+                                const subnet = this.config_data.calculate_cidr(subnet_cli);
+                                if (!subnet) {
+                                    this._juniper_logger.error("Unable to process subnet from CLI \"" + line +"\" for vlan "+vlan_id)
+                                } else if (this.config_data.vlans.hasOwnProperty(vlan_id)) {
                                     if (!this.config_data.vlans[vlan_id].subnets.includes(subnet)) this.config_data.vlans[vlan_id].subnets.push(subnet);
                                 } else {
                                     new_vlans += 1;

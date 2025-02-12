@@ -75,9 +75,11 @@ export class IosParser {
     }
 
     private parse_vlan_interface_subnet(interface_vlan_id: string, interface_line: string, filename: string): boolean {
-        var subnet = interface_line.replace("ip address ", "");
-        subnet = this.config_data.calculate_cidr(subnet);
-        if (subnet && interface_vlan_id) {
+        var subnet_cli = interface_line.replace("ip address ", "");
+        const subnet = this.config_data.calculate_cidr(subnet_cli);
+        if (!subnet) {
+            this._ios_logger.error("Unable to process subnet from CLI \""+interface_line+"\" for VLAN "+interface_vlan_id)
+        } else if (interface_vlan_id) {
             if (this.config_data.vlans.hasOwnProperty(interface_vlan_id)) {
                 if (!this.config_data.vlans[interface_vlan_id].subnets.includes(subnet)) {
                     this._ios_logger.info("Already knwon VLANs " + interface_vlan_id + " detected as a L3 VLAN with subnet " + subnet, filename);

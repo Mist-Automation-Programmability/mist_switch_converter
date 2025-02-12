@@ -115,9 +115,20 @@ export class ConfigData {
     private number_to_addr(num: number): string {
         return `${(num >> 24) & 0xff}.${(num >> 16) & 0xff}.${(num >> 8) & 0xff}.${num & 0xff}`
     }
-    calculate_cidr(cidr: string): string {
-        const [address, mask] = cidr.split("/");
-        const subnet_number = this.address_to_number(address) & this.mask_to_number(mask);
+    calculate_cidr(cidr: string): string | null {
+        var address, mask;
+        var subnet_number;
+        if (cidr.includes("/")) {
+            [address, mask] = cidr.trim().split("/");
+        } else if (cidr.trim().includes(" ")) {
+            [address, mask] = cidr.trim().split(" ");
+            mask = ((mask.split('.').map(Number)
+                .map(part => (part >>> 0).toString(2))
+                .join('')).split('1').length - 1).toString();
+        } else {
+            return null
+        }
+        subnet_number = this.address_to_number(address) & this.mask_to_number(mask);
         return this.number_to_addr(subnet_number) + "/" + mask;
     }
 
@@ -372,7 +383,7 @@ export class ConfigData {
         }
     }
 
-    private is_in_lag(filename:string, interface_name:string){
+    private is_in_lag(filename: string, interface_name: string) {
         if (!this.lag_members[filename]) {
             return false;
         } else if (!this.lag_members[filename].includes(interface_name)) {
@@ -380,7 +391,7 @@ export class ConfigData {
         }
         return true;
     }
-    private is_a_lag(filename:string, interface_name:string){
+    private is_a_lag(filename: string, interface_name: string) {
         if (!this.lag_interfaces[filename]) {
             return false;
         } else if (!this.lag_interfaces[filename].hasOwnProperty(interface_name)) {
@@ -388,19 +399,18 @@ export class ConfigData {
         }
         return true;
     }
-    private is_excluded(interface_name:string){
+    private is_excluded(interface_name: string) {
         if (interface_name.startsWith("ge-168/5/")) {
             return true;
         } else if (interface_name.startsWith("vlan")) {
             return true;
-        } 
+        }
         return false;
     }
 
     add_switch_rules() {
         var rules: SwitchMatchingRuleElement[] = [];
         this.interfaces.forEach((interface_data: ParsedInterfaceData) => {
-            console.log(interface_data)
             var interface_name = interface_data.interface_name;
             var interface_description: string | undefined;
             if (interface_data.description != "") interface_description = interface_data.description;
@@ -500,7 +510,6 @@ export class ConfigData {
             profile.generated_name = profile_name;
             this.generated_profile_names_used.push(profile_name);
             this.update_interface_profile_name(profile.uuid, profile_name);
-            console.log(this.interfaces)
             this.add_switch_rules();
         })
     }
@@ -513,7 +522,7 @@ export class ConfigData {
                 this.vlans[vlan_id].names.push(vlan_name);
             } else if (this.vlans[vlan_id].names.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple names. Using the first one: \"" + this.vlans[vlan_id].names[0] + "\"")
 
-            if (this.vlans[vlan_id].subnets.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple subnets. Using the first one: \"" + this.vlans[vlan_id].subnets[0] + "\"")
+            if (this.vlans[vlan_id].subnets.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple subnets (" + this.vlans[vlan_id].subnets + "). Using the first one: \"" + this.vlans[vlan_id].subnets[0] + "\"")
 
             if (this.vlans[vlan_id].subnets.length > 0) {
                 this.mist_template.networks[this.vlans[vlan_id].names[0]] = { "vlan_id": vlan_id, "subnet": this.vlans[vlan_id].subnets[0] };
