@@ -222,6 +222,7 @@ export class JuniperParser {
         const regex_vlan_def = /^set vlans (?<vlan_name>[^ ]+) vlan-id (?<vlan_id>\d+)$/
         const regex_snooping = /^set vlans (?<vlan_name>[^ ]+) forwarding-options dhcp-security$/
         var vlans: JunosDhcpSnoopingVlansElements = {}
+        var dhcp_snooping_vlan_names: string[] = []
         dhcp_snooping_lines.forEach((line: string) => {
             var vlan_def = regex_vlan_def.exec(line.replace(/\r/, ""));
             var snoop_def = regex_snooping.exec(line.replace(/\r/, ""));
@@ -231,8 +232,11 @@ export class JuniperParser {
                 if (vlan_name && vlan_id) vlans[vlan_name] = [vlan_id];
             } else if (snoop_def) {
                 var vlan_name = snoop_def.groups?.["vlan_name"].toLowerCase().replace(/[ &:-]+/g, "_");
-                if (vlan_name) this.add_dhcp_snooping_vlan(vlans[vlan_name][0]);
+                if (vlan_name) dhcp_snooping_vlan_names.push(vlan_name)
             }
+        })
+        dhcp_snooping_vlan_names.forEach((vlan_name)=>{
+            if (vlans[vlan_name]) this.add_dhcp_snooping_vlan(vlans[vlan_name][0]);
         })
     }
 
