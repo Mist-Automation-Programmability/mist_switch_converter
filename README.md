@@ -51,7 +51,7 @@ It is possible to change the server parameters by creating a configuration file,
 To use the configuration file, copy the file `src/config_example.js` to `src/config.js`. Edit the file to match your requirements, then start the server with `npm start` from the `src` folder.
 
 ### Docker Image
-The docker image is available on docker hub: https://hub.docker.com/repository/docker/tmunzer/mist_switch_migration.
+The docker image is available on docker hub: [https://hub.docker.com/repository/docker/tmunzer/mist_switch_migration](https://hub.docker.com/r/tmunzer/mist_switch_converter).
 
 
 The Docket image is listening on port TCP3000
