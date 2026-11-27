@@ -36,6 +36,23 @@ result.diagnostics;  // what was left out or guessed, with file and line numbers
 
 `detect.ts` tells which extractor reads a file. `report.ts` collects the diagnostics.
 
+### The names of the port usages
+
+Ports with the same converted settings share one port usage, in one file or across
+files. `template/port_usages.ts` names it, in this order:
+
+1. after the interface ranges of its ports (Junos);
+2. after the description of its ports, when more than half of them have one: the
+   description itself when there is only one, or the words that more than half of
+   the descriptions share (`desk` for "Desk 12" and "Desk 13"), with a warning;
+3. after its settings: `access_users`, `access_users_voip_dot1x`, `trunk_all`,
+   `trunk_12_vlans`, `disabled_access_users`.
+
+Two port usages that would get the same name get the words that tell them apart,
+and only those: `printer_floor1` and `printer_floor2`, `access_users` and
+`access_users_qos_nopoe`. A number (`desk-0004`) is the last resort, when they
+differ on a setting that has no short word. A name has at most 31 characters.
+
 ## Adding a command
 
 Find the rule table of the place where the command lives (`portRules` in

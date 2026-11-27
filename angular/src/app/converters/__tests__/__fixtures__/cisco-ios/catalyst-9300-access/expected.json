@@ -12,24 +12,22 @@
     "sw-access-01 Port-channel1 = uplink_core",
     "sw-access-01 TenGigabitEthernet1/1/1 = uplink_core",
     "sw-access-01 TenGigabitEthernet1/1/2 = uplink_core",
-    "sw-access-01 GigabitEthernet1/0/1 = user_phone_meeting_room",
-    "sw-access-01 GigabitEthernet1/0/2 = user_phone_meeting_room",
-    "sw-access-01 GigabitEthernet1/0/3 = user_phone_meeting_room",
-    "sw-access-01 GigabitEthernet1/0/4 = user_phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/1 = access_users_voip_dot1x_mab",
+    "sw-access-01 GigabitEthernet1/0/2 = access_users_voip_dot1x_mab",
+    "sw-access-01 GigabitEthernet1/0/3 = access_users_voip_dot1x_mab",
+    "sw-access-01 GigabitEthernet1/0/4 = access_users_voip_dot1x_mab",
     "sw-access-01 GigabitEthernet1/0/5 = printer",
     "sw-access-01 GigabitEthernet1/0/6 = ap_floor1",
     "sw-access-01 GigabitEthernet1/0/7 = ap_floor2",
     "sw-access-01 GigabitEthernet1/0/8 = unused",
-    "sw-access-01 GigabitEthernet1/0/9 = profile",
-    "sw-access-01 GigabitEthernet1/0/10 = profile",
-    "sw-access-01 GigabitEthernet1/0/11 = profile-0008",
-    "sw-access-01 GigabitEthernet1/0/12 = profile",
-    "sw-access-01 TenGigabitEthernet1/1/3 = profile",
-    "sw-access-01 TenGigabitEthernet1/1/4 = profile"
+    "sw-access-01 GigabitEthernet1/0/9 = access_default",
+    "sw-access-01 GigabitEthernet1/0/10 = access_default",
+    "sw-access-01 GigabitEthernet1/0/11 = access_default_nopoe",
+    "sw-access-01 GigabitEthernet1/0/12 = access_default",
+    "sw-access-01 TenGigabitEthernet1/1/3 = access_default",
+    "sw-access-01 TenGigabitEthernet1/1/4 = access_default"
   ],
-  "problems": [
-    "warning: Port usage \"user_phone_meeting_room\" is shared by ports with different descriptions and is named after the words they have in common: USER+PHONE,MEETING-ROOM"
-  ],
+  "problems": [],
   "errors": [],
   "template": {
     "name": "template_name",
@@ -150,7 +148,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "user_phone_meeting_room": {
+      "access_users_voip_dot1x_mab": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -265,7 +263,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile": {
+      "access_default": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -283,7 +281,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile-0008": {
+      "access_default_nopoe": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -409,19 +407,19 @@
             },
             "ge-0/0/0": {
               "description": "USER+PHONE",
-              "usage": "user_phone_meeting_room"
+              "usage": "access_users_voip_dot1x_mab"
             },
             "ge-0/0/1": {
               "description": "USER+PHONE",
-              "usage": "user_phone_meeting_room"
+              "usage": "access_users_voip_dot1x_mab"
             },
             "ge-0/0/2": {
               "description": "USER+PHONE",
-              "usage": "user_phone_meeting_room"
+              "usage": "access_users_voip_dot1x_mab"
             },
             "ge-0/0/3": {
               "description": "MEETING-ROOM",
-              "usage": "user_phone_meeting_room"
+              "usage": "access_users_voip_dot1x_mab"
             },
             "ge-0/0/4": {
               "description": "PRINTER",
@@ -440,22 +438,22 @@
               "usage": "unused"
             },
             "ge-0/0/8": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "ge-0/0/9": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "ge-0/0/10": {
-              "usage": "profile-0008"
+              "usage": "access_default_nopoe"
             },
             "ge-0/0/11": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "mge-0/1/2": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "mge-0/1/3": {
-              "usage": "profile"
+              "usage": "access_default"
             }
           },
           "match_name[0:12]": "sw-access-01"

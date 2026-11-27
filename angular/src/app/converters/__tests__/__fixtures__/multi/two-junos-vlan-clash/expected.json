@@ -17,9 +17,9 @@
   ],
   "ports": [
     "ex-bldg-a ge-0/0/0 = user_port",
-    "ex-bldg-a ge-0/0/1 = server",
+    "ex-bldg-a ge-0/0/1 = server_servers",
     "ex-bldg-b ge-0/0/0 = user_port",
-    "ex-bldg-b ge-0/0/1 = server-0003"
+    "ex-bldg-b ge-0/0/1 = server_servers_vl60"
   ],
   "problems": [
     "warning: VLAN 10 has multiple names (USERS, STAFF). Using the first one: \"users\"",
@@ -64,7 +64,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "server": {
+      "server_servers": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -82,7 +82,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "server-0003": {
+      "server_servers_vl60": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -138,7 +138,7 @@
             },
             "ge-0/0/1": {
               "description": "Server",
-              "usage": "server"
+              "usage": "server_servers"
             }
           },
           "match_name[0:9]": "ex-bldg-a"
@@ -152,7 +152,7 @@
             },
             "ge-0/0/1": {
               "description": "Server",
-              "usage": "server-0003"
+              "usage": "server_servers_vl60"
             }
           },
           "match_name[0:9]": "ex-bldg-b"

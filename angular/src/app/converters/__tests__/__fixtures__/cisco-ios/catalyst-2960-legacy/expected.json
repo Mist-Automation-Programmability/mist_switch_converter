@@ -14,9 +14,9 @@
     "sw-floor2 FastEthernet0/3 = desk_2_03",
     "sw-floor2 FastEthernet0/10 = cctv_entrance",
     "sw-floor2 FastEthernet0/11 = badge_reader",
-    "sw-floor2 FastEthernet0/20 = profile",
-    "sw-floor2 FastEthernet0/21 = profile-0006",
-    "sw-floor2 FastEthernet0/22 = profile",
+    "sw-floor2 FastEthernet0/20 = access_default",
+    "sw-floor2 FastEthernet0/21 = disabled_access_default",
+    "sw-floor2 FastEthernet0/22 = access_default",
     "sw-floor2 GigabitEthernet0/1 = uplink_to_sw_core_gi1_0_12",
     "sw-floor2 GigabitEthernet0/2 = spare_uplink"
   ],
@@ -132,7 +132,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile": {
+      "access_default": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -150,7 +150,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile-0006": {
+      "disabled_access_default": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": true,
@@ -305,13 +305,13 @@
               "usage": "badge_reader"
             },
             "fe-0/0/19": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "fe-0/0/20": {
-              "usage": "profile-0006"
+              "usage": "disabled_access_default"
             },
             "fe-0/0/21": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "ge-0/0/0": {
               "description": "Uplink to sw-core Gi1/0/12",

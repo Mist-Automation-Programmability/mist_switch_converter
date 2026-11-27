@@ -20,10 +20,10 @@
     "ex-idf-2 ge-0/0/1 = user_port",
     "ex-idf-2 ge-0/0/2 = printer",
     "ex-idf-2 xe-0/2/0 = uplink",
-    "sw-idf-1 GigabitEthernet1/0/1 = user_port-0004",
-    "sw-idf-1 GigabitEthernet1/0/2 = user_port-0004",
-    "sw-idf-1 GigabitEthernet1/0/3 = printer-0005",
-    "sw-idf-1 GigabitEthernet1/0/4 = profile",
+    "sw-idf-1 GigabitEthernet1/0/1 = user_port_voip_edge",
+    "sw-idf-1 GigabitEthernet1/0/2 = user_port_voip_edge",
+    "sw-idf-1 GigabitEthernet1/0/3 = printer_edge",
+    "sw-idf-1 GigabitEthernet1/0/4 = access_default",
     "sw-idf-1 TenGigabitEthernet1/1/1 = uplink"
   ],
   "problems": [
@@ -111,7 +111,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "user_port-0004": {
+      "user_port_voip_edge": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -130,7 +130,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "printer-0005": {
+      "printer_edge": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -148,7 +148,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile": {
+      "access_default": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -248,18 +248,18 @@
           "port_config": {
             "ge-0/0/0": {
               "description": "User port",
-              "usage": "user_port-0004"
+              "usage": "user_port_voip_edge"
             },
             "ge-0/0/1": {
               "description": "User port",
-              "usage": "user_port-0004"
+              "usage": "user_port_voip_edge"
             },
             "ge-0/0/2": {
               "description": "Printer",
-              "usage": "printer-0005"
+              "usage": "printer_edge"
             },
             "ge-0/0/3": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "mge-0/1/0": {
               "description": "Uplink",

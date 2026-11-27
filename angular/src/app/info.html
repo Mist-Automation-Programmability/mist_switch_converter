@@ -58,7 +58,7 @@
         <mat-tab label="Juniper">
             <div class="text">
                 <div>To get a good result, each Junos file must contain the configuration from a single switch with the result of the <samp>show | display inheritance | display set</samp> command.</div>
-                <div>The Juniper interface-ranges are used to name the port profiles.</div>
+                <div>The Juniper interface-ranges are used to name the port profiles. Without interface-range, a port profile is named after the description that most of its ports have, or after its settings (<samp>access_users_voip</samp>, <samp>trunk_all</samp>).</div>
                 <div>What is not converted (routed ports, unknown settings...) is listed in the "Logs" tab of the details, with the file and the line numbers.</div>
                 <div><b>TIPS:</b> you can use the <samp>set cli screen-length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
             </div>
@@ -88,6 +88,7 @@ set interfaces interface-range ap member ge-0/0/8
             <div class="text">
                 <div>To get a good result, each Cisco file must contain the configuration from a single switch with the result of the <samp>show running-config</samp> and <samp>show vlan brief</samp> commands.</div>
                 <div>Cisco IOS and IOS-XE are supported. NX-OS is not.</div>
+                <div>A port profile is named after the description that most of its ports have, or after its settings (<samp>access_users_voip</samp>, <samp>trunk_all</samp>).</div>
                 <div>What is not converted (routed ports, unknown settings...) is listed in the "Logs" tab of the details, with the file and the line numbers.</div>
                 <div><b>TIPS:</b> you can use the <samp>terminal length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
             </div>

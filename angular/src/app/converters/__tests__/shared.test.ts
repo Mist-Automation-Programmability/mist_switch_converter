@@ -135,13 +135,121 @@ describe('Port usages (profiles)', () => {
     expect(logsOf(result, 'warning').join('\n')).toContain('Desk 12,Desk 13,Desk 14 - Phone');
   });
 
-  it('names a port usage "profile" when its ports have no description', async () => {
-    const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport access vlan 10\n!'));
+  it('names a port usage after its settings when its ports have no description', async () => {
+    const result = await convert(
+      ios(`
+        vlan 10
+         name users
+        vlan 20
+         name voice
+        !
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+        !
+        interface GigabitEthernet1/0/2
+         switchport access vlan 10
+         switchport voice vlan 20
+        !
+        interface GigabitEthernet1/0/3
+         switchport access vlan 10
+         authentication port-control auto
+         dot1x pae authenticator
+        !
+        interface GigabitEthernet1/0/4
+         switchport mode trunk
+        !
+        interface GigabitEthernet1/0/5
+         switchport mode trunk
+         switchport trunk allowed vlan 10,20
+        !
+        interface GigabitEthernet1/0/6
+         switchport mode trunk
+         switchport trunk allowed vlan 20
+        !
+        interface GigabitEthernet1/0/7
+         switchport access vlan 20
+         shutdown
+        !
+      `),
+    );
 
-    expect(Object.keys(result.template.port_usages)).toEqual(['profile']);
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_users', 'access_users_voip', 'access_users_dot1x', 'trunk_all', 'trunk_2_vlans', 'trunk_voice', 'disabled_access_voice']);
   });
 
-  it('adds a suffix when two different port usages would get the same name', async () => {
+  it('tells port usages with the same mode and network apart by the settings that differ', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+        !
+        interface GigabitEthernet1/0/2
+         switchport access vlan 10
+         speed 100
+         spanning-tree portfast
+        !
+        interface GigabitEthernet1/0/3
+         switchport access vlan 10
+         spanning-tree portfast
+         power inline never
+        !
+        interface GigabitEthernet1/0/4
+         switchport access vlan 30
+         spanning-tree portfast
+        !
+      `),
+    );
+
+    // "edge" is not in the name of the usage of VLAN 30: no other usage of that VLAN differs on it.
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_vlan10', 'access_vlan10_edge_100m', 'access_vlan10_nopoe_edge', 'access_vlan30']);
+  });
+
+  it('does not name a port usage after the description of a minority of its ports', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 description "Coffee machine"
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_users']);
+    expect(logsOf(result, 'warning').join('\n')).not.toContain('Coffee');
+  });
+
+  it('names a port usage after the description that most of its ports have', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 description Printer
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 description Printer
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['printer']);
+  });
+
+  it('names a port usage after its settings when its descriptions have no word in common', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 description "Reception"
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 description "Coffee machine"
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 description "Badge reader"
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_users']);
+  });
+
+  it('adds what tells them apart when two different port usages would get the same name', async () => {
     const result = await convert(
       ios(`
         interface GigabitEthernet1/0/1
@@ -152,15 +260,60 @@ describe('Port usages (profiles)', () => {
          description Printer
          switchport access vlan 31
         !
+        interface GigabitEthernet1/0/3
+         description Camera
+         switchport access vlan 40
+        !
+        interface GigabitEthernet1/0/4
+         description Camera
+         switchport access vlan 40
+         power inline never
+        !
+        interface GigabitEthernet1/0/5
+         description Desk
+         switchport access vlan 10
+        !
+        interface GigabitEthernet1/0/6
+         description Desk
+         switchport access vlan 10
+         switchport voice vlan 20
+        !
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['printer_vlan30', 'printer_vlan31', 'camera', 'camera_nopoe', 'desk', 'desk_voip']);
+    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('vlan30');
+    expect(usageFor(result, 'GigabitEthernet1/0/2').port_network).toBe('vlan31');
+  });
+
+  it('adds a number when nothing short tells two port usages apart', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         description Desk
+         switchport access vlan 10
+         authentication port-control auto
+         authentication periodic
+         authentication timer reauthenticate 3600
+         dot1x pae authenticator
+        !
+        interface GigabitEthernet1/0/2
+         description Desk
+         switchport access vlan 10
+         authentication port-control auto
+         authentication periodic
+         authentication timer reauthenticate 7200
+         dot1x pae authenticator
+        !
       `),
     );
 
     const names = Object.keys(result.template.port_usages);
     expect(names).toHaveLength(2);
-    expect(names[0]).toBe('printer');
-    expect(names[1]).toMatch(/^printer-[0-9a-f]{4}$/);
-    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('vlan30');
-    expect(usageFor(result, 'GigabitEthernet1/0/2').port_network).toBe('vlan31');
+    expect(names[0]).toBe('desk');
+    expect(names[1]).toMatch(/^desk-[0-9a-f]{4}$/);
+    expect(usageFor(result, 'GigabitEthernet1/0/1').reauth_interval).toBe(3600);
+    expect(usageFor(result, 'GigabitEthernet1/0/2').reauth_interval).toBe(7200);
   });
 
   it('limits the name of a port usage to 31 characters', async () => {

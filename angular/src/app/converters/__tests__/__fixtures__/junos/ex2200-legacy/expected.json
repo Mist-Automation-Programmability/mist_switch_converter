@@ -12,7 +12,7 @@
     "ex2200-floor3 ge-0/0/0 = desk",
     "ex2200-floor3 ge-0/0/1 = desk",
     "ex2200-floor3 ge-0/0/2 = printer_3rd_floor",
-    "ex2200-floor3 ge-0/0/3 = profile",
+    "ex2200-floor3 ge-0/0/3 = access_default",
     "ex2200-floor3 ge-0/0/22 = ap_floor_3",
     "ex2200-floor3 ge-0/1/0 = uplink_to_core"
   ],
@@ -91,7 +91,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile": {
+      "access_default": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -207,7 +207,7 @@
               "usage": "printer_3rd_floor"
             },
             "ge-0/0/3": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "ge-0/0/22": {
               "description": "AP floor 3",

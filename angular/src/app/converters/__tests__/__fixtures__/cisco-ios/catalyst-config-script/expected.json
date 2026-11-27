@@ -13,18 +13,17 @@
     "sw-floor1 GigabitEthernet1/0/2 = desks",
     "sw-floor1 GigabitEthernet1/0/3 = desks",
     "sw-floor1 GigabitEthernet1/0/4 = desks",
-    "sw-floor1 GigabitEthernet1/0/5 = profile",
-    "sw-floor1 GigabitEthernet1/0/6 = profile",
-    "sw-floor1 GigabitEthernet1/0/7 = profile",
-    "sw-floor1 GigabitEthernet1/0/8 = profile",
-    "sw-floor1 GigabitEthernet1/0/9 = printer_camera",
-    "sw-floor1 GigabitEthernet1/0/10 = printer_camera",
+    "sw-floor1 GigabitEthernet1/0/5 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/6 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/7 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/8 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/9 = access_printers",
+    "sw-floor1 GigabitEthernet1/0/10 = access_printers",
     "sw-floor1 Port-channel1 = uplink",
     "sw-floor1 GigabitEthernet1/0/23 = uplink",
     "sw-floor1 GigabitEthernet1/0/24 = uplink"
   ],
   "problems": [
-    "warning: Port usage \"printer_camera\" is shared by ports with different descriptions and is named after the words they have in common: Printer,Camera",
     "warning: Port usage \"uplink\" has the name of a port usage that Mist defines itself: check it, or rename it, before importing the template"
   ],
   "errors": [],
@@ -78,7 +77,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile": {
+      "disabled_access_printers": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": true,
@@ -96,7 +95,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "printer_camera": {
+      "access_printers": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -198,24 +197,24 @@
               "usage": "desks"
             },
             "ge-0/0/4": {
-              "usage": "profile"
+              "usage": "disabled_access_printers"
             },
             "ge-0/0/5": {
-              "usage": "profile"
+              "usage": "disabled_access_printers"
             },
             "ge-0/0/6": {
-              "usage": "profile"
+              "usage": "disabled_access_printers"
             },
             "ge-0/0/7": {
-              "usage": "profile"
+              "usage": "disabled_access_printers"
             },
             "ge-0/0/8": {
               "description": "Printer",
-              "usage": "printer_camera"
+              "usage": "access_printers"
             },
             "ge-0/0/9": {
               "description": "Camera",
-              "usage": "printer_camera"
+              "usage": "access_printers"
             },
             "ge-0/0/22,ge-0/0/23": {
               "ae_idx": 0,

@@ -11,7 +11,7 @@
   "ports": [
     "ex-access-01 ge-0/0/0 = access",
     "ex-access-01 ge-0/0/1 = access",
-    "ex-access-01 ge-0/0/2 = access-0002",
+    "ex-access-01 ge-0/0/2 = access_100m",
     "ex-access-01 ge-0/0/3 = access",
     "ex-access-01 ge-0/0/4 = access",
     "ex-access-01 ge-0/0/5 = access",
@@ -91,7 +91,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "access-0002": {
+      "access_100m": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -338,7 +338,7 @@
             },
             "ge-0/0/2": {
               "description": "Desk 13",
-              "usage": "access-0002"
+              "usage": "access_100m"
             },
             "ge-0/0/3": {
               "description": "Desk 14",
