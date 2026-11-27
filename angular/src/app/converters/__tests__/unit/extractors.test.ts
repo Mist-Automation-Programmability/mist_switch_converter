@@ -178,7 +178,39 @@ describe('Junos extractor', () => {
     expect(port(device, 'ge-0/0/0')).toMatchObject({ ...shared, accessVlan: 10 });
     // What the port says itself comes before what the range says.
     expect(port(device, 'ge-0/0/1')).toMatchObject({ ...shared, accessVlan: 30, description: 'Desk 12' });
-    expect(port(device, 'ge-0/0/0').lines).toEqual(['set interfaces interface-range DESKS unit 0 family ethernet-switching vlan members USERS']);
+  });
+
+  it('keeps every line about a port, in the order of the file: its range, and what is written outside "interfaces"', () => {
+    expect(port(device, 'ge-0/0/0').lines).toEqual([
+      'set interfaces interface-range DESKS unit 0 family ethernet-switching vlan members USERS',
+      'set protocols dot1x authenticator interface DESKS supplicant multiple',
+      'set protocols dot1x authenticator interface DESKS mac-radius',
+      'set protocols dot1x authenticator interface DESKS reauthentication 3600',
+      'set protocols rstp interface DESKS edge',
+      'set switch-options voip interface access-ports vlan VOICE',
+    ]);
+  });
+
+  it('keeps the lines that name a port and are not converted', () => {
+    const text = [
+      'set interfaces ge-0/0/5 unit 0 family ethernet-switching vlan members USERS',
+      'set interfaces ge-0/0/6 unit 0 family ethernet-switching vlan members USERS',
+      'set vlans USERS vlan-id 10',
+      'set class-of-service interfaces ge-0/0/5 unit 0 classifiers dscp PHONES',
+      'set poe interface ge-0/0/5 disable',
+      'set vlans USERS forwarding-options dhcp-security group TRUSTED interface ge-0/0/5.0',
+      'set protocols lldp interface ge-0/0/6 disable',
+    ].join('\n');
+    const read = extractJunos({ name: 'ex2.txt', text }, new Report('ex2.txt'));
+
+    expect(port(read, 'ge-0/0/5')).toMatchObject({ qos: true, poe: false });
+    expect(port(read, 'ge-0/0/5').lines).toEqual([
+      'set interfaces ge-0/0/5 unit 0 family ethernet-switching vlan members USERS',
+      'set class-of-service interfaces ge-0/0/5 unit 0 classifiers dscp PHONES',
+      'set poe interface ge-0/0/5 disable',
+      'set vlans USERS forwarding-options dhcp-security group TRUSTED interface ge-0/0/5.0',
+    ]);
+    expect(port(read, 'ge-0/0/6').lines).toEqual(['set interfaces ge-0/0/6 unit 0 family ethernet-switching vlan members USERS', 'set protocols lldp interface ge-0/0/6 disable']);
   });
 
   it('reads a link aggregation and its member', () => {

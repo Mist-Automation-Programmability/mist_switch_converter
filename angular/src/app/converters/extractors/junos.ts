@@ -47,6 +47,8 @@ interface PortDraft {
   serverRejectVlan?: string;
   /** True while the statements of an interface range are applied to the port. */
   readingRange: boolean;
+  /** The lines of the file that are about the port, by line number. */
+  source: Map<number, string>;
 }
 
 interface RadiusDraft {
@@ -245,6 +247,12 @@ const dot1xRules = new RuleTable<PortDraft>([
  * its unit, an interface range, "all", or a name with wildcards.
  */
 function portsOf(context: Context, reference: string, statement: Statement): PortDraft[] {
+  const ports = referredPorts(context, reference, statement);
+  for (const draft of ports) draft.source.set(statement.line, statement.text);
+  return ports;
+}
+
+function referredPorts(context: Context, reference: string, statement: Statement): PortDraft[] {
   const name = reference.replace(/\.\d+$/, '');
   const switchPorts = [...context.drafts.values()].filter((draft) => draft.port.kind === 'physical' || draft.port.kind === 'lag');
   const range = context.ranges.get(name);
@@ -258,6 +266,17 @@ function portsOf(context: Context, reference: string, statement: Statement): Por
   const draft = context.drafts.get(name);
   if (!draft) context.report.portNote('info', 'port-not-configured', 'A setting refers to a port that the file does not configure under "interfaces": left out', statement.line, name);
   return draft && switchPorts.includes(draft) ? [draft] : [];
+}
+
+/**
+ * A statement outside "interfaces" that names a port is one of the lines of that port,
+ * converted or not: the details of the port show what the file says about it.
+ */
+function noteNamedPorts(context: Context, statement: Statement): void {
+  for (const word of statement.words) {
+    const draft = context.drafts.get(word.replace(/\.\d+$/, ''));
+    if (draft && (draft.port.kind === 'physical' || draft.port.kind === 'lag')) draft.source.set(statement.line, statement.text);
+  }
 }
 
 function radiusOf(context: Context, host: string): RadiusDraft {
@@ -489,7 +508,7 @@ function draftOf(context: Context, name: string, line: number): PortDraft {
       port.aeIndex = read.number;
       port.lacp = false;
     }
-    draft = { port, line, trunk: false, switching: false, routed: false, members: [], readingRange: false };
+    draft = { port, line, trunk: false, switching: false, routed: false, members: [], readingRange: false, source: new Map() };
     context.drafts.set(name, draft);
   }
   return draft;
@@ -546,7 +565,7 @@ function readInterfaces(context: Context, statements: Statement[]): void {
 
 function readInterfaceStatement(context: Context, draft: PortDraft, statement: Statement, words: string[]): void {
   const port = draft.port;
-  port.lines.push(statement.text);
+  draft.source.set(statement.line, statement.text);
   if (port.kind === 'svi') {
     // "set interfaces irb unit 10 family inet address 10.1.10.1/24": the subnet of the VLAN whose l3-interface is irb.10
     const [unit, unitNumber, family, inet, address, value] = words;
@@ -566,6 +585,8 @@ function readInterfaceStatement(context: Context, draft: PortDraft, statement: S
 /** Turns what was read on a port into a port, once the whole file is read. */
 function finishPort(context: Context, draft: PortDraft): void {
   const port = draft.port;
+  // In the order of the file
+  port.lines = [...draft.source.entries()].sort(([a], [b]) => a - b).map(([, text]) => text);
   const declared = [...context.vlans.values()].filter((vlan) => vlan.declared).map((vlan) => vlan.id);
   const resolve = (reference: string | undefined): number | undefined => {
     if (reference === undefined) return undefined;
@@ -659,6 +680,7 @@ export function extractJunos(file: SourceFile, report: Report): Device {
 
   // Pass 3: everything else
   for (const statement of statements) {
+    if (statement.words[0] !== 'interfaces') noteNamedPorts(context, statement);
     if (globalRules.apply(context, statement) === 'unknown') report.notConverted(statementKey(statement.words), statement.line);
   }
 
