@@ -801,6 +801,20 @@ describe('Junos: system settings', () => {
     expect(endpoints(result.template.radius_config.acct_servers)).toEqual(['10.0.0.80:1813']);
   });
 
+  it('leaves out, and names, a RADIUS server that the access profile does not list', async () => {
+    const result = await convert(
+      junos(`
+        set access radius-server 10.0.0.80 secret "REDACTED"
+        set access radius-server 10.0.0.81 secret "REDACTED"
+        set access profile CAMPUS-AUTH radius authentication-server 10.0.0.80
+        set protocols dot1x authenticator authentication-profile-name CAMPUS-AUTH
+      `),
+    );
+
+    expect(endpoints(result.template.radius_config.auth_servers)).toEqual(['10.0.0.80:1812']);
+    expect(logsOf(result, 'info')).toContain('RADIUS servers that the access profile does not list are left out: 10.0.0.81');
+  });
+
   it('a TACACS+ server without "port" uses port 49 (B5)', async () => {
     const result = await convert(junos('set system tacplus-server 10.0.0.70 secret "REDACTED"'));
 

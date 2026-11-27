@@ -621,6 +621,8 @@ function finishServers(context: Context): void {
   // The accounting servers are those of the profile. Without any profile, they are the servers with "accounting-port".
   const acctHosts = profiles.length > 0 ? listed('acct') : [...context.radius.keys()].filter((host) => context.radius.get(host)?.acctPort !== undefined);
   system.radius.acct = acctHosts.map((host) => ({ host, port: context.radius.get(host)?.acctPort ?? 1813, timeout: timeoutOf(host) }));
+  const unused = [...context.radius.keys()].filter((host) => !authHosts.includes(host) && !acctHosts.includes(host));
+  if (unused.length > 0) context.report.info('radius-unused', `RADIUS servers that the access profile does not list are left out: ${unused.join(', ')}`);
   system.radius.coaPort = [...context.radius.values()].find((server) => server.coaPort !== undefined)?.coaPort;
 }
 
