@@ -14,10 +14,11 @@
  * The community that a host line carries is not read: Junos sends the name of the
  * trap group in its place.
  */
-import { addOnce, named, Snmp, SnmpAccess, SnmpCommunity, SnmpSecurityLevel, SnmpTargetParameters, SnmpTrapGroup, SnmpUser } from '../model';
+import { addOnce, named, Snmp, SnmpAccess, SnmpCommunity, SnmpSecurityLevel, SnmpUser } from '../model';
 import { Report } from '../report';
 import { Statement } from '../readers/statement';
 import { rule, RuleTable } from './rules';
+import { addV3Target, TRAP_PORT_WARNING, trapGroupFor } from './snmp_targets';
 import { isIpAddress, isIpv4 } from './values';
 
 /** A standard access list: the prefixes it permits. */
@@ -149,20 +150,13 @@ function readHost(target: CiscoSnmp, address: string, words: string[]): void | f
   if (name === undefined || !['1', '2c', '3'].includes(version)) return false;
 
   if (version === '3') {
-    // The name is the user of version 3: the parameters say how the notifications are sent to the station
-    const tag = type === 'inform' ? 'informs' : 'traps';
-    const parameters = `${tag}_${name}`;
-    named(snmp.notifies, tag, () => ({ name: tag, tag, type }));
-    named<SnmpTargetParameters>(snmp.targetParameters, parameters, () => ({ name: parameters, processing: 'v3', model: 'usm', level, securityName: name }));
-    const station = named(snmp.targets, `target_${address}`, () => ({ name: `target_${address}`, address, tags: [], parameters }));
-    addOnce(station.tags, tag);
-    if (port !== undefined) station.port = port;
+    // The name is the user of version 3
+    addV3Target(snmp, { address, type, user: name, level, port });
     return undefined;
   }
   // The name is a community: it is not kept
-  const group = version === '1' ? 'traps_v1' : 'traps_v2';
-  addOnce(named<SnmpTrapGroup>(snmp.trapGroups, group, () => ({ name: group, version: version === '1' ? 'v1' : 'v2', targets: [], categories: [] })).targets, address);
-  if (port !== undefined && port !== 162) target.report.warning('snmp-trap-port', 'SNMP: a trap group has no port, the traps of versions 1 and 2c go to port 162');
+  trapGroupFor(snmp, version === '1' ? 'v1' : 'v2', address);
+  if (port !== undefined && port !== 162) target.report.warning('snmp-trap-port', TRAP_PORT_WARNING);
   return undefined;
 }
 
