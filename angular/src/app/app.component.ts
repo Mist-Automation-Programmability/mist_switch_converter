@@ -48,6 +48,8 @@ export class AppComponent implements OnInit {
   json_to_html = new JsonToHtml();
 
   show_file_warning: boolean = false;
+  /** Copy into the template the secrets that the files have in clear text (SNMP communities) */
+  copy_secrets: boolean = false;
   /** "2 errors, 5 warnings", or "" when the conversion has nothing to report. */
   problem_summary: string = "";
 
@@ -185,7 +187,7 @@ export class AppComponent implements OnInit {
       this.problem_summary = "";
       return;
     }
-    const conversion = convert(this.config_files.map(file => ({ name: file.name, text: file.text })));
+    const conversion = convert(this.config_files.map(file => ({ name: file.name, text: file.text })), { copyClearTextSecrets: this.copy_secrets });
     conversion.template.name = this.template_name;
     conversion.files.forEach((report, index) => this.config_files[index].report = report);
     this.conversion = conversion;

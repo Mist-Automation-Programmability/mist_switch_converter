@@ -66,6 +66,32 @@ differ on a setting that has no short word. A name has at most 31 characters.
   not. A Cisco switch trusts no port by default, so with DHCP snooping a Cisco trunk
   without `ip dhcp snooping trust` becomes `allow_dhcpd: false`, with a warning.
 
+- **SNMP.** A Mist template describes SNMP as Junos does (`snmp_config`), so Junos
+  statements are copied field by field (`extractors/junos_snmp.ts`). Cisco says some
+  things differently (`extractors/cisco_snmp.ts`): the standard access list of a
+  community becomes a client list (`acl_<name>`); `snmp-server host` becomes a trap
+  group for versions 1 and 2c (`traps_v1`, `traps_v2`) and a target with its
+  parameters for version 3; the kinds of `snmp-server enable traps` become Junos
+  categories; a version 3 group without a read view reads `v1default`, which is added
+  as a view of everything. The community of a Cisco host line is not kept: Junos sends
+  the name of the trap group. A template has one SNMP configuration: what several
+  files define under the same name comes from the first one, and location, contact
+  and description are written only when the files agree. What belongs to one switch
+  (`snmp name`, a local engine id, the source of the traps) is not converted.
+
+### Secrets
+
+No secret of a file is written in a diagnostic, ever: messages give keywords and line
+numbers. In the template, RADIUS and TACACS+ keys are `to_be_replaced`.
+
+SNMP communities are passwords in clear text. By default each one becomes
+`to_be_replaced_<n>`, the same number for the same community in every file, and a
+message gives its line. With `convert(files, { copyClearTextSecrets: true })` (the
+checkbox "Copy the SNMP secrets that are in clear text" of the page) the communities
+are copied, and so are the passwords of SNMP version 3 users that a file has in clear
+text (a configuration script; a running configuration only has keys). A warning says
+how many secrets were copied. What a file has encrypted or hashed is never copied.
+
 ## Adding a command
 
 Find the rule table of the place where the command lives (`portRules` in

@@ -15,12 +15,13 @@
  * The statements the extractor understands are in the rule tables below. A statement
  * without a rule is reported as not converted.
  */
-import { addOnce, Device, newDevice, newPort, Port, SourceFile, Speed, StormControl, SyslogServer, TacacsServer, Vlan } from '../model';
+import { addOnce, Device, newDevice, newPort, newSnmp, Port, SourceFile, Speed, StormControl, SyslogServer, TacacsServer, Vlan } from '../model';
 import { Report } from '../report';
 import { readSetLines } from '../readers/set_lines';
 import { Statement } from '../readers/statement';
 import { addMissingLags, NOT_A_SWITCH_PORT, referencedVlans } from './common';
 import { expandMember, expandMemberRange, readJunosInterface, wildcardMember } from './junos_interfaces';
+import { junosSnmpRules } from './junos_snmp';
 import { ignore, rule, RuleTable } from './rules';
 import { expandVlanRanges, isVlanId, parseVlanList, subnetOf } from './values';
 
@@ -427,6 +428,12 @@ const globalRules = new RuleTable<Context>([
     if (option === 'interface' && value !== undefined) group.ports.push(...portsOf(context, value, statement));
   }),
 
+  // SNMP has its own table of rules
+  rule('snmp ...', (context, _m, statement) => {
+    const snmp = (context.device.system.snmp ??= newSnmp());
+    return junosSnmpRules.apply(snmp, { ...statement, words: statement.words.slice(1) }) === 'unknown' ? false : undefined;
+  }),
+
   // Storm control
   rule('forwarding-options storm-control-profiles <name> action-shutdown', (context, m) => {
     stormProfileOf(context, m.name).shutdown = true;
@@ -602,6 +609,8 @@ function statementKey(words: string[]): string {
   if (first === 'vlans') return third === undefined ? 'vlans' : `vlans ${third}`;
   // After these, the second word is a name
   if (['groups', 'apply-groups', 'routing-instances'].includes(first) || second === undefined) return first;
+  // "snmp v3 usm", "snmp v3 vacm": the third word is still a keyword
+  if (first === 'snmp' && second === 'v3' && third !== undefined) return `snmp v3 ${third}`;
   return `${first} ${second}`;
 }
 

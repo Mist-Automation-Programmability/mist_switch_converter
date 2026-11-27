@@ -79,9 +79,16 @@
                 <div>
                     Please validate the generated configuration.
                 </div>
-                <div>
+                <div *ngIf="!copy_secrets">
                     Passwords from the configuration files were replaced with "to_be_replaced".
                 </div>
+                <div *ngIf="copy_secrets">
+                    SNMP secrets in clear text were copied, other passwords were replaced.
+                </div>
+                <mat-checkbox class="secrets" color="warn" [(ngModel)]="copy_secrets" (change)="processFiles()"
+                    matTooltip="SNMP communities, and SNMPv3 passwords when a file has them in clear text, go into the template as they are. Encrypted or hashed secrets are never copied.">
+                    Copy the SNMP secrets that are in clear text
+                </mat-checkbox>
             </div>
             <div class="export">
                 <mat-form-field>

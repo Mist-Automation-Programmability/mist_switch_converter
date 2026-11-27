@@ -172,6 +172,144 @@ export interface System {
     auth: TacacsServer[];
     acct: TacacsServer[];
   };
+  /** Undefined when the file has no SNMP. */
+  snmp?: Snmp;
+}
+
+/* ------------------------------------------------------------------- SNMP */
+
+/**
+ * SNMP of a device, version 2c and version 3. The model follows the SNMP of Junos, which
+ * is also the one of a Mist template: communities, client lists, views, trap groups, and
+ * for version 3 the users (USM), the access of their groups (VACM) and the targets of
+ * the notifications.
+ */
+export interface Snmp {
+  location?: string;
+  contact?: string;
+  description?: string;
+  /** The engine id of version 3 is built from the MAC address of the switch. */
+  engineIdFromMac: boolean;
+  clientLists: SnmpClientList[];
+  views: SnmpView[];
+  communities: SnmpCommunity[];
+  trapGroups: SnmpTrapGroup[];
+  users: SnmpUser[];
+  /** The group of each user: what a user may read is said for its group. */
+  securityToGroup: Array<{ model: SnmpSecurityModel; securityName: string; group: string }>;
+  access: SnmpAccess[];
+  targets: SnmpTargetAddress[];
+  targetParameters: SnmpTargetParameters[];
+  notifies: SnmpNotify[];
+  notifyFilters: SnmpNotifyFilter[];
+}
+
+export type SnmpSecurityModel = 'usm' | 'v1' | 'v2c';
+export type SnmpSecurityLevel = 'none' | 'authentication' | 'privacy';
+
+/** The stations that may use a community. */
+export interface SnmpClientList {
+  name: string;
+  /** Prefixes: "10.0.0.0/24". */
+  clients: string[];
+}
+
+export interface SnmpView {
+  name: string;
+  oid: string;
+  /** False when the subtree is taken out of the view. */
+  include: boolean;
+}
+
+export interface SnmpCommunity {
+  /**
+   * The community, as written. It is the password of SNMP version 2c: it is used to tell
+   * communities apart and never goes into a message.
+   */
+  community: string;
+  /** True when the file has the community encrypted: there is nothing to copy. */
+  encrypted?: true;
+  authorization: 'read-only' | 'read-write';
+  clientList?: string;
+  view?: string;
+  /** Line of the source file. */
+  line: number;
+}
+
+export interface SnmpTrapGroup {
+  name: string;
+  version: 'v1' | 'v2' | 'all';
+  targets: string[];
+  /** Kinds of traps, as Junos names them: "link", "authentication". None means all of them. */
+  categories: string[];
+}
+
+/** A user of version 3. A running configuration only has the keys of its passwords, a script can have the passwords. */
+export interface SnmpUser {
+  name: string;
+  /** The passwords, when the file has them in clear text. They never go into a message. */
+  authenticationPassword?: string;
+  privacyPassword?: string;
+  /** Set for a user of a remote engine. */
+  remoteEngineId?: string;
+  authentication: 'none' | 'md5' | 'sha' | 'sha224' | 'sha256' | 'sha384' | 'sha512';
+  privacy: 'none' | 'des' | '3des' | 'aes128';
+}
+
+/** What the users of a group may read, write and be notified of. */
+export interface SnmpAccess {
+  group: string;
+  /** Undefined for the default context. */
+  contextPrefix?: string;
+  model: SnmpSecurityModel | 'any';
+  level: SnmpSecurityLevel;
+  readView?: string;
+  writeView?: string;
+  notifyView?: string;
+}
+
+/** A station that receives the notifications of version 3. */
+export interface SnmpTargetAddress {
+  name: string;
+  address?: string;
+  mask?: string;
+  port?: number;
+  tags: string[];
+  parameters?: string;
+}
+
+export interface SnmpTargetParameters {
+  name: string;
+  processing?: 'v1' | 'v2c' | 'v3';
+  model?: SnmpSecurityModel;
+  level?: SnmpSecurityLevel;
+  securityName?: string;
+  notifyFilter?: string;
+}
+
+export interface SnmpNotify {
+  name: string;
+  tag?: string;
+  type: 'trap' | 'inform';
+}
+
+export interface SnmpNotifyFilter {
+  name: string;
+  contents: Array<{ oid: string; include: boolean }>;
+}
+
+export function newSnmp(): Snmp {
+  return { engineIdFromMac: false, clientLists: [], views: [], communities: [], trapGroups: [], users: [], securityToGroup: [], access: [], targets: [], targetParameters: [], notifies: [], notifyFilters: [] };
+}
+
+/** The entry with this name in a list, added to the list when it is not there yet. */
+export function named<T extends { name: string }>(list: T[], name: string, create: () => T): T {
+  let entry = list.find((candidate) => candidate.name === name);
+  if (!entry) {
+    entry = create();
+    list.push(entry);
+  }
+  return entry;
 }
 
 export interface SyslogServer {

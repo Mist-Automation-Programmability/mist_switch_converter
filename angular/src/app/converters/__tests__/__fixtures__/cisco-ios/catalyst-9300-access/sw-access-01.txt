@@ -187,8 +187,20 @@ no ip http server
 logging host 10.0.0.60
 logging host 10.0.0.61 transport udp port 1514
 !
-snmp-server community REDACTED RO
+ip access-list standard NMS
+ 10 permit 10.0.0.0 0.0.0.255
+!
+snmp-server group MONITORING v3 priv read NMS-VIEW
+snmp-server view NMS-VIEW iso included
+snmp-server community REDACTED RO NMS
+snmp-server trap-source Vlan99
 snmp-server location Building A
+snmp-server contact noc@example.com
+snmp-server enable traps snmp authentication linkdown linkup coldstart warmstart
+snmp-server enable traps config
+snmp-server enable traps envmon fan shutdown supply temperature status
+snmp-server host 10.0.0.90 version 2c REDACTED
+snmp-server host 10.0.0.91 version 3 priv nms
 !
 tacacs server TAC1
  address ipv4 10.0.0.70

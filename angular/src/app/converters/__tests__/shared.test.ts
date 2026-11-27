@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configuredPorts, convert, endpoints, ios, junos, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
+import { configuredPorts, convert, convertWith, endpoints, ios, junos, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
 
 describe('File format detection', () => {
   it('reports a file that is neither Cisco nor Junos and converts nothing from it', async () => {
@@ -569,5 +569,101 @@ describe('Several files in one template', () => {
       ['sw-a.txt', 'VLANs of the file: 10'],
       ['sw-b.txt', 'VLANs of the file: 10, 30'],
     ]);
+  });
+});
+
+describe('SNMP of several files, and the secrets', () => {
+  const cisco = (hostname: string, location: string): string =>
+    ios(
+      `
+        snmp-server community n3tmon RO
+        snmp-server community c1sco-only RW
+        snmp-server location ${location}
+        snmp-server contact noc@example.com
+        snmp-server host 10.0.0.70 version 2c n3tmon
+      `,
+      { hostname, vlans: { 10: 'USERS' } },
+    );
+  const juniper = junos(`
+    set system host-name ex1
+    set snmp location "Building A"
+    set snmp contact "noc@example.com"
+    set snmp community n3tmon authorization read-only
+    set snmp community jun1per-only authorization read-only
+    set snmp trap-group NMS targets 10.0.0.70
+    set snmp v3 usm local-engine user monitor authentication-sha authentication-key "REDACTED"
+    set snmp v3 usm local-engine user script authentication-sha authentication-password "authpass123"
+    set snmp v3 usm local-engine user script privacy-aes128 privacy-password "privpass123"
+    set vlans USERS vlan-id 10
+  `);
+
+  it('gives the same placeholder to the same community in every file', async () => {
+    const result = await convert(cisco('sw1', 'Building A'), juniper);
+
+    expect(result.template.snmp_config?.v2c_config).toEqual([
+      { community_name: 'to_be_replaced_1', authorization: 'read-only' },
+      { community_name: 'to_be_replaced_2', authorization: 'read-write' },
+      { community_name: 'to_be_replaced_3', authorization: 'read-only' },
+    ]);
+    expect(result.logs.filter((entry) => entry.message.includes('community of this line')).map((entry) => `${entry.file} ${entry.message.match(/to_be_replaced_\d/)?.[0]}`)).toEqual([
+      'file1.txt to_be_replaced_1',
+      'file1.txt to_be_replaced_2',
+      'file2.txt to_be_replaced_1',
+      'file2.txt to_be_replaced_3',
+    ]);
+  });
+
+  it('puts in the template what the files agree on, and adds up their trap groups', async () => {
+    const result = await convert(cisco('sw1', 'Building A'), juniper);
+
+    expect(result.template.snmp_config).toMatchObject({ location: 'Building A', contact: 'noc@example.com' });
+    expect(result.template.snmp_config?.trap_groups?.map((group) => group.group_name)).toEqual(['traps_v2', 'NMS']);
+  });
+
+  it('leaves out of the template what the files disagree on, and says so', async () => {
+    const result = await convert(cisco('sw1', 'Building A'), cisco('sw2', 'Building B'));
+
+    expect(result.template.snmp_config).toMatchObject({ contact: 'noc@example.com' });
+    expect(result.template.snmp_config?.location).toBeUndefined();
+    expect(logsOf(result, 'info')).toContain('SNMP: the files have different locations, the template has none. Set it on each switch');
+  });
+
+  it('copies no secret unless asked: communities and passwords are placeholders', async () => {
+    const result = await convert(cisco('sw1', 'Building A'), juniper);
+
+    expect(JSON.stringify(result)).not.toMatch(/n3tmon|c1sco-only|jun1per-only|authpass|privpass|REDACTED/);
+    expect(logsOf(result, 'warning')).toEqual([]);
+  });
+
+  it('copies the secrets that are in clear text when asked, and warns about it', async () => {
+    const result = await convertWith({ copyClearTextSecrets: true }, cisco('sw1', 'Building A'), juniper);
+
+    expect(result.template.snmp_config?.v2c_config).toEqual([
+      { community_name: 'n3tmon', authorization: 'read-only' },
+      { community_name: 'c1sco-only', authorization: 'read-write' },
+      { community_name: 'jun1per-only', authorization: 'read-only' },
+    ]);
+    expect(result.template.snmp_config?.v3_config?.usm?.[0].users).toEqual([
+      // A key cannot be copied: the password stays to be typed.
+      { name: 'monitor', authentication_type: 'authentication-sha', authentication_password: 'to_be_replaced', encryption_type: 'privacy-none' },
+      { name: 'script', authentication_type: 'authentication-sha', authentication_password: 'authpass123', encryption_type: 'privacy-aes128', encryption_password: 'privpass123' },
+    ]);
+    expect(logsOf(result, 'warning')).toEqual([
+      'SNMP: 3 communities are copied into the template in clear text, as asked. Mind who gets the template',
+      'SNMP version 3: the passwords of 1 user are copied into the template in clear text, as asked. Mind who gets the template',
+    ]);
+    expect(logsOf(result, 'info')).toContain('SNMP version 3: the passwords of 1 user are "to_be_replaced" in the template: type them there, or turn on "Copy the SNMP secrets that are in clear text" for those that a file has in clear text');
+  });
+
+  it('writes no secret in a message or in the list of ports, even when it copies them into the template', async () => {
+    const result = await convertWith({ copyClearTextSecrets: true }, cisco('sw1', 'Building A'), juniper);
+
+    expect(JSON.stringify([result.logs, result.files, result.ports, result.errors])).not.toMatch(/n3tmon|c1sco-only|jun1per-only|authpass|privpass|REDACTED/);
+  });
+
+  it('copies nothing else: the keys of RADIUS stay out of the template', async () => {
+    const result = await convertWith({ copyClearTextSecrets: true }, junos('set access radius-server 10.0.0.80 secret "REDACTED"\nset vlans USERS vlan-id 10'));
+
+    expect(JSON.stringify(result.template)).not.toContain('REDACTED');
   });
 });

@@ -5,12 +5,13 @@
  * The commands the extractor understands are in the rule tables below, one line per
  * command. A command without a rule is reported as not converted.
  */
-import { Device, Duplex, newDevice, newPort, Port, SourceFile, Speed, StormControl, Vlan, addOnce } from '../model';
+import { Device, Duplex, newDevice, newPort, newSnmp, Port, SourceFile, Speed, StormControl, Vlan, addOnce } from '../model';
 import { commandKey, Report } from '../report';
 import { readIndentedBlocks } from '../readers/indented_blocks';
 import { abbreviates, readIosCapture } from '../readers/ios_capture';
 import { sourceLines, Statement, textAfter } from '../readers/statement';
 import { expandCiscoInterfaceRange, readCiscoInterface } from './cisco_interfaces';
+import { CiscoSnmp, ciscoSnmpRules, finishCiscoSnmp, isStandardAccessList, newCiscoSnmp, readAccessListBlock, readAccessListEntry } from './cisco_snmp';
 import { addMissingLags, NOT_A_SWITCH_PORT, referencedVlans } from './common';
 import { ignore, rule, RuleTable } from './rules';
 import { expandVlanRanges, isIpAddress, isIpv4, isVlanId, parseVlanList, subnetOf, VlanRange } from './values';
@@ -81,6 +82,8 @@ interface Context {
   report: Report;
   vlans: Map<number, Vlan>;
   drafts: Map<string, PortDraft>;
+  /** SNMP and the standard access lists, which the SNMP communities can refer to. */
+  snmp: CiscoSnmp;
   /** "spanning-tree portfast default": access ports are edge ports unless they say otherwise. */
   portfastDefault: boolean;
   /** "ip dhcp snooping vlan ...". */
@@ -536,6 +539,14 @@ const globalRules = new RuleTable<Context>(
       context.device.hostname = m.name;
     }),
 
+    // SNMP has its own table of rules. The standard access lists say who may use a community.
+    rule('snmp-server ...', (context, _m, statement) => {
+      context.device.system.snmp = context.snmp.snmp;
+      return ciscoSnmpRules.apply(context.snmp, { ...statement, words: statement.words.slice(1) }) === 'unknown' ? false : undefined;
+    }),
+    rule('access-list <id> ...', (context, m, statement) => (isStandardAccessList(m.id) ? readAccessListEntry(context.snmp, m.id, statement.words.slice(2)) : false)),
+    rule('ip access-list standard <name>', (context, m, statement) => readAccessListBlock(context.snmp, m.name, statement)),
+
     // Interfaces
     rule('interface range <spec...>', (context, m, statement) => {
       const names = expandCiscoInterfaceRange(m.spec);
@@ -840,6 +851,7 @@ export function extractCiscoIos(file: SourceFile, report: Report): Device {
     report,
     vlans: new Map(),
     drafts: new Map(),
+    snmp: newCiscoSnmp(newSnmp(), report),
     portfastDefault: false,
     dhcpSnooping: [],
     sviVlans: [],
@@ -916,6 +928,7 @@ export function extractCiscoIos(file: SourceFile, report: Report): Device {
     }
   }
 
+  finishCiscoSnmp(context.snmp);
   device.vlans = [...context.vlans.values()];
   report.flush();
   return device;

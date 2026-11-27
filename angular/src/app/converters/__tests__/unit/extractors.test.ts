@@ -63,6 +63,10 @@ radius server ISE
  address ipv4 10.0.0.80 auth-port 1812 acct-port 1813
  key 7 REDACTED
 !
+key chain OSPF
+ key 1
+  key-string REDACTED
+!
 snmp-server community REDACTED RO
 end
 `;
@@ -89,6 +93,7 @@ set protocols rstp interface DESKS edge
 set switch-options voip interface access-ports vlan VOICE
 set access radius-server 10.0.0.80 secret "REDACTED"
 set snmp community REDACTED authorization read-only
+set protocols ospf area 0.0.0.0 interface irb.10 authentication md5 1 key "REDACTED"
 set vlans USERS vlan-id 10
 set vlans USERS l3-interface irb.10
 set vlans USERS forwarding-options dhcp-security
@@ -149,10 +154,14 @@ describe('Cisco IOS extractor', () => {
     expect(messages(report)).toEqual([
       'info interface-skipped: Interface GigabitEthernet0/0: management port, not converted',
       'warning routed-port: Interface GigabitEthernet1/0/2: routed port ("no switchport"), not converted',
-      'info not-converted: Not converted: "snmp-server community"',
+      'info not-converted: Not converted: "key"',
       'warning dhcp-untrusted-trunk: DHCP snooping: the trunk has no "ip dhcp snooping trust", DHCP servers are refused on it on Port-channel1',
     ]);
-    expect(JSON.stringify([device.system, device.vlans, report.diagnostics])).not.toContain('REDACTED');
+    expect(JSON.stringify([{ ...device.system, snmp: undefined }, device.vlans, report.diagnostics])).not.toContain('REDACTED');
+  });
+
+  it('keeps the SNMP community for the template builder, which replaces it unless the user asks for a copy', () => {
+    expect(device.system.snmp?.communities).toEqual([{ community: 'REDACTED', authorization: 'read-only', line: 59 }]);
   });
 });
 
@@ -223,8 +232,12 @@ describe('Junos extractor', () => {
     expect(messages(report)).toEqual([
       'warning routed-port: Interface et-0/1/0: routed port (it has an address or tagged units of its own), not converted',
       'info interface-skipped: Interface vme: management port, not converted',
-      'info not-converted: Not converted: "snmp community"',
+      'info not-converted: Not converted: "protocols ospf"',
     ]);
-    expect(JSON.stringify([device.system, device.vlans, report.diagnostics])).not.toContain('REDACTED');
+    expect(JSON.stringify([{ ...device.system, snmp: undefined }, device.vlans, report.diagnostics])).not.toContain('REDACTED');
+  });
+
+  it('keeps the SNMP community for the template builder, which replaces it unless the user asks for a copy', () => {
+    expect(device.system.snmp?.communities).toEqual([{ community: 'REDACTED', authorization: 'read-only', line: 22 }]);
   });
 });

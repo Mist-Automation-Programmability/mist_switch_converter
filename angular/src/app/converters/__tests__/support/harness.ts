@@ -10,7 +10,7 @@
  * tables and the other building blocks have tests of their own in `unit/`.
  */
 import { expect, it } from 'vitest';
-import { convert as convertFiles } from '../../convert';
+import { convert as convertFiles, type ConvertOptions } from '../../convert';
 import type { MistPortConfig, MistPortUsage, MistSwitchRule, MistTemplate } from '../../template/mist';
 
 /* ------------------------------------------------------------------ types */
@@ -75,7 +75,12 @@ export interface Conversion {
  * written with `await` for the converter that came before it.
  */
 export async function convert(...inputs: Array<string | InputFile>): Promise<Conversion> {
-  const result = convertFiles(inputs.map((input, index) => (typeof input === 'string' ? { name: `file${index + 1}.txt`, text: input } : input)));
+  return convertWith({}, ...inputs);
+}
+
+/** `convert` with the options of the page, such as "Copy the SNMP secrets that are in clear text". */
+export async function convertWith(options: ConvertOptions, ...inputs: Array<string | InputFile>): Promise<Conversion> {
+  const result = convertFiles(inputs.map((input, index) => (typeof input === 'string' ? { name: `file${index + 1}.txt`, text: input } : input)), options);
   return {
     // The app downloads JSON.stringify(template); do the same so tests see the real export.
     template: JSON.parse(JSON.stringify(result.template)) as MistTemplate,
