@@ -1,0 +1,101 @@
+admin@ex-access-01> show configuration | display set
+set version 21.4R3-S5.4
+set system host-name ex-access-01
+set system root-authentication encrypted-password "REDACTED"
+set system login message "Authorized access only\nAll activity is logged"
+set system login user admin class super-user
+set system login user admin authentication encrypted-password "REDACTED"
+set system services ssh
+set system domain-search corp.example.com
+set system name-server 10.0.0.53
+set system name-server 10.0.1.53
+set system tacplus-server 10.0.0.70 secret "REDACTED"
+set system tacplus-server 10.0.0.71 port 4949
+set system tacplus-server 10.0.0.71 secret "REDACTED"
+set system accounting events login
+set system accounting destination tacplus server 10.0.0.70 secret "REDACTED"
+set system syslog host 10.0.0.60 any any
+set system syslog host 10.0.0.61 any any
+set system syslog host 10.0.0.61 port 1514
+set system syslog host 10.0.0.62 any any
+set system syslog file messages any notice
+set system ntp server 10.0.0.123
+set system ntp server 10.0.1.123 prefer
+set chassis aggregated-devices ethernet device-count 2
+set interfaces interface-range ACCESS member-range ge-0/0/0 to ge-0/0/9
+set interfaces interface-range ACCESS unit 0 family ethernet-switching interface-mode access
+set interfaces interface-range ACCESS unit 0 family ethernet-switching vlan members USERS
+set interfaces interface-range PRINTERS member ge-0/0/10
+set interfaces interface-range PRINTERS member ge-0/0/11
+set interfaces interface-range PRINTERS unit 0 family ethernet-switching vlan members PRINTERS
+set interfaces ge-0/0/1 description "Desk 12"
+set interfaces ge-0/0/2 description "Desk 13"
+set interfaces ge-0/0/2 speed 100m
+set interfaces ge-0/0/3 description "Desk 14"
+set interfaces ge-0/0/12 description "Spare"
+set interfaces ge-0/0/12 disable
+set interfaces ge-0/0/12 unit 0 family ethernet-switching vlan members USERS
+set interfaces ge-0/0/13 description "AP floor 1"
+set interfaces ge-0/0/13 native-vlan-id 99
+set interfaces ge-0/0/13 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ge-0/0/13 unit 0 family ethernet-switching vlan members USERS
+set interfaces ge-0/0/13 unit 0 family ethernet-switching vlan members GUEST-WIFI
+set interfaces ge-0/0/13 unit 0 family ethernet-switching vlan members MGMT
+set interfaces ge-0/0/14 description "Phone + PC"
+set interfaces ge-0/0/14 unit 0 family ethernet-switching vlan members USERS
+set interfaces ge-0/0/15 description "Lab bench"
+set interfaces ge-0/0/15 mtu 9216
+set interfaces ge-0/0/15 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ge-0/0/15 unit 0 family ethernet-switching vlan members 10-40
+set interfaces xe-0/2/0 description "Uplink core 1"
+set interfaces xe-0/2/0 ether-options 802.3ad ae0
+set interfaces xe-0/2/1 description "Uplink core 2"
+set interfaces xe-0/2/1 ether-options 802.3ad ae0
+set interfaces xe-0/2/2 ether-options 802.3ad ae10
+set interfaces ae0 description "Uplink core"
+set interfaces ae0 aggregated-ether-options lacp active
+set interfaces ae0 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ae0 unit 0 family ethernet-switching vlan members all
+set interfaces ae10 description "Uplink distribution"
+set interfaces ae10 aggregated-ether-options lacp active
+set interfaces ae10 unit 0 family ethernet-switching interface-mode trunk
+set interfaces ae10 unit 0 family ethernet-switching vlan members all
+set interfaces irb unit 99 family inet address 10.99.0.12/24
+set interfaces vme unit 0 family inet dhcp
+set routing-options static route 0.0.0.0/0 next-hop 10.99.0.1
+set access radius-server 10.0.0.80 secret "REDACTED"
+set access radius-server 10.0.0.80 source-address 10.99.0.12
+set access radius-server 10.0.0.81 port 1645
+set access radius-server 10.0.0.81 accounting-port 1646
+set access radius-server 10.0.0.81 dynamic-request-port 3799
+set access radius-server 10.0.0.81 secret "REDACTED"
+set access radius-server 10.0.0.82 secret "REDACTED"
+set access profile dot1x authentication-order radius
+set access profile dot1x radius authentication-server 10.0.0.80
+set protocols dot1x authenticator authentication-profile-name dot1x
+set protocols dot1x authenticator interface ge-0/0/14.0 supplicant multiple
+set protocols dot1x authenticator interface ge-0/0/14.0 mac-radius
+set protocols dot1x authenticator interface ge-0/0/14.0 guest-vlan GUEST-WIFI
+set protocols dot1x authenticator interface ge-0/0/14.0 server-fail use-cache
+set protocols lldp interface all
+set protocols lldp-med interface all
+set protocols rstp interface ACCESS edge
+set protocols rstp interface ge-0/0/14 edge
+set protocols rstp bpdu-block-on-edge
+set class-of-service interfaces ge-0/0/14 scheduler-map voice
+set poe interface all
+set poe interface ge-0/0/12 disable
+set switch-options interface ge-0/0/14.0 interface-mac-limit 3
+set switch-options voip interface ge-0/0/14.0 vlan VOICE
+set switch-options voip interface access-ports vlan VOICE
+set vlans GUEST-WIFI vlan-id 40
+set vlans GUEST-WIFI forwarding-options dhcp-security
+set vlans MGMT vlan-id 99
+set vlans MGMT l3-interface irb.99
+set vlans PRINTERS vlan-id 30
+set vlans USERS vlan-id 10
+set vlans USERS forwarding-options dhcp-security
+set vlans VOICE vlan-id 20
+
+{master:0}
+admin@ex-access-01>

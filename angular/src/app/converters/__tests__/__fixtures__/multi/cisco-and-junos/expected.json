@@ -1,0 +1,291 @@
+{
+  "files": [
+    {
+      "name": "ex-idf-2.txt",
+      "format": "Juniper",
+      "success_vlan": true,
+      "success_config": true,
+      "error_message": "Unknown error"
+    },
+    {
+      "name": "sw-idf-1.txt",
+      "format": "Cisco",
+      "success_vlan": false,
+      "success_config": true,
+      "error_message": "Unable to parse the VLAN database"
+    }
+  ],
+  "ports": [
+    "ex-idf-2 ge-0/0/0 = user_port",
+    "ex-idf-2 ge-0/0/1 = user_port",
+    "ex-idf-2 ge-0/0/2 = printer",
+    "ex-idf-2 xe-0/2/0 = uplink",
+    "sw-idf-1 GigabitEthernet1/0/1 = user_port-0004",
+    "sw-idf-1 GigabitEthernet1/0/2 = user_port-0004",
+    "sw-idf-1 GigabitEthernet1/0/3 = printer-0005",
+    "sw-idf-1 GigabitEthernet1/0/4 = profile",
+    "sw-idf-1 TenGigabitEthernet1/1/1 = uplink-0007"
+  ],
+  "problems": [
+    "warning: No VLAN database found in the file",
+    "error: Error when reading VLANs list from sw-idf-1.txt"
+  ],
+  "errors": [],
+  "template": {
+    "name": "template_name",
+    "ntp_servers": [
+      "10.0.0.123"
+    ],
+    "dns_servers": [
+      "10.0.0.53"
+    ],
+    "dns_suffix": [],
+    "networks": {
+      "default": {
+        "vlan_id": "1",
+        "subnet": null
+      },
+      "users": {
+        "vlan_id": "10",
+        "subnet": null
+      },
+      "voice": {
+        "vlan_id": "20",
+        "subnet": null
+      },
+      "printers": {
+        "vlan_id": "30",
+        "subnet": null
+      }
+    },
+    "port_usages": {
+      "user_port": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "printer": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "printers",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "uplink": {
+        "all_networks": true,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "user_port-0004": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "voip_network": "voice",
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "printer-0005": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "printers",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "default",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "uplink-0007": {
+        "all_networks": true,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      }
+    },
+    "radius_config": {
+      "acct_interim_interval": 0,
+      "acct_servers": [],
+      "auth_servers": [
+        {
+          "port": "1812",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1813",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
+      "auth_servers_retries": 3,
+      "auth_servers_timeout": 5,
+      "coa_enabled": false,
+      "coa_port": 3799
+    },
+    "switch_mgmt": {
+      "tacacs": {
+        "enabled": false,
+        "tacplus_servers": [],
+        "acct_servers": []
+      }
+    },
+    "additional_config_cmds": [],
+    "dhcp_snooping": {
+      "enabled": false,
+      "networks": []
+    },
+    "remote_syslog": {
+      "enabled": true,
+      "servers": [
+        {
+          "host": "10.0.0.60",
+          "protocol": "udp",
+          "port": "514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        }
+      ]
+    },
+    "switch_matching": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "ex-idf-2",
+          "port_config": {
+            "ge-0/0/0": {
+              "description": "User port",
+              "usage": "user_port"
+            },
+            "ge-0/0/1": {
+              "description": "User port",
+              "usage": "user_port"
+            },
+            "ge-0/0/2": {
+              "description": "Printer",
+              "usage": "printer"
+            },
+            "xe-0/2/0": {
+              "description": "Uplink",
+              "usage": "uplink"
+            }
+          },
+          "match_name[0:8]": "ex-idf-2"
+        },
+        {
+          "name": "sw-idf-1",
+          "port_config": {
+            "ge-0/0/0": {
+              "description": "User port",
+              "usage": "user_port-0004"
+            },
+            "ge-0/0/1": {
+              "description": "User port",
+              "usage": "user_port-0004"
+            },
+            "ge-0/0/2": {
+              "description": "Printer",
+              "usage": "printer-0005"
+            },
+            "ge-0/0/3": {
+              "usage": "profile"
+            },
+            "mge-0/1/0": {
+              "description": "Uplink",
+              "usage": "uplink-0007"
+            }
+          },
+          "match_name[0:8]": "sw-idf-1"
+        }
+      ]
+    }
+  }
+}

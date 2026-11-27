@@ -1,0 +1,159 @@
+{
+  "files": [
+    {
+      "name": "ex-bldg-a.txt",
+      "format": "Juniper",
+      "success_vlan": true,
+      "success_config": true,
+      "error_message": "Unknown error"
+    },
+    {
+      "name": "ex-bldg-b.txt",
+      "format": "Juniper",
+      "success_vlan": true,
+      "success_config": true,
+      "error_message": "Unknown error"
+    }
+  ],
+  "ports": [
+    "ex-bldg-a ge-0/0/0 = user_port",
+    "ex-bldg-a ge-0/0/1 = server",
+    "ex-bldg-b ge-0/0/0 = user_port-0003",
+    "ex-bldg-b ge-0/0/1 = server"
+  ],
+  "problems": [
+    "warning: VLAN 10 has multiple names. Using the first one: \"users\"",
+    "warning: VLAN 10 has multiple subnets (10.10.10.0/24,10.20.10.0/24). Using the first one: \"10.10.10.0/24\""
+  ],
+  "errors": [],
+  "template": {
+    "name": "template_name",
+    "ntp_servers": [],
+    "dns_servers": [],
+    "dns_suffix": [],
+    "networks": {
+      "users": {
+        "vlan_id": "10",
+        "subnet": "10.10.10.0/24"
+      },
+      "servers": {
+        "vlan_id": "60",
+        "subnet": null
+      }
+    },
+    "port_usages": {
+      "user_port": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "server": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "servers",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "user_port-0003": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "staff",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      }
+    },
+    "radius_config": {
+      "acct_interim_interval": 0,
+      "acct_servers": [],
+      "auth_servers": [],
+      "auth_servers_retries": 3,
+      "auth_servers_timeout": 5,
+      "coa_enabled": false,
+      "coa_port": 3799
+    },
+    "switch_mgmt": {
+      "tacacs": {
+        "enabled": false,
+        "tacplus_servers": [],
+        "acct_servers": []
+      }
+    },
+    "additional_config_cmds": [],
+    "dhcp_snooping": {
+      "enabled": false,
+      "networks": []
+    },
+    "remote_syslog": {
+      "enabled": false,
+      "servers": []
+    },
+    "switch_matching": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "ex-bldg-a",
+          "port_config": {
+            "ge-0/0/0": {
+              "description": "User port",
+              "usage": "user_port"
+            },
+            "ge-0/0/1": {
+              "description": "Server",
+              "usage": "server"
+            }
+          },
+          "match_name[0:9]": "ex-bldg-a"
+        },
+        {
+          "name": "ex-bldg-b",
+          "port_config": {
+            "ge-0/0/0": {
+              "description": "User port",
+              "usage": "user_port-0003"
+            },
+            "ge-0/0/1": {
+              "description": "Server",
+              "usage": "server"
+            }
+          },
+          "match_name[0:9]": "ex-bldg-b"
+        }
+      ]
+    }
+  }
+}

@@ -16,7 +16,13 @@ Run `ng build` to build the project. The build artifacts will be stored in the `
 
 ## Running unit tests
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Run `npm test` to execute the unit tests of the converter with [Vitest](https://vitest.dev). They run in Node, without a browser, in about a second.
+
+- `npm run test:watch` reruns the tests on every change.
+- `npm run test:defects` shows how each known defect fails.
+- `npm run test:types` type-checks the converter and its tests.
+
+The tests, the list of known defects and the rules for test data are described in [src/app/converters/__tests__/README.md](src/app/converters/__tests__/README.md).
 
 ## Running end-to-end tests
 

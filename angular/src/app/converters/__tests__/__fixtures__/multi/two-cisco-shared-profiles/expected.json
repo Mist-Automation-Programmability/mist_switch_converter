@@ -1,0 +1,208 @@
+{
+  "files": [
+    {
+      "name": "sw-branch-01.txt",
+      "format": "Cisco",
+      "success_vlan": false,
+      "success_config": true,
+      "error_message": "Unable to parse the VLAN database"
+    },
+    {
+      "name": "sw-branch-02.txt",
+      "format": "Cisco",
+      "success_vlan": false,
+      "success_config": true,
+      "error_message": "Unable to parse the VLAN database"
+    }
+  ],
+  "ports": [
+    "sw-branch-01 GigabitEthernet1/0/1 = user_port",
+    "sw-branch-01 GigabitEthernet1/0/2 = user_port",
+    "sw-branch-01 TenGigabitEthernet1/1/1 = uplink_to_wan_router",
+    "sw-branch-02 GigabitEthernet1/0/1 = user_port",
+    "sw-branch-02 GigabitEthernet1/0/2 = user_port",
+    "sw-branch-02 GigabitEthernet1/0/3 = kiosk",
+    "sw-branch-02 TenGigabitEthernet1/1/1 = uplink_to_wan_router"
+  ],
+  "problems": [
+    "warning: No VLAN database found in the file",
+    "error: Error when reading VLANs list from sw-branch-01.txt",
+    "warning: No VLAN database found in the file",
+    "error: Error when reading VLANs list from sw-branch-02.txt",
+    "warning: VLAN 99 has multiple subnets (10.101.99.0/24,10.102.99.0/24). Using the first one: \"10.101.99.0/24\""
+  ],
+  "errors": [],
+  "template": {
+    "name": "template_name",
+    "ntp_servers": [
+      "10.0.0.123"
+    ],
+    "dns_servers": [
+      "10.0.0.53"
+    ],
+    "dns_suffix": [
+      "corp.example.com"
+    ],
+    "networks": {
+      "default": {
+        "vlan_id": "1",
+        "subnet": null
+      },
+      "users": {
+        "vlan_id": "10",
+        "subnet": null
+      },
+      "voice": {
+        "vlan_id": "20",
+        "subnet": null
+      },
+      "mgmt": {
+        "vlan_id": "99",
+        "subnet": "10.101.99.0/24"
+      }
+    },
+    "port_usages": {
+      "user_port": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "voip_network": "voice",
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "uplink_to_wan_router": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "users",
+          "voice",
+          "mgmt"
+        ],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "mgmt",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "kiosk": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": true,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      }
+    },
+    "radius_config": {
+      "acct_interim_interval": 0,
+      "acct_servers": [],
+      "auth_servers": [],
+      "auth_servers_retries": 3,
+      "auth_servers_timeout": 5,
+      "coa_enabled": false,
+      "coa_port": 3799
+    },
+    "switch_mgmt": {
+      "tacacs": {
+        "enabled": false,
+        "tacplus_servers": [],
+        "acct_servers": []
+      }
+    },
+    "additional_config_cmds": [],
+    "dhcp_snooping": {
+      "enabled": false,
+      "networks": []
+    },
+    "remote_syslog": {
+      "enabled": true,
+      "servers": [
+        {
+          "host": "10.0.0.60",
+          "protocol": "udp",
+          "port": "514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        }
+      ]
+    },
+    "switch_matching": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "sw-branch-01",
+          "port_config": {
+            "ge-0/0/0": {
+              "description": "User port",
+              "usage": "user_port"
+            },
+            "ge-0/0/1": {
+              "description": "User port",
+              "usage": "user_port"
+            },
+            "mge-0/1/0": {
+              "description": "Uplink to WAN router",
+              "usage": "uplink_to_wan_router"
+            }
+          },
+          "match_name[0:12]": "sw-branch-01"
+        },
+        {
+          "name": "sw-branch-02",
+          "port_config": {
+            "ge-0/0/0": {
+              "description": "User port",
+              "usage": "user_port"
+            },
+            "ge-0/0/1": {
+              "description": "User port",
+              "usage": "user_port"
+            },
+            "ge-0/0/2": {
+              "description": "Kiosk",
+              "usage": "kiosk"
+            },
+            "mge-0/1/0": {
+              "description": "Uplink to WAN router",
+              "usage": "uplink_to_wan_router"
+            }
+          },
+          "match_name[0:12]": "sw-branch-02"
+        }
+      ]
+    }
+  }
+}

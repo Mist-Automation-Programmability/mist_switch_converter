@@ -1,0 +1,15 @@
+/* Type-checks the converter and its tests (npm run test:types). Vitest itself does not check types. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/app/converters/**/*.ts",
+    "vitest.config.ts"
+  ]
+}

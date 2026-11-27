@@ -1,0 +1,53 @@
+sw-branch-01#show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active
+10   USERS                            active    Gi1/0/1, Gi1/0/2
+20   VOICE                            active    Gi1/0/1, Gi1/0/2
+99   MGMT                             active
+1002 fddi-default                     act/unsup
+1003 token-ring-default               act/unsup
+1004 fddinet-default                  act/unsup
+1005 trnet-default                    act/unsup
+
+sw-branch-01#show running-config
+Building configuration...
+
+Current configuration : 1988 bytes
+!
+version 17.9
+!
+hostname sw-branch-01
+!
+ip name-server 10.0.0.53
+ip domain name corp.example.com
+!
+interface GigabitEthernet1/0/1
+ description User port
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/2
+ description User port
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ spanning-tree portfast
+!
+interface TenGigabitEthernet1/1/1
+ description Uplink to WAN router
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,99
+ switchport mode trunk
+!
+interface Vlan99
+ ip address 10.101.99.2 255.255.255.0
+!
+logging host 10.0.0.60
+!
+ntp server 10.0.0.123
+!
+end

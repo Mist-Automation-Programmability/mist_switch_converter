@@ -1,0 +1,53 @@
+admin@ex2200-floor3> show configuration | display set
+set version 12.3R12.4
+set system host-name ex2200-floor3
+set system domain-name corp.example.com
+set system time-zone Europe/Paris
+set system root-authentication encrypted-password "REDACTED"
+set system name-server 10.0.0.53
+set system login message "Authorized access only"
+set system services ssh
+set system syslog host 10.0.0.60 any notice
+set system syslog file messages any notice
+set system ntp server 10.0.0.123
+set interfaces ge-0/0/0 description "Desk 3.01"
+set interfaces ge-0/0/0 unit 0 family ethernet-switching port-mode access
+set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members FLOOR3-DATA
+set interfaces ge-0/0/1 description "Desk 3.02"
+set interfaces ge-0/0/1 unit 0 family ethernet-switching port-mode access
+set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members FLOOR3-DATA
+set interfaces ge-0/0/2 description "Printer 3rd floor"
+set interfaces ge-0/0/2 ether-options no-auto-negotiation
+set interfaces ge-0/0/2 ether-options link-mode full-duplex
+set interfaces ge-0/0/2 ether-options speed 100m
+set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members 310
+set interfaces ge-0/0/3 unit 0 family ethernet-switching
+set interfaces ge-0/0/22 description "AP floor 3"
+set interfaces ge-0/0/22 unit 0 family ethernet-switching port-mode trunk
+set interfaces ge-0/0/22 unit 0 family ethernet-switching vlan members FLOOR3-DATA
+set interfaces ge-0/0/22 unit 0 family ethernet-switching vlan members GUEST
+set interfaces ge-0/0/22 unit 0 family ethernet-switching native-vlan-id 199
+set interfaces ge-0/1/0 description "Uplink to core"
+set interfaces ge-0/1/0 unit 0 family ethernet-switching port-mode trunk
+set interfaces ge-0/1/0 unit 0 family ethernet-switching vlan members all
+set interfaces me0 unit 0 family inet address 192.168.1.1/24
+set interfaces vlan unit 199 family inet address 10.3.199.13/24
+set routing-options static route 0.0.0.0/0 next-hop 10.3.199.1
+set protocols igmp-snooping vlan all
+set protocols rstp interface ge-0/0/0.0 edge
+set protocols rstp interface ge-0/0/1.0 edge
+set protocols lldp interface all
+set protocols lldp-med interface all
+set ethernet-switching-options secure-access-port vlan FLOOR3-DATA examine-dhcp
+set ethernet-switching-options voip interface ge-0/0/0.0 vlan FLOOR3-VOICE
+set ethernet-switching-options voip interface ge-0/0/1.0 vlan FLOOR3-VOICE
+set ethernet-switching-options storm-control interface all
+set vlans FLOOR3-DATA vlan-id 310
+set vlans FLOOR3-VOICE vlan-id 320
+set vlans GUEST vlan-id 340
+set vlans MGMT vlan-id 199
+set vlans MGMT l3-interface vlan.199
+set poe interface all
+
+{master:0}
+admin@ex2200-floor3>

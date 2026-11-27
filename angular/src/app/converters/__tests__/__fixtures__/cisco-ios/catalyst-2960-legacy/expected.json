@@ -1,0 +1,303 @@
+{
+  "files": [
+    {
+      "name": "sw-floor2.txt",
+      "format": "Cisco",
+      "success_vlan": true,
+      "success_config": true,
+      "error_message": "Unknown error"
+    }
+  ],
+  "ports": [
+    "sw-floor2 FastEthernet0/1 = desk",
+    "sw-floor2 FastEthernet0/2 = desk",
+    "sw-floor2 FastEthernet0/3 = desk_2.03",
+    "sw-floor2 FastEthernet0/10 = cctv_entrance",
+    "sw-floor2 FastEthernet0/11 = badge_reader",
+    "sw-floor2 FastEthernet0/20 = profile",
+    "sw-floor2 FastEthernet0/21 = profile-0006",
+    "sw-floor2 FastEthernet0/22 = profile-0007",
+    "sw-floor2 GigabitEthernet0/1 = uplink_to_sw_core_gi1/0/12",
+    "sw-floor2 GigabitEthernet0/2 = spare_uplink"
+  ],
+  "problems": [
+    "warning: Mutliple entries found profile 00010000-0000-4000-8000-000000000000: Desk 2.01,Desk 2.02"
+  ],
+  "errors": [],
+  "template": {
+    "name": "template_name",
+    "ntp_servers": [
+      "10.0.0.123"
+    ],
+    "dns_servers": [
+      "10.0.0.53"
+    ],
+    "dns_suffix": [],
+    "networks": {
+      "default": {
+        "vlan_id": "1",
+        "subnet": null
+      },
+      "floor2_data": {
+        "vlan_id": "110",
+        "subnet": null
+      },
+      "floor2_voice": {
+        "vlan_id": "120",
+        "subnet": null
+      },
+      "cctv": {
+        "vlan_id": "130",
+        "subnet": null
+      },
+      "mgmt": {
+        "vlan_id": "199",
+        "subnet": "10.2.199.0/24"
+      }
+    },
+    "port_usages": {
+      "desk": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "voip_network": "floor2_voice",
+        "port_network": "floor2_data",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "desk_2.03": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "floor2_data",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "cctv_entrance": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "cctv",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "badge_reader": {
+        "all_networks": false,
+        "disable_autoneg": true,
+        "disabled": false,
+        "duplex": "half",
+        "speed": "10m",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "cctv",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "default",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile-0006": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": true,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "default",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile-0007": {
+        "all_networks": true,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "dynamic desirable",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "uplink_to_sw_core_gi1/0/12": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "floor2_data",
+          "floor2_voice",
+          "cctv",
+          "mgmt"
+        ],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "mgmt",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "spare_uplink": {
+        "all_networks": true,
+        "disable_autoneg": false,
+        "disabled": true,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      }
+    },
+    "radius_config": {
+      "acct_interim_interval": 0,
+      "acct_servers": [],
+      "auth_servers": [],
+      "auth_servers_retries": 3,
+      "auth_servers_timeout": 5,
+      "coa_enabled": false,
+      "coa_port": 3799
+    },
+    "switch_mgmt": {
+      "tacacs": {
+        "enabled": false,
+        "tacplus_servers": [],
+        "acct_servers": []
+      }
+    },
+    "additional_config_cmds": [],
+    "dhcp_snooping": {
+      "enabled": true,
+      "networks": [
+        "floor2_data",
+        "floor2_voice"
+      ]
+    },
+    "remote_syslog": {
+      "enabled": false,
+      "servers": []
+    },
+    "switch_matching": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "sw-floor2",
+          "port_config": {
+            "fe-0/0/0": {
+              "description": "Desk 2.01",
+              "usage": "desk"
+            },
+            "fe-0/0/1": {
+              "description": "Desk 2.02",
+              "usage": "desk"
+            },
+            "fe-0/0/2": {
+              "description": "Desk 2.03",
+              "usage": "desk_2.03"
+            },
+            "fe-0/0/9": {
+              "description": "CCTV entrance",
+              "usage": "cctv_entrance"
+            },
+            "fe-0/0/10": {
+              "description": "Badge reader",
+              "usage": "badge_reader"
+            },
+            "fe-0/0/19": {
+              "usage": "profile"
+            },
+            "fe-0/0/20": {
+              "usage": "profile-0006"
+            },
+            "fe-0/0/21": {
+              "usage": "profile-0007"
+            },
+            "ge-0/0/0": {
+              "description": "Uplink to sw-core Gi1/0/12",
+              "usage": "uplink_to_sw_core_gi1/0/12"
+            },
+            "ge-0/0/1": {
+              "description": "Spare uplink",
+              "usage": "spare_uplink"
+            }
+          },
+          "match_name[0:9]": "sw-floor2"
+        }
+      ]
+    }
+  }
+}

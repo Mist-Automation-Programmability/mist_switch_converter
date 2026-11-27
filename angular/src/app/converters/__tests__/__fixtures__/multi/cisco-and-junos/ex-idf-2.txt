@@ -1,0 +1,23 @@
+admin@ex-idf-2> show configuration | display set
+set version 21.4R3-S5.4
+set system host-name ex-idf-2
+set system name-server 10.0.0.53
+set system ntp server 10.0.0.123
+set system syslog host 10.0.0.60 any any
+set interfaces ge-0/0/0 description "User port"
+set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+set interfaces ge-0/0/1 description "User port"
+set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+set interfaces ge-0/0/2 description "Printer"
+set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members PRINTERS
+set interfaces xe-0/2/0 description "Uplink"
+set interfaces xe-0/2/0 unit 0 family ethernet-switching interface-mode trunk
+set interfaces xe-0/2/0 unit 0 family ethernet-switching vlan members all
+set access radius-server 10.0.0.80 port 1812
+set access radius-server 10.0.0.80 secret "REDACTED"
+set vlans PRINTERS vlan-id 30
+set vlans USERS vlan-id 10
+set vlans VOICE vlan-id 20
+
+{master:0}
+admin@ex-idf-2>
