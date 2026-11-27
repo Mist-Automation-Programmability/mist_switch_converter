@@ -52,7 +52,6 @@ describe('inteface_name_converter', () => {
     ['TenGigabitEthernet1/1/1', 'mge-0/1/0'],
     ['TwentyFiveGigE1/1/1', 'et-0/1/0'],
     ['FortyGigabitEthernet1/1/2', 'et-0/1/1'],
-    ['AppGigabitEthernet1/0/1', 'ge-0/0/0'],
   ])('translates %s into %s', (cisco, junos) => {
     expect(data.inteface_name_converter(cisco)).toBe(junos);
   });

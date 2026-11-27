@@ -128,6 +128,24 @@ describe('Junos: VLANs', () => {
 
     expect(result.template.dhcp_snooping).toEqual({ enabled: true, networks: ['users', 'guest_wifi'] });
   });
+
+  knownDefect('B15', 'enables DHCP snooping on a VLAN whose "dhcp-security" has options', async () => {
+    // "display set" does not print the bare "dhcp-security" line when the statement has options.
+    const result = await convert(
+      junos(`
+        set vlans USERS vlan-id 10
+        set vlans USERS forwarding-options dhcp-security arp-inspection
+        set vlans VOICE vlan-id 20
+        set vlans VOICE forwarding-options dhcp-security group TRUSTED overrides trusted
+        set vlans VOICE forwarding-options dhcp-security group TRUSTED interface ge-0/0/47.0
+        set vlans PRINTERS vlan-id 30
+      `),
+    );
+
+    expect(result.template.dhcp_snooping).toEqual({ enabled: true, networks: ['users', 'voice'] });
+  });
+
+  it.todo('converts "arp-inspection" and "ip-source-guard" into enable_arp_spoof_check and enable_ip_source_guard');
 });
 
 describe('Junos: access ports', () => {
@@ -264,6 +282,9 @@ describe('Junos: access ports', () => {
 
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
   });
+
+  it.todo('converts "storm-control <profile>" and its storm control profile into storm_control');
+  it.todo('reports routed ports ("family inet" on a physical port) instead of converting them to access ports without network');
 });
 
 describe('Junos: trunk ports', () => {
@@ -391,7 +412,10 @@ describe('Junos: 802.1X', () => {
     expect(missingNetworks(result)).toEqual([]);
   });
 
-  it.todo('converts "server-reject-vlan" into rejected_network');
+  it.todo('converts "server-reject-vlan" into server_reject_network (the parser has a "rejected_network" field that is never filled)');
+  it.todo('converts "server-fail permit" (every client is let in while the RADIUS servers are down)');
+  it.todo('converts "supplicant multiple" into allow_multiple_supplicants');
+  it.todo('converts "reauthentication <seconds>" into reauth_interval');
 });
 
 describe('Junos: switch rule and port names', () => {
@@ -653,6 +677,23 @@ describe('Junos: system settings', () => {
     );
 
     expect(endpoints(result.template.radius_config.auth_servers)).toEqual(['10.0.0.81:1645', '10.0.0.82:1812']);
+  });
+
+  knownDefect('B16', 'a RADIUS server listed as "accounting-server" in the access profile is an accounting server', async () => {
+    // The access profile says what a server is used for; "accounting-port" is only needed for a port other than 1813.
+    const result = await convert(
+      junos(`
+        set access radius-server 10.0.0.80 port 1812
+        set access radius-server 10.0.0.80 secret "REDACTED"
+        set access profile CAMPUS-AUTH authentication-order radius
+        set access profile CAMPUS-AUTH radius authentication-server 10.0.0.80
+        set access profile CAMPUS-AUTH radius accounting-server 10.0.0.80
+        set protocols dot1x authenticator authentication-profile-name CAMPUS-AUTH
+      `),
+    );
+
+    expect(endpoints(result.template.radius_config.auth_servers)).toEqual(['10.0.0.80:1812']);
+    expect(endpoints(result.template.radius_config.acct_servers)).toEqual(['10.0.0.80:1813']);
   });
 
   knownDefect('B5', 'a TACACS+ server without "port" uses port 49', async () => {

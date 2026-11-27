@@ -1,0 +1,69 @@
+enable
+configure terminal
+!
+hostname sw-floor1
+!
+ip domain-name example.com
+ip name-server 10.0.0.53 10.0.0.54
+!
+vlan 10
+ name USERS
+vlan 20
+ name VOICE
+vlan 30
+ name PRINTERS
+vlan 99
+ name MGMT
+exit
+!
+spanning-tree mode rapid-pvst
+!
+interface range GigabitEthernet1/0/1 - 4
+ description Desks
+ switchport mode access
+ switchport access vlan 10
+ switchport voice vlan 20
+ spanning-tree portfast
+exit
+!
+int range gi1/0/5 - 8
+ switchport mode access
+ switchport access vlan 30
+ shut
+exit
+!
+interface GigabitEthernet1/0/9
+description Printer
+switchport mode access
+switchport access vlan 30
+exit
+interface GigabitEthernet1/0/10
+description Camera
+switchport mode access
+switchport access vlan 30
+switchport port-security maximum 3
+exit
+!
+interface GigabitEthernet1/0/23
+ channel-group 1 mode active
+interface GigabitEthernet1/0/24
+ channel-group 1 mode active
+!
+interface Port-channel1
+ description Uplink
+ switchport mode trunk
+!
+interface Port-channel1
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,99
+!
+interface Vlan99
+ ip address 10.0.99.11 255.255.255.0
+ no shut
+exit
+!
+ip default-gateway 10.0.99.1
+ntp server 10.0.0.123
+logging host 10.0.0.51
+end
+write memory

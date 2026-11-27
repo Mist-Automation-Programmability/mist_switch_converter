@@ -57,6 +57,7 @@ it('converts the access VLAN and the voice VLAN', async () => {
 - `junos(body)` is for `display set` output.
 - `usageFor(result, 'ge-0/0/1')` returns the port usage given to an interface of the source.
 - `portConfig(result, 'ge-0/0/0')` returns the entry of the switch rule for a port, by its Mist name.
+- `usageOfPort(result, 'ge-0/0/0')` returns the port usage that the switch rule gives to that port.
 - `vlanIds`, `endpoints`, `missingNetworks`, `configuredPorts`, `switchRule`, `logsOf` cover the rest.
 
 Profile ids are random in the app. In the tests `uuid` is replaced by a counter
@@ -71,6 +72,11 @@ fixed: replace `knownDefect('A3', ...)` by `it(...)` and the test keeps guarding
 It also turns red if the body crashes instead of failing an expectation.
 
 `it.todo(...)` marks syntax that the converter does not read yet.
+
+A14 to A20, B15 and B16 were found by converting real configurations (see the end of
+this file) and are reproduced here with synthetic lines. A9, A18 and A19 mostly show
+up with files that are not a `show running-config` but the commands typed in
+configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a file.
 
 | Id | What happens today |
 | --- | --- |
@@ -87,6 +93,13 @@ It also turns red if the body crashes instead of failing an expectation.
 | A11 | Cisco: a port in VLAN 1 has no network when the file has no VLAN table. |
 | A12 | Cisco: `Loopback0` becomes a switch port. |
 | A13 | Cisco: a `radius server` without explicit ports is dropped. |
+| A14 | Cisco: the VLAN names of the running configuration (`vlan 10` followed by ` name users`) are not read. A file without `show vlan brief` gets networks named `vlan10`. |
+| A15 | Cisco: a VLAN that is only known from an `interface Vlan` with an address and no description is removed from the access and trunk ports that use it. |
+| A16 | Cisco: a range in `switchport trunk allowed vlan` creates one network per id, also for VLANs that the switch does not have. `1-4094` creates 4094 networks. |
+| A17 | Cisco: `AppGigabitEthernet1/0/1` (internal port of the Catalyst 9000) becomes port `ge-0/0/0` and replaces the configuration of `GigabitEthernet1/0/1`. |
+| A18 | Cisco: `interface range ...` (configuration script) creates one port named `range GigabitEthernet1/0/5 - 8`. |
+| A19 | Cisco: an interface configured in two blocks (configuration script) keeps the settings of the last block only. |
+| A20 | Cisco: the voice VLAN of a port is dropped when the file has no VLAN table. The access VLAN gets a network named `vlan10`, the voice VLAN gets nothing. |
 | B1 | Junos: the ports of an interface range that have no statement of their own are not created. |
 | B2 | Junos: a port of an interface range with its own statements loses the VLAN of the range, and its settings leak to the other ports of the range. |
 | B3 | Junos: `disable` is not read. |
@@ -101,6 +114,8 @@ It also turns red if the body crashes instead of failing an expectation.
 | B12 | Junos: `port-mode trunk` (switches without ELS) gives an access port on the first VLAN. |
 | B13 | Junos: `protocols rstp interface all` creates a port named `all`. |
 | B14 | Junos: a port without VLAN has no network. |
+| B15 | Junos: DHCP snooping is not seen on a VLAN whose `dhcp-security` has an option (`arp-inspection`, `group ... overrides trusted`...). |
+| B16 | Junos: the server lists of `access profile <name> radius` are not read. A server listed as `accounting-server` is not an accounting server unless it has `accounting-port`. |
 | C1 | RADIUS accounting servers are added to `auth_servers`; `acct_servers` is always empty. |
 | C2 | RADIUS change of authorization is read but never written to the template. |
 | C3 | Two files that name the same VLAN id differently leave a port usage pointing to a network that does not exist. |

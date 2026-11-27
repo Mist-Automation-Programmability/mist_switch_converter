@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configuredPorts, convert, endpoints, ios, knownDefect, logsOf, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
+import { configuredPorts, convert, endpoints, ios, knownDefect, logsOf, portConfig, switchRule, usageFor, usageOfPort, vlanIds } from './support/harness';
 
 const VLANS = { 1: 'default', 10: 'USERS', 20: 'VOICE', 30: 'PRINTERS', 99: 'MGMT' };
 
@@ -169,6 +169,58 @@ describe('Cisco IOS: VLANs', () => {
 
     expect(vlanIds(result)).toEqual({ default: 1, users: 10, voice: 20 });
   });
+
+  knownDefect('A14', 'reads the VLAN names of the running configuration ("vlan 10" followed by " name users")', async () => {
+    // A capture that only holds "show running-config" has no VLAN table: the names are in these blocks.
+    const result = await convert(
+      ios(`
+        vlan 10
+         name USERS
+        !
+        vlan 20
+         name VOICE
+        !
+        vlan 30,40-41
+        !
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+         switchport mode access
+         switchport voice vlan 20
+        !
+      `),
+    );
+
+    expect(vlanIds(result)).toMatchObject({ users: 10, voice: 20 });
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ port_network: 'users', voip_network: 'voice' });
+  });
+
+  knownDefect('A15', 'a VLAN that is only known from an SVI without description is kept on the ports that use it', async () => {
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         switchport access vlan 60
+         switchport mode access
+        !
+        interface GigabitEthernet1/0/2
+         switchport trunk native vlan 60
+         switchport trunk allowed vlan 10,60
+         switchport mode trunk
+        !
+        interface Vlan60
+         ip address 10.1.60.1 255.255.255.0
+        !
+        `,
+        { vlans: { 10: 'USERS' } },
+      ),
+    );
+
+    expect(vlanIds(result)).toEqual({ users: 10, vlan60: 60 });
+    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('vlan60');
+    expect(usageFor(result, 'GigabitEthernet1/0/2')).toMatchObject({ port_network: 'vlan60', networks: ['users', 'vlan60'] });
+  });
+
+  it.todo('removes the decoration of an SVI description ("*** Users ***") from the network name, which is "_users_" today');
 });
 
 describe('Cisco IOS: access ports', () => {
@@ -281,6 +333,29 @@ describe('Cisco IOS: access ports', () => {
 
     expect(usageFor(result, 'GigabitEthernet1/0/1').stp_edge).toBe(false);
   });
+
+  knownDefect('A20', 'keeps the voice VLAN of a port when the file has no VLAN table', async () => {
+    // The access VLAN gets a network named "vlan10" in that case. The voice VLAN gets nothing.
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+         switchport mode access
+         switchport voice vlan 20
+        !
+      `),
+    );
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ port_network: 'vlan10', voip_network: 'vlan20' });
+    expect(vlanIds(result)).toEqual({ vlan10: 10, vlan20: 20 });
+  });
+
+  it.todo('converts "switchport port-security maximum <n>" into mac_limit');
+  it.todo('converts "storm-control <type> level <n>" into storm_control');
+  it.todo('converts "authentication host-mode multi-auth" into allow_multiple_supplicants');
+  it.todo('converts "authentication timer reauthenticate <seconds>" into reauth_interval');
+  it.todo('converts "authentication event fail action authorize vlan <id>" into server_reject_network');
+  it.todo('converts "authentication event server dead action authorize vlan <id>" into server_fail_network');
 });
 
 describe('Cisco IOS: trunk ports', () => {
@@ -358,6 +433,24 @@ describe('Cisco IOS: trunk ports', () => {
     const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport mode dynamic auto\n!'));
 
     expect(['access', 'trunk']).toContain(usageFor(result, 'GigabitEthernet1/0/1').mode);
+  });
+
+  knownDefect('A16', 'a trunk that allows every VLAN id ("1-4094") does not create one network per id', async () => {
+    // What to do with a short range of VLANs that the switch does not have is a design
+    // choice (see the first test of this block). Creating 4094 networks is not.
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         switchport trunk allowed vlan 1-4094
+         switchport mode trunk
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(vlanIds(result)).toEqual({ default: 1, users: 10, voice: 20, printers: 30, mgmt: 99 });
   });
 
   it.todo('reports routed ports ("no switchport") instead of converting them to access ports');
@@ -490,6 +583,77 @@ describe('Cisco IOS: switch rule and port names', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ mode: 'access', port_network: 'printers' });
     expect(usageFor(result, 'GigabitEthernet1/0/2')).toMatchObject({ mode: 'trunk', all_networks: true });
   });
+
+  knownDefect('A17', 'the application port AppGigabitEthernet1/0/1 does not take the place of GigabitEthernet1/0/1', async () => {
+    // Catalyst 9000 switches list this internal port after the front panel ports.
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         description Printer
+         switchport access vlan 30
+         switchport mode access
+        !
+        interface AppGigabitEthernet1/0/1
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
+    expect(usageOfPort(result, 'ge-0/0/0')).toMatchObject({ port_network: 'printers' });
+  });
+});
+
+/**
+ * Some files are not the output of "show running-config" but the commands that were
+ * typed or pasted in configuration mode: "interface range", the same interface
+ * configured twice, blocks closed by "exit", abbreviated commands.
+ */
+describe('Cisco IOS: configuration scripts', () => {
+  knownDefect('A18', '"interface range" configures every port of the range', async () => {
+    const result = await convert(
+      ios(
+        `
+        interface range GigabitEthernet1/0/5 - 8
+         switchport access vlan 10
+         switchport mode access
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(configuredPorts(result)).toEqual(['ge-0/0/4', 'ge-0/0/5', 'ge-0/0/6', 'ge-0/0/7']);
+  });
+
+  knownDefect('A19', 'an interface configured in two blocks keeps the settings of both blocks', async () => {
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         description Printer
+         switchport access vlan 30
+         switchport mode access
+        !
+        interface GigabitEthernet1/0/2
+         switchport mode trunk
+        !
+        interface GigabitEthernet1/0/1
+         power inline never
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(result.ports.filter((port) => port.source === 'GigabitEthernet1/0/1')).toHaveLength(1);
+    expect(usageOfPort(result, 'ge-0/0/0')).toMatchObject({ port_network: 'printers', poe_disabled: true });
+  });
+
+  it.todo('reads abbreviated commands ("int gi1/0/1", "shut"): today such an interface is skipped without a warning');
+  it.todo('recognises a script that has no "!" line as a Cisco configuration');
 });
 
 describe('Cisco IOS: link aggregation', () => {

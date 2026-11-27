@@ -267,6 +267,19 @@ export function portConfig(conversion: Conversion, mistPort: string, hostname?: 
   return undefined;
 }
 
+/**
+ * The port usage that a switch rule gives to a port, looked up by its Junos name
+ * (`ge-0/0/0`). Unlike `usageFor`, this reads the rule, which is what Mist applies:
+ * the two differ when two source interfaces end up on the same port.
+ */
+export function usageOfPort(conversion: Conversion, mistPort: string, hostname?: string): PortUsage {
+  const config = portConfig(conversion, mistPort, hostname);
+  expect(config, `the switch rule does not configure ${mistPort}. Configured ports: ${configuredPorts(conversion, hostname).join(', ') || '(none)'}`).toBeDefined();
+  const usage = conversion.template.port_usages[config!.usage ?? ''];
+  expect(usage, `port usage "${config!.usage}" of ${mistPort} is missing from the template`).toBeDefined();
+  return usage as PortUsage;
+}
+
 /** Every port name configured by a switch rule, link aggregation members included, in alphabetical order. */
 export function configuredPorts(conversion: Conversion, hostname?: string): string[] {
   return Object.keys(switchRule(conversion, hostname).port_config).flatMap((key) => key.split(',')).sort();

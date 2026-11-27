@@ -31,6 +31,10 @@ const KNOWN_VIOLATIONS: Record<string, Record<string, string>> = {
     [NAMES_ARE_VALID]: 'C5',
     [MODE_IS_KNOWN]: 'A8',
   },
+  'cisco-ios/catalyst-config-script': {
+    [PORT_NAMES_ARE_VALID]: 'A18',
+    [ACCESS_HAS_NETWORK]: 'A11, A19',
+  },
   'cisco-ios/catalyst-9300-access': {
     [PORT_NAMES_ARE_VALID]: 'A7',
     [VLAN_IDS_ARE_VALID]: 'A2',
