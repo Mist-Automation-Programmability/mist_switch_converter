@@ -88,7 +88,7 @@
       "spare": {
         "all_networks": false,
         "disable_autoneg": false,
-        "disabled": false,
+        "disabled": true,
         "duplex": "auto",
         "speed": "auto",
         "enable_mac_auth": false,

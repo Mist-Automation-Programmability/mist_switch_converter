@@ -102,7 +102,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | A20 | Cisco: the voice VLAN of a port is dropped when the file has no VLAN table. The access VLAN gets a network named `vlan10`, the voice VLAN gets nothing. |
 | B1 | Junos: the ports of an interface range that have no statement of their own are not created. |
 | B2 | Junos: a port of an interface range with its own statements loses the VLAN of the range, and its settings leak to the other ports of the range. |
-| B3 | Junos: `disable` is not read. |
 | B4 | Junos: a RADIUS server on the default port is dropped, and a server inherits the ports of the one before it. |
 | B5 | Junos: a TACACS+ server without `port` gets an empty port, and a syslog server inherits the port of the one before it. |
 | B6 | Junos: `mac-radius` without option does not enable MAC authentication. |
@@ -133,6 +132,7 @@ Their tests are normal tests now and keep the id in their name.
 | Id | What was wrong | What the converter does now |
 | --- | --- | --- |
 | A3 | Cisco: every port was an STP edge port, with or without `spanning-tree portfast`. | A port is an edge port when it has `spanning-tree portfast` (also `edge`, `trunk`, `edge trunk`) or `spanning-tree bpduguard enable`. With the global `spanning-tree portfast [edge] default`, access ports are edge ports unless they have `spanning-tree portfast disable`. |
+| B3 | Junos: `disable` was not read, because the parser looked for the word `disabled`. | `set interfaces <port> disable` gives a disabled port, also when it is set on an interface range. |
 
 ## Golden files
 

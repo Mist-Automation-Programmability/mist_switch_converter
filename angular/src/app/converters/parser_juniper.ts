@@ -626,7 +626,8 @@ export class JuniperParser {
     }
 
     private parse_config_profile(name: string, entry: ProfileConfigurationElement, data: string) {
-        if (data.trim().startsWith(name + " disabled ")) entry.disabled = true;
+        // Junos writes "set interfaces ge-0/0/12 disable"
+        if (data.trim() == name + " disable") entry.disabled = true;
         else if (data.trim().startsWith(name + " mtu ")) entry.mtu = data.replace(name + " mtu ", "").trim();
         else if (data.trim().startsWith(name + " speed ")) entry.speed = data.replace(name + " speed ", "").trim();
         else if (data.trim().startsWith(name + " link-mode ")) entry.duplex = data.replace(name + " link-mode ", "").split("-")[0].trim();
