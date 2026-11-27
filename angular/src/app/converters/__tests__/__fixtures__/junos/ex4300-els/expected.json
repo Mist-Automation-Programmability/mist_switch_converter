@@ -88,7 +88,7 @@
       "spare": {
         "all_networks": false,
         "disable_autoneg": false,
-        "disabled": false,
+        "disabled": true,
         "duplex": "auto",
         "speed": "auto",
         "enable_mac_auth": false,
@@ -237,23 +237,10 @@
     },
     "radius_config": {
       "acct_interim_interval": 0,
-      "acct_servers": [],
-      "auth_servers": [
-        {
-          "port": "1645",
-          "host": "10.0.0.81",
-          "secret": "to_be_replaced",
-          "timeout": 5
-        },
+      "acct_servers": [
         {
           "port": "1646",
           "host": "10.0.0.81",
-          "secret": "to_be_replaced",
-          "timeout": 5
-        },
-        {
-          "port": "1645",
-          "host": "10.0.0.82",
           "secret": "to_be_replaced",
           "timeout": 5
         },
@@ -264,9 +251,23 @@
           "timeout": 5
         }
       ],
+      "auth_servers": [
+        {
+          "port": "1645",
+          "host": "10.0.0.81",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1645",
+          "host": "10.0.0.82",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
       "auth_servers_retries": 3,
       "auth_servers_timeout": 5,
-      "coa_enabled": false,
+      "coa_enabled": true,
       "coa_port": 3799
     },
     "switch_mgmt": {

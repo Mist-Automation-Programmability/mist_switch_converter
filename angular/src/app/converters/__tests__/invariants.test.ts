@@ -16,7 +16,6 @@ import {
   MODE_IS_KNOWN,
   NAMES_ARE_VALID,
   NETWORKS_EXIST,
-  ONE_RADIUS_PORT,
   PORT_NAMES_ARE_VALID,
   SERVERS_ARE_COMPLETE,
   VLAN_IDS_ARE_VALID,
@@ -39,7 +38,6 @@ const KNOWN_VIOLATIONS: Record<string, Record<string, string>> = {
     [PORT_NAMES_ARE_VALID]: 'A7',
     [VLAN_IDS_ARE_VALID]: 'A2',
     [NAMES_ARE_VALID]: 'A2, C5',
-    [ONE_RADIUS_PORT]: 'C1',
   },
   'junos/ex2200-legacy': {
     [ACCESS_HAS_NETWORK]: 'B12, B14',
@@ -50,10 +48,6 @@ const KNOWN_VIOLATIONS: Record<string, Record<string, string>> = {
     [NAMES_ARE_VALID]: 'C5',
     [ACCESS_HAS_NETWORK]: 'B2, B8, C8',
     [SERVERS_ARE_COMPLETE]: 'B5',
-    [ONE_RADIUS_PORT]: 'B4, C1',
-  },
-  'multi/cisco-and-junos': {
-    [ONE_RADIUS_PORT]: 'C1',
   },
   'multi/two-junos-vlan-clash': {
     [NETWORKS_EXIST]: 'C3',

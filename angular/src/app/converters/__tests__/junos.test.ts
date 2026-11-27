@@ -221,16 +221,36 @@ describe('Junos: access ports', () => {
     expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ port_network: 'users', voip_network: 'voice' });
   });
 
-  knownDefect('B3', 'a port with "disable" is converted as disabled', async () => {
+  it('converts a port with "disable" as disabled (B3)', async () => {
     const result = await convert(
       junos(`
         set interfaces ge-0/0/0 disable
         set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 description "disable after the move"
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
         set vlans USERS vlan-id 10
       `),
     );
 
     expect(usageFor(result, 'ge-0/0/0').disabled).toBe(true);
+    expect(usageFor(result, 'ge-0/0/1').disabled).toBe(false);
+  });
+
+  it('converts the ports of an interface range with "disable" as disabled (B3)', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces interface-range UNUSED member ge-0/0/10
+        set interfaces interface-range UNUSED member ge-0/0/11
+        set interfaces interface-range UNUSED disable
+        set interfaces interface-range UNUSED unit 0 family ethernet-switching vlan members PARKING
+        set interfaces ge-0/0/10 description "Unused 10"
+        set interfaces ge-0/0/11 description "Unused 11"
+        set vlans PARKING vlan-id 999
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/10').disabled).toBe(true);
+    expect(usageFor(result, 'ge-0/0/11').disabled).toBe(true);
   });
 
   knownDefect('B14', 'a port without VLAN has a network (Junos puts it in the default VLAN)', async () => {

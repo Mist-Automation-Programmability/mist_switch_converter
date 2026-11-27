@@ -65,10 +65,11 @@ Profile ids are random in the app. In the tests `uuid` is replaced by a counter
 
 ## Known defects
 
-A test written with `knownDefect('A3', ...)` describes the **correct** behaviour for a
+A test written with `knownDefect('A5', ...)` describes the **correct** behaviour for a
 defect that is not fixed yet. It is reported as passed while the defect is there, so the
 suite stays green and the defect stays documented. It turns red when the defect is
-fixed: replace `knownDefect('A3', ...)` by `it(...)` and the test keeps guarding the fix.
+fixed: replace `knownDefect('A5', ...)` by `it(...)`, move its line to the list of fixed
+defects below, and the test keeps guarding the fix.
 It also turns red if the body crashes instead of failing an expectation.
 
 `it.todo(...)` marks syntax that the converter does not read yet.
@@ -82,7 +83,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | --- | --- |
 | A1 | Cisco: a port list wrapped over several lines in `show vlan brief` ends the VLAN table. The VLANs after it lose their name (`vlan10` instead of `users`). |
 | A2 | Cisco: `switchport trunk allowed vlan add ...` replaces the list and creates a network named `vlanadd 150`. `none` creates `vlannone`. |
-| A3 | Cisco: every port is an STP edge port, with or without `spanning-tree portfast`. |
 | A4 | Cisco: `banner motd` is never converted, and the banner block never closes. |
 | A5 | Cisco: `ip name-server a b` keeps the first address only. |
 | A6 | Cisco: with `vrf <name>` in `ip name-server` or `ntp server`, the server is the word `vrf`. |
@@ -102,7 +102,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | A20 | Cisco: the voice VLAN of a port is dropped when the file has no VLAN table. The access VLAN gets a network named `vlan10`, the voice VLAN gets nothing. |
 | B1 | Junos: the ports of an interface range that have no statement of their own are not created. |
 | B2 | Junos: a port of an interface range with its own statements loses the VLAN of the range, and its settings leak to the other ports of the range. |
-| B3 | Junos: `disable` is not read. |
 | B4 | Junos: a RADIUS server on the default port is dropped, and a server inherits the ports of the one before it. |
 | B5 | Junos: a TACACS+ server without `port` gets an empty port, and a syslog server inherits the port of the one before it. |
 | B6 | Junos: `mac-radius` without option does not enable MAC authentication. |
@@ -116,8 +115,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | B14 | Junos: a port without VLAN has no network. |
 | B15 | Junos: DHCP snooping is not seen on a VLAN whose `dhcp-security` has an option (`arp-inspection`, `group ... overrides trusted`...). |
 | B16 | Junos: the server lists of `access profile <name> radius` are not read. A server listed as `accounting-server` is not an accounting server unless it has `accounting-port`. |
-| C1 | RADIUS accounting servers are added to `auth_servers`; `acct_servers` is always empty. |
-| C2 | RADIUS change of authorization is read but never written to the template. |
 | C3 | Two files that name the same VLAN id differently leave a port usage pointing to a network that does not exist. |
 | C4 | Two files that use the same VLAN name for different ids keep one of the two VLANs only. |
 | C5 | Port usage names keep characters such as `+`, `/`, `.`, `(`. |
@@ -125,6 +122,17 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | C7 | A file without hostname creates a switch rule with an empty name. |
 | C8 | The member ports of a link aggregation leave an unused port usage in the template. |
 | C9 | Log lines about the VLANs of a Cisco file do not name that file. |
+
+### Fixed defects
+
+Their tests are normal tests now and keep the id in their name.
+
+| Id | What was wrong | What the converter does now |
+| --- | --- | --- |
+| A3 | Cisco: every port was an STP edge port, with or without `spanning-tree portfast`. | A port is an edge port when it has `spanning-tree portfast` (also `edge`, `trunk`, `edge trunk`) or `spanning-tree bpduguard enable`. With the global `spanning-tree portfast [edge] default`, access ports are edge ports unless they have `spanning-tree portfast disable`. |
+| B3 | Junos: `disable` was not read, because the parser looked for the word `disabled`. | `set interfaces <port> disable` gives a disabled port, also when it is set on an interface range. |
+| C1 | RADIUS accounting servers were added to `auth_servers`, and `acct_servers` was always empty. | Accounting servers go to `acct_servers`, authentication servers to `auth_servers`. |
+| C2 | RADIUS change of authorization was read from Junos (`dynamic-request-port`) but never written to the template. | `radius_config.coa_enabled` and `coa_port` follow the source. Reading it from Cisco is still a todo. |
 
 ## Golden files
 

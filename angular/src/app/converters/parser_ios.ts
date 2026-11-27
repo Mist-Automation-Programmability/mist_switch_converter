@@ -9,6 +9,8 @@ export class IosParser {
     vlan_ids_to_exclude: string[];
     filename: string = "";
     hostname: string = "";
+    // true when the file enables PortFast on every access port ("spanning-tree portfast [edge] default")
+    stp_edge_default: boolean = false;
 
     constructor(
         private _ios_logger: Logger,
@@ -166,6 +168,8 @@ export class IosParser {
         return new Promise((resolve) => {
             var config_block: string[] = [];
             var config_type: string | undefined = undefined;
+            // the global command can be anywhere in the file, so look for it before reading the interfaces
+            this.stp_edge_default = config.some((line: string) => /^spanning-tree portfast (edge )?default\s*$/.test(line));
             config.forEach((line: string) => {
                 if (config_type == "banner" && (!/^\^C/.test(line))) {
                     config_block.push(line);
@@ -329,7 +333,8 @@ export class IosParser {
         var poe_disabled: boolean = false;
         var port_auth: string | undefined = undefined;
         var rejected_network: string | undefined = undefined;
-        var stp_edge: boolean = true;
+        var portfast: boolean | undefined = undefined;
+        var bpduguard: boolean = false;
         var interface_description: string = "";
 
         var profile_configuration: ProfileConfigurationElement = this.default_inteface();
@@ -350,8 +355,10 @@ export class IosParser {
             else if (line.trim().startsWith("switchport trunk allowed vlan")) vlan_trunk_allowed = line.replace("switchport trunk allowed vlan", "").trim().split(",");
             else if (line.trim().startsWith("dot1x pae authenticator")) port_auth = "dot1x";
             else if (line.trim().startsWith("mab")) enable_mac_auth = true;
-            else if (line.trim().startsWith("spanning-tree portfast")) stp_edge = true;
-            else if (line.trim().startsWith("spanning-tree bpduguard enable")) stp_edge = true;
+            // "spanning-tree portfast", "... edge", "... trunk" and "... edge trunk" enable PortFast,
+            // "... disable", "... network" and "... normal" do not
+            else if (line.trim().startsWith("spanning-tree portfast")) portfast = !/^spanning-tree portfast (disable|network|normal)/.test(line.trim());
+            else if (line.trim().startsWith("spanning-tree bpduguard enable")) bpduguard = true;
             else if (line.trim().startsWith("auto qos")) enable_qos = true;
             else if (line.trim().startsWith("shutdown")) disabled = true;
             else if (line.trim().startsWith("power inline never")) poe_disabled = true;
@@ -459,6 +466,12 @@ export class IosParser {
             profile_configuration.poe_disabled = poe_disabled;
             profile_configuration.port_auth = port_auth;
             profile_configuration.rejected_network = rejected_network;
+            // a port is an STP edge port when it says so, or when it is an access port and the file enables
+            // PortFast by default. A port with BPDU guard is converted as an edge port too: this is the Mist
+            // setting that disables a port when it receives a BPDU.
+            var stp_edge: boolean = bpduguard;
+            if (portfast != undefined) stp_edge = stp_edge || portfast;
+            else if (mode == "access") stp_edge = stp_edge || this.stp_edge_default;
             profile_configuration.stp_edge = stp_edge;
             profile_configuration.voip_network = voip_network;
             profile_configuration.persist_mac = persist_mac;

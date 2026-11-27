@@ -24,7 +24,7 @@
     "sw-idf-1 GigabitEthernet1/0/2 = user_port-0004",
     "sw-idf-1 GigabitEthernet1/0/3 = printer-0005",
     "sw-idf-1 GigabitEthernet1/0/4 = profile",
-    "sw-idf-1 TenGigabitEthernet1/1/1 = uplink-0007"
+    "sw-idf-1 TenGigabitEthernet1/1/1 = uplink"
   ],
   "problems": [
     "warning: No VLAN database found in the file",
@@ -162,41 +162,25 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
-        "persist_mac": false,
-        "bypass_auth_when_server_down": false
-      },
-      "uplink-0007": {
-        "all_networks": true,
-        "disable_autoneg": false,
-        "disabled": false,
-        "duplex": "auto",
-        "speed": "auto",
-        "enable_mac_auth": false,
-        "enable_qos": false,
-        "mac_auth_only": false,
-        "mac_limit": 0,
-        "mode": "trunk",
-        "networks": [],
-        "poe_disabled": false,
-        "stp_edge": true,
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       }
     },
     "radius_config": {
       "acct_interim_interval": 0,
-      "acct_servers": [],
-      "auth_servers": [
+      "acct_servers": [
         {
-          "port": "1812",
+          "port": "1813",
           "host": "10.0.0.80",
           "secret": "to_be_replaced",
           "timeout": 5
-        },
+        }
+      ],
+      "auth_servers": [
         {
-          "port": "1813",
+          "port": "1812",
           "host": "10.0.0.80",
           "secret": "to_be_replaced",
           "timeout": 5
@@ -280,7 +264,7 @@
             },
             "mge-0/1/0": {
               "description": "Uplink",
-              "usage": "uplink-0007"
+              "usage": "uplink"
             }
           },
           "match_name[0:8]": "sw-idf-1"

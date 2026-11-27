@@ -142,7 +142,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -160,7 +160,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -178,7 +178,7 @@
         "mode": "dynamic desirable",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -200,7 +200,7 @@
           "mgmt"
         ],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -218,7 +218,7 @@
         "mode": "trunk",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       }

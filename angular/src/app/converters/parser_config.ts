@@ -252,9 +252,9 @@ export class ConfigData {
             "secret": "to_be_replaced",
             "timeout": radius_timeout
         })
-        if (!this.radius_auth.includes(tmp)) {
+        if (!this.radius_acct.includes(tmp)) {
             this._config_logger.info("RADIUS Acct servers: Adding " + radius_ip + ":" + radius_port, filename);
-            this.radius_auth.push(tmp);
+            this.radius_acct.push(tmp);
         }
     }
 
@@ -540,6 +540,8 @@ export class ConfigData {
         this.radius_acct.forEach((radius_acct: string) => {
             this.mist_template.radius_config.acct_servers.push(JSON.parse(radius_acct));
         })
+        this.mist_template.radius_config.coa_enabled = this.radius_coa.coa_enabled;
+        this.mist_template.radius_config.coa_port = this.radius_coa.coa_port;
         if (this.tacacs_auth.length > 0) {
             this.mist_template.switch_mgmt.tacacs.enabled = true;
             this.tacacs_auth.forEach((tacplus_server: string) => {

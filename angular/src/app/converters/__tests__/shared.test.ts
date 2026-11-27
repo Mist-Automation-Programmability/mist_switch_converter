@@ -213,7 +213,7 @@ describe('Port usages (profiles)', () => {
 });
 
 describe('RADIUS', () => {
-  knownDefect('C1', 'RADIUS accounting servers go to acct_servers (Cisco)', async () => {
+  it('puts RADIUS accounting servers in acct_servers and authentication servers in auth_servers (Cisco, C1)', async () => {
     const result = await convert(
       ios(`
         radius server ISE1
@@ -226,7 +226,7 @@ describe('RADIUS', () => {
     expect(endpoints(result.template.radius_config.acct_servers)).toEqual(['10.0.0.80:1813']);
   });
 
-  knownDefect('C1', 'RADIUS accounting servers go to acct_servers (Junos)', async () => {
+  it('puts RADIUS accounting servers in acct_servers and authentication servers in auth_servers (Junos, C1)', async () => {
     const result = await convert(
       junos(`
         set access radius-server 10.0.0.80 port 1812
@@ -238,7 +238,7 @@ describe('RADIUS', () => {
     expect(endpoints(result.template.radius_config.acct_servers)).toEqual(['10.0.0.80:1813']);
   });
 
-  knownDefect('C2', 'RADIUS change of authorization (CoA) is enabled in the template when the source enables it', async () => {
+  it('enables RADIUS change of authorization (CoA) in the template when the source enables it (C2)', async () => {
     const result = await convert(
       junos(`
         set access radius-server 10.0.0.80 port 1812
@@ -248,6 +248,25 @@ describe('RADIUS', () => {
 
     expect(result.template.radius_config).toMatchObject({ coa_enabled: true, coa_port: 3799 });
   });
+
+  it('keeps the CoA port of the source', async () => {
+    const result = await convert(
+      junos(`
+        set access radius-server 10.0.0.80 port 1812
+        set access radius-server 10.0.0.80 dynamic-request-port 1700
+      `),
+    );
+
+    expect(result.template.radius_config).toMatchObject({ coa_enabled: true, coa_port: 1700 });
+  });
+
+  it('leaves CoA disabled when the source does not configure it', async () => {
+    const result = await convert(junos('set access radius-server 10.0.0.80 port 1812'));
+
+    expect(result.template.radius_config).toMatchObject({ coa_enabled: false, coa_port: 3799 });
+  });
+
+  it.todo('Cisco: reads "aaa server radius dynamic-author" as RADIUS CoA');
 });
 
 describe('Several files in one template', () => {
