@@ -25,6 +25,7 @@ set chassis aggregated-devices ethernet device-count 2
 set interfaces interface-range ACCESS member-range ge-0/0/0 to ge-0/0/9
 set interfaces interface-range ACCESS unit 0 family ethernet-switching interface-mode access
 set interfaces interface-range ACCESS unit 0 family ethernet-switching vlan members USERS
+set interfaces interface-range ACCESS unit 0 family ethernet-switching storm-control EDGE
 set interfaces interface-range PRINTERS member ge-0/0/10
 set interfaces interface-range PRINTERS member ge-0/0/11
 set interfaces interface-range PRINTERS unit 0 family ethernet-switching vlan members PRINTERS
@@ -94,7 +95,10 @@ set vlans MGMT vlan-id 99
 set vlans MGMT l3-interface irb.99
 set vlans PRINTERS vlan-id 30
 set vlans USERS vlan-id 10
-set vlans USERS forwarding-options dhcp-security
+set vlans USERS forwarding-options dhcp-security group SERVERS overrides trusted
+set vlans USERS forwarding-options dhcp-security group SERVERS interface ge-0/0/9.0
+set forwarding-options storm-control-profiles EDGE all bandwidth-percentage 20
+set forwarding-options storm-control-profiles EDGE all no-multicast
 set vlans VOICE vlan-id 20
 
 {master:0}

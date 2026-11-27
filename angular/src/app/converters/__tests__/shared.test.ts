@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { configuredPorts, convert, endpoints, ios, junos, knownDefect, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
+import { configuredPorts, convert, endpoints, ios, junos, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
 
 describe('File format detection', () => {
   it('reports a file that is neither Cisco nor Junos and converts nothing from it', async () => {
     const result = await convert({ name: 'notes.txt', text: 'Switch inventory\nsw1 10.0.0.1\nsw2 10.0.0.2\n' });
 
     expect(result.files[0]).toMatchObject({ name: 'notes.txt', format: 'Unknown', success_config: false });
-    expect(result.files[0].error_message).toContain('Unable to determinate the type of file');
+    expect(result.files[0].error_message).toContain('Unable to determine the type of file');
     expect(logsOf(result, 'error').join('\n')).toContain('notes.txt');
     expect(result.errors).toEqual([]);
   });
@@ -69,7 +69,7 @@ describe('File format detection', () => {
     expect(configuredPorts(result, 'ex1')).toEqual(['ge-0/0/0']);
   });
 
-  knownDefect('C6', 'an Aruba AOS-CX configuration is not taken for a Cisco configuration', async () => {
+  it('an Aruba AOS-CX configuration is not taken for a Cisco configuration (C6)', async () => {
     const result = await convert(`!
 !Version ArubaOS-CX FL.10.10.1020
 !export-password: default
@@ -135,13 +135,121 @@ describe('Port usages (profiles)', () => {
     expect(logsOf(result, 'warning').join('\n')).toContain('Desk 12,Desk 13,Desk 14 - Phone');
   });
 
-  it('names a port usage "profile" when its ports have no description', async () => {
-    const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport access vlan 10\n!'));
+  it('names a port usage after its settings when its ports have no description', async () => {
+    const result = await convert(
+      ios(`
+        vlan 10
+         name users
+        vlan 20
+         name voice
+        !
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+        !
+        interface GigabitEthernet1/0/2
+         switchport access vlan 10
+         switchport voice vlan 20
+        !
+        interface GigabitEthernet1/0/3
+         switchport access vlan 10
+         authentication port-control auto
+         dot1x pae authenticator
+        !
+        interface GigabitEthernet1/0/4
+         switchport mode trunk
+        !
+        interface GigabitEthernet1/0/5
+         switchport mode trunk
+         switchport trunk allowed vlan 10,20
+        !
+        interface GigabitEthernet1/0/6
+         switchport mode trunk
+         switchport trunk allowed vlan 20
+        !
+        interface GigabitEthernet1/0/7
+         switchport access vlan 20
+         shutdown
+        !
+      `),
+    );
 
-    expect(Object.keys(result.template.port_usages)).toEqual(['profile']);
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_users', 'access_users_voip', 'access_users_dot1x', 'trunk_all', 'trunk_2_vlans', 'trunk_voice', 'disabled_access_voice']);
   });
 
-  it('adds a suffix when two different port usages would get the same name', async () => {
+  it('tells port usages with the same mode and network apart by the settings that differ', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+        !
+        interface GigabitEthernet1/0/2
+         switchport access vlan 10
+         speed 100
+         spanning-tree portfast
+        !
+        interface GigabitEthernet1/0/3
+         switchport access vlan 10
+         spanning-tree portfast
+         power inline never
+        !
+        interface GigabitEthernet1/0/4
+         switchport access vlan 30
+         spanning-tree portfast
+        !
+      `),
+    );
+
+    // "edge" is not in the name of the usage of VLAN 30: no other usage of that VLAN differs on it.
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_vlan10', 'access_vlan10_edge_100m', 'access_vlan10_nopoe_edge', 'access_vlan30']);
+  });
+
+  it('does not name a port usage after the description of a minority of its ports', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 description "Coffee machine"
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_users']);
+    expect(logsOf(result, 'warning').join('\n')).not.toContain('Coffee');
+  });
+
+  it('names a port usage after the description that most of its ports have', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 description Printer
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 description Printer
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['printer']);
+  });
+
+  it('names a port usage after its settings when its descriptions have no word in common', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 description "Reception"
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 description "Coffee machine"
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 description "Badge reader"
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['access_users']);
+  });
+
+  it('adds what tells them apart when two different port usages would get the same name', async () => {
     const result = await convert(
       ios(`
         interface GigabitEthernet1/0/1
@@ -152,15 +260,60 @@ describe('Port usages (profiles)', () => {
          description Printer
          switchport access vlan 31
         !
+        interface GigabitEthernet1/0/3
+         description Camera
+         switchport access vlan 40
+        !
+        interface GigabitEthernet1/0/4
+         description Camera
+         switchport access vlan 40
+         power inline never
+        !
+        interface GigabitEthernet1/0/5
+         description Desk
+         switchport access vlan 10
+        !
+        interface GigabitEthernet1/0/6
+         description Desk
+         switchport access vlan 10
+         switchport voice vlan 20
+        !
+      `),
+    );
+
+    expect(Object.keys(result.template.port_usages)).toEqual(['printer_vlan30', 'printer_vlan31', 'camera', 'camera_nopoe', 'desk', 'desk_voip']);
+    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('vlan30');
+    expect(usageFor(result, 'GigabitEthernet1/0/2').port_network).toBe('vlan31');
+  });
+
+  it('adds a number when nothing short tells two port usages apart', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         description Desk
+         switchport access vlan 10
+         authentication port-control auto
+         authentication periodic
+         authentication timer reauthenticate 3600
+         dot1x pae authenticator
+        !
+        interface GigabitEthernet1/0/2
+         description Desk
+         switchport access vlan 10
+         authentication port-control auto
+         authentication periodic
+         authentication timer reauthenticate 7200
+         dot1x pae authenticator
+        !
       `),
     );
 
     const names = Object.keys(result.template.port_usages);
     expect(names).toHaveLength(2);
-    expect(names[0]).toBe('printer');
-    expect(names[1]).toMatch(/^printer-[0-9a-f]{4}$/);
-    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('vlan30');
-    expect(usageFor(result, 'GigabitEthernet1/0/2').port_network).toBe('vlan31');
+    expect(names[0]).toBe('desk');
+    expect(names[1]).toMatch(/^desk-[0-9a-f]{4}$/);
+    expect(usageFor(result, 'GigabitEthernet1/0/1').reauth_interval).toBe(3600);
+    expect(usageFor(result, 'GigabitEthernet1/0/2').reauth_interval).toBe(7200);
   });
 
   it('limits the name of a port usage to 31 characters', async () => {
@@ -175,7 +328,7 @@ describe('Port usages (profiles)', () => {
     expect(Object.keys(result.template.port_usages)).toEqual(['meeting_room_on_the_second_floo']);
   });
 
-  knownDefect('C5', 'the name of a port usage only has letters, digits, "_" and "-"', async () => {
+  it('the name of a port usage only has letters, digits, "_" and "-" (C5)', async () => {
     const result = await convert(
       ios(`
         interface GigabitEthernet1/0/1
@@ -192,7 +345,7 @@ describe('Port usages (profiles)', () => {
     for (const name of Object.keys(result.template.port_usages)) expect(name).toMatch(/^[a-z0-9_-]+$/);
   });
 
-  knownDefect('C8', 'the member ports of a link aggregation do not leave an unused port usage in the template', async () => {
+  it('the member ports of a link aggregation do not leave an unused port usage in the template (C8)', async () => {
     const result = await convert(
       junos(`
         set system host-name ex1
@@ -266,7 +419,15 @@ describe('RADIUS', () => {
     expect(result.template.radius_config).toMatchObject({ coa_enabled: false, coa_port: 3799 });
   });
 
-  it.todo('Cisco: reads "aaa server radius dynamic-author" as RADIUS CoA');
+  it('Cisco: reads "aaa server radius dynamic-author" as RADIUS CoA, on port 1700 unless it gives another', async () => {
+    const block = ['aaa server radius dynamic-author', ' client 10.0.0.80 server-key 7 REDACTED'];
+    const standard = await convert(ios([...block, '!'].join('\n')));
+    const other = await convert(ios([...block, ' port 3799', '!'].join('\n')));
+
+    expect(standard.template.radius_config).toMatchObject({ coa_enabled: true, coa_port: 1700 });
+    expect(other.template.radius_config).toMatchObject({ coa_enabled: true, coa_port: 3799 });
+    expect(JSON.stringify(standard.template)).not.toContain('REDACTED');
+  });
 });
 
 describe('Several files in one template', () => {
@@ -361,7 +522,7 @@ describe('Several files in one template', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1', 'sw-c').port_network).toBe('users-vl20');
   });
 
-  knownDefect('C3', 'a VLAN with two names in two files does not leave a port usage pointing to a missing network', async () => {
+  it('a VLAN with two names in two files does not leave a port usage pointing to a missing network (C3)', async () => {
     const result = await convert(
       junos(`
         set system host-name ex-a
@@ -378,7 +539,7 @@ describe('Several files in one template', () => {
     expect(missingNetworks(result)).toEqual([]);
   });
 
-  knownDefect('C4', 'two VLANs with the same name but different ids in two files are both kept', async () => {
+  it('two VLANs with the same name but different ids in two files are both kept (C4)', async () => {
     const result = await convert(
       junos(`
         set system host-name ex-a
@@ -395,17 +556,18 @@ describe('Several files in one template', () => {
     expect(Object.values(vlanIds(result)).sort()).toEqual([50, 60]);
   });
 
-  knownDefect('C7', 'a file without hostname does not create a switch rule with an empty name', async () => {
+  it('a file without hostname does not create a switch rule with an empty name (C7)', async () => {
     const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport access vlan 10\n!', { hostname: null }));
 
     expect(switchRule(result).name).not.toBe('');
   });
 
-  knownDefect('C9', 'log lines about the VLANs of a Cisco file name that file', async () => {
-    const result = await convert({ name: 'sw-a.txt', text: CISCO_A });
+  it('every log line about a file names that file (C9)', async () => {
+    const result = await convert({ name: 'sw-a.txt', text: CISCO_A }, { name: 'sw-b.txt', text: CISCO_B });
 
-    const vlanLogs = result.logs.filter((entry) => entry.message.startsWith('New VLANs'));
-    expect(vlanLogs).toHaveLength(1);
-    expect(vlanLogs[0].file).toBe('sw-a.txt');
+    expect(result.logs.filter((entry) => entry.message.startsWith('VLANs of the file')).map((entry) => [entry.file, entry.message])).toEqual([
+      ['sw-a.txt', 'VLANs of the file: 10'],
+      ['sw-b.txt', 'VLANs of the file: 10, 30'],
+    ]);
   });
 });

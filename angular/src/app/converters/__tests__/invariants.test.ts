@@ -10,49 +10,17 @@
 import { describe, expect, it } from 'vitest';
 import { loadFixtures } from './support/fixtures';
 import { convert, knownDefect } from './support/harness';
-import {
-  ACCESS_HAS_NETWORK,
-  INVARIANTS,
-  MODE_IS_KNOWN,
-  NAMES_ARE_VALID,
-  NETWORKS_EXIST,
-  PORT_NAMES_ARE_VALID,
-  SERVERS_ARE_COMPLETE,
-  VLAN_IDS_ARE_VALID,
-} from './support/invariants';
+import { INVARIANTS } from './support/invariants';
 
 /**
- * Rules that a fixture breaks today, with the known defect that explains it.
+ * Rules that a fixture breaks today, with the known defect that explains it:
+ *
+ *     'cisco-ios/catalyst-2960-legacy': { [NAMES_ARE_VALID]: 'C5' },
+ *
  * The ids are those of the defect list in the README next to these tests.
+ * No defect is open at the moment.
  */
-const KNOWN_VIOLATIONS: Record<string, Record<string, string>> = {
-  'cisco-ios/catalyst-2960-legacy': {
-    [NAMES_ARE_VALID]: 'C5',
-    [MODE_IS_KNOWN]: 'A8',
-  },
-  'cisco-ios/catalyst-config-script': {
-    [PORT_NAMES_ARE_VALID]: 'A18',
-    [ACCESS_HAS_NETWORK]: 'A11, A19',
-  },
-  'cisco-ios/catalyst-9300-access': {
-    [PORT_NAMES_ARE_VALID]: 'A7',
-    [VLAN_IDS_ARE_VALID]: 'A2',
-    [NAMES_ARE_VALID]: 'A2, C5',
-  },
-  'junos/ex2200-legacy': {
-    [ACCESS_HAS_NETWORK]: 'B12, B14',
-  },
-  'junos/ex4300-els': {
-    [NETWORKS_EXIST]: 'B7',
-    [PORT_NAMES_ARE_VALID]: 'B8',
-    [NAMES_ARE_VALID]: 'C5',
-    [ACCESS_HAS_NETWORK]: 'B2, B8, C8',
-    [SERVERS_ARE_COMPLETE]: 'B5',
-  },
-  'multi/two-junos-vlan-clash': {
-    [NETWORKS_EXIST]: 'C3',
-  },
-};
+const KNOWN_VIOLATIONS: Record<string, Record<string, string>> = {};
 
 describe('Invariants', () => {
   for (const fixture of loadFixtures()) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commandKey, NOT_A_COMMAND, Report } from '../../report';
+import { commandKey, linesText, NOT_A_COMMAND, Report } from '../../report';
 
 describe('Report', () => {
   it('records a message with its file and its lines', () => {
@@ -20,8 +20,10 @@ describe('Report', () => {
     report.notConverted('ip route', 40);
     report.flush();
 
-    expect(report.diagnostics.map((entry) => `${entry.severity}: ${entry.message}`)).toEqual(['info: Not converted: "snmp-server enable" (lines 10, 11, 12)', 'info: Not converted: "ip route" (line 40)']);
-    expect(report.diagnostics[0]).toMatchObject({ code: 'not-converted', file: 'sw1.txt', lines: [10, 11, 12] });
+    expect(report.diagnostics).toEqual([
+      { severity: 'info', code: 'not-converted', message: 'Not converted: "snmp-server enable"', file: 'sw1.txt', lines: [10, 11, 12] },
+      { severity: 'info', code: 'not-converted', message: 'Not converted: "ip route"', file: 'sw1.txt', lines: [40] },
+    ]);
   });
 
   it('writes one warning for a port setting that is not converted, with the number of ports', () => {
@@ -33,19 +35,28 @@ describe('Report', () => {
     report.portSettingNotConverted('udld port', 21, 'GigabitEthernet1/0/1');
     report.flush();
 
-    expect(report.diagnostics.map((entry) => `${entry.severity}: ${entry.message}`)).toEqual([
-      'warning: Not converted: "storm-control broadcast" on 3 ports, the first is GigabitEthernet1/0/1 (lines 20, 30)',
-      'warning: Not converted: "udld port" on GigabitEthernet1/0/1 (line 21)',
+    expect(report.diagnostics.map((entry) => `${entry.severity}: ${entry.message} [${entry.lines}]`)).toEqual([
+      'warning: Not converted: "storm-control broadcast" on 3 ports, the first is GigabitEthernet1/0/1 [20,30]',
+      'warning: Not converted: "udld port" on GigabitEthernet1/0/1 [21]',
     ]);
   });
 
-  it('lists eight lines at most and writes nothing twice', () => {
+  it('writes nothing twice', () => {
     const report = new Report();
     for (let line = 1; line <= 20; line++) report.notConverted('access-list', line);
     report.flush();
     report.flush();
 
-    expect(report.diagnostics.map((entry) => entry.message)).toEqual(['Not converted: "access-list" (lines 1, 2, 3, 4, 5, 6, 7, 8 and 12 more)']);
+    expect(report.diagnostics.map((entry) => entry.message)).toEqual(['Not converted: "access-list"']);
+    expect(report.diagnostics[0].lines).toHaveLength(20);
+  });
+
+  it('writes the lines of a message for a person, eight at most', () => {
+    expect(linesText(undefined)).toBe('');
+    expect(linesText([])).toBe('');
+    expect(linesText([12])).toBe('12');
+    expect(linesText([12, 15])).toBe('12, 15');
+    expect(linesText(Array.from({ length: 20 }, (_, index) => index + 1))).toBe('1, 2, 3, 4, 5, 6, 7, 8 and 12 more');
   });
 });
 

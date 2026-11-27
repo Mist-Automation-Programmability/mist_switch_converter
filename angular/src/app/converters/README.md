@@ -36,6 +36,36 @@ result.diagnostics;  // what was left out or guessed, with file and line numbers
 
 `detect.ts` tells which extractor reads a file. `report.ts` collects the diagnostics.
 
+### The names of the port usages
+
+Ports with the same converted settings share one port usage, in one file or across
+files. `template/port_usages.ts` names it, in this order:
+
+1. after the interface ranges of its ports (Junos);
+2. after the description of its ports, when more than half of them have one: the
+   description itself when there is only one, or the words that more than half of
+   the descriptions share (`desk` for "Desk 12" and "Desk 13"), with a warning;
+3. after its settings: `access_users`, `access_users_voip_dot1x`, `trunk_all`,
+   `trunk_12_vlans`, `disabled_access_users`.
+
+Two port usages that would get the same name get the words that tell them apart,
+and only those: `printer_floor1` and `printer_floor2`, `access_users` and
+`access_users_qos_nopoe`. A number (`desk-0004`) is the last resort, when they
+differ on a setting that has no short word. A name has at most 31 characters.
+
+### Settings that do not map one to one
+
+- **Storm control.** Mist has one level per port usage, in percent, and says which
+  kinds of traffic it applies to (`storm_control`). A Junos storm control profile
+  maps directly; without a level it is 80 %. A Cisco switch has one level per kind of
+  traffic: the highest one is kept, with a warning when they differ, and a kind of
+  traffic without a level is turned off in Mist. A level in bits or packets per
+  second is left out with a warning.
+- **DHCP snooping trust.** `allow_dhcpd` is written only when the source says
+  something. Junos and Mist agree on the rest: a trunk is trusted, an access port is
+  not. A Cisco switch trusts no port by default, so with DHCP snooping a Cisco trunk
+  without `ip dhcp snooping trust` becomes `allow_dhcpd: false`, with a warning.
+
 ## Adding a command
 
 Find the rule table of the place where the command lives (`portRules` in

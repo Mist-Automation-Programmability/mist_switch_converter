@@ -15,7 +15,7 @@
  * The statements the extractor understands are in the rule tables below. A statement
  * without a rule is reported as not converted.
  */
-import { addOnce, Device, newDevice, newPort, Port, SourceFile, Speed, SyslogServer, TacacsServer, Vlan } from '../model';
+import { addOnce, Device, newDevice, newPort, Port, SourceFile, Speed, StormControl, SyslogServer, TacacsServer, Vlan } from '../model';
 import { Report } from '../report';
 import { readSetLines } from '../readers/set_lines';
 import { Statement } from '../readers/statement';
@@ -47,6 +47,44 @@ interface PortDraft {
   serverRejectVlan?: string;
   /** True while the statements of an interface range are applied to the port. */
   readingRange: boolean;
+  /** The lines of the file that are about the port, by line number. */
+  source: Map<number, string>;
+  /** "family ethernet-switching storm-control <profile>". */
+  stormProfile?: string;
+  /** Switches without ELS: "ethernet-switching-options storm-control interface <port>". */
+  storm?: StormDraft;
+}
+
+/** A storm control profile, or the storm control of a port on a switch without ELS. */
+interface StormDraft {
+  percentage?: number;
+  /** The level is in kilobits per second. */
+  kbps: boolean;
+  noBroadcast: boolean;
+  noMulticast: boolean;
+  noRegisteredMulticast: boolean;
+  noUnregisteredMulticast: boolean;
+  noUnknownUnicast: boolean;
+  shutdown: boolean;
+}
+
+function newStorm(): StormDraft {
+  return { kbps: false, noBroadcast: false, noMulticast: false, noRegisteredMulticast: false, noUnregisteredMulticast: false, noUnknownUnicast: false, shutdown: false };
+}
+
+/** "bandwidth-percentage 10", "no-broadcast"...: the options of storm control. False for an option without a rule. */
+function readStormOption(storm: StormDraft, words: string[]): boolean {
+  const [option, value] = words;
+  if (option === undefined) return true;
+  if ((option === 'bandwidth-percentage' || option === 'level') && number(value ?? '') !== undefined) storm.percentage = Math.min(100, Number(value));
+  else if (option === 'bandwidth-level' || option === 'bandwidth') storm.kbps = true;
+  else if (option === 'no-broadcast') storm.noBroadcast = true;
+  else if (option === 'no-multicast') storm.noMulticast = true;
+  else if (option === 'no-registered-multicast') storm.noRegisteredMulticast = true;
+  else if (option === 'no-unregistered-multicast') storm.noUnregisteredMulticast = true;
+  else if (option === 'no-unknown-unicast') storm.noUnknownUnicast = true;
+  else return false;
+  return true;
 }
 
 interface RadiusDraft {
@@ -74,6 +112,14 @@ interface Context {
   syslog: Map<string, SyslogServer>;
   tacacsAuth: Map<string, TacacsServer>;
   tacacsAcct: Map<string, TacacsServer>;
+  /** "forwarding-options storm-control-profiles <name>". */
+  stormProfiles: Map<string, StormDraft>;
+  /** Switches without ELS: "ethernet-switching-options storm-control interface all". */
+  stormAll?: StormDraft;
+  /** Switches without ELS: "ethernet-switching-options storm-control action-shutdown". */
+  stormShutdown: boolean;
+  /** "vlans <vlan> forwarding-options dhcp-security group <group>": its ports, and whether it trusts them. */
+  dhcpGroups: Map<string, { trusted?: boolean; ports: PortDraft[] }>;
 }
 
 function number(text: string): number | undefined {
@@ -144,6 +190,10 @@ const interfaceRules = new RuleTable<PortDraft>([
   }),
   rule('native-vlan-id <vlan>', (draft, m) => {
     draft.nativeVlan = m.vlan;
+  }),
+  rule('unit <unit> family ethernet-switching storm-control <profile>', (draft, m) => {
+    draft.switching = true;
+    draft.stormProfile = m.profile;
   }),
   rule('unit <unit> family ethernet-switching native-vlan-id <vlan>', (draft, m) => {
     draft.switching = true;
@@ -245,6 +295,12 @@ const dot1xRules = new RuleTable<PortDraft>([
  * its unit, an interface range, "all", or a name with wildcards.
  */
 function portsOf(context: Context, reference: string, statement: Statement): PortDraft[] {
+  const ports = referredPorts(context, reference, statement);
+  for (const draft of ports) draft.source.set(statement.line, statement.text);
+  return ports;
+}
+
+function referredPorts(context: Context, reference: string, statement: Statement): PortDraft[] {
   const name = reference.replace(/\.\d+$/, '');
   const switchPorts = [...context.drafts.values()].filter((draft) => draft.port.kind === 'physical' || draft.port.kind === 'lag');
   const range = context.ranges.get(name);
@@ -258,6 +314,51 @@ function portsOf(context: Context, reference: string, statement: Statement): Por
   const draft = context.drafts.get(name);
   if (!draft) context.report.portNote('info', 'port-not-configured', 'A setting refers to a port that the file does not configure under "interfaces": left out', statement.line, name);
   return draft && switchPorts.includes(draft) ? [draft] : [];
+}
+
+/**
+ * A statement outside "interfaces" that names a port is one of the lines of that port,
+ * converted or not: the details of the port show what the file says about it.
+ */
+function noteNamedPorts(context: Context, statement: Statement): void {
+  for (const word of statement.words) {
+    const draft = context.drafts.get(word.replace(/\.\d+$/, ''));
+    if (draft && (draft.port.kind === 'physical' || draft.port.kind === 'lag')) draft.source.set(statement.line, statement.text);
+  }
+}
+
+function stormProfileOf(context: Context, name: string): StormDraft {
+  let profile = context.stormProfiles.get(name);
+  if (!profile) {
+    profile = newStorm();
+    context.stormProfiles.set(name, profile);
+  }
+  return profile;
+}
+
+/** The storm control of a port: its profile, or on a switch without ELS its own options or those of "all". */
+function stormControlOf(context: Context, draft: PortDraft): StormControl | undefined {
+  const note = (code: string, text: string): void => context.report.portNote('warning', code, text, draft.line, draft.port.name);
+  let storm = draft.storm ?? context.stormAll;
+  if (draft.stormProfile !== undefined) {
+    storm = context.stormProfiles.get(draft.stormProfile);
+    if (!storm) note('storm-control-profile', 'The storm control profile of the port is not defined in the file: left out');
+  }
+  if (!storm) return undefined;
+  if (storm.kbps && storm.percentage === undefined) {
+    note('storm-control-unit', 'Storm control with a level in bits or packets per second has no equivalent, Mist takes a percentage: left out');
+    return undefined;
+  }
+  if (storm.noUnregisteredMulticast) note('storm-control-unregistered', 'Storm control: "no-unregistered-multicast" has no equivalent, the multicast that no host has joined stays limited');
+  return {
+    // Without a level, Junos limits the traffic to 80 % of the bandwidth
+    percentage: storm.percentage ?? 80,
+    broadcast: !storm.noBroadcast,
+    multicast: !storm.noMulticast,
+    registeredMulticast: !storm.noRegisteredMulticast,
+    unknownUnicast: !storm.noUnknownUnicast,
+    shutdown: storm.shutdown || (draft.stormProfile === undefined && context.stormShutdown),
+  };
 }
 
 function radiusOf(context: Context, host: string): RadiusDraft {
@@ -314,9 +415,45 @@ const globalRules = new RuleTable<Context>([
     for (const subnet of context.layer3.get(m.unit) ?? []) addOnce(vlanOf(context, id).subnets, subnet);
   }),
   // "display set" prints the options of dhcp-security, when it has some, in place of the bare statement
-  rule('vlans <name> forwarding-options dhcp-security ...', (context, m) => {
+  rule('vlans <name> forwarding-options dhcp-security ...', (context, m, statement) => {
     const id = vlanIdOf(context, m.name);
     if (id !== undefined) vlanOf(context, id).dhcpSnooping = true;
+    // "group UPLINKS overrides trusted" and "group UPLINKS interface ge-0/0/47": the ports that may face a DHCP server
+    const [keyword, name, option, value] = statement.words.slice(4);
+    if (keyword !== 'group' || name === undefined) return;
+    const group = context.dhcpGroups.get(`${m.name} ${name}`) ?? { ports: [] };
+    context.dhcpGroups.set(`${m.name} ${name}`, group);
+    if (option === 'overrides' && (value === 'trusted' || value === 'untrusted')) group.trusted = value === 'trusted';
+    if (option === 'interface' && value !== undefined) group.ports.push(...portsOf(context, value, statement));
+  }),
+
+  // Storm control
+  rule('forwarding-options storm-control-profiles <name> action-shutdown', (context, m) => {
+    stormProfileOf(context, m.name).shutdown = true;
+  }),
+  rule('forwarding-options storm-control-profiles <name> all ...', (context, m, statement) => (readStormOption(stormProfileOf(context, m.name), statement.words.slice(4)) ? undefined : false)),
+  // Switches without ELS have no profile: the options are written for a port, or for all of them
+  rule('ethernet-switching-options storm-control action-shutdown', (context) => {
+    context.stormShutdown = true;
+  }),
+  rule('ethernet-switching-options storm-control interface <port> ...', (context, m, statement) => {
+    const options = statement.words.slice(4);
+    if (m.port === 'all') {
+      context.stormAll ??= newStorm();
+      return readStormOption(context.stormAll, options) ? undefined : false;
+    }
+    let known = true;
+    for (const draft of portsOf(context, m.port, statement)) {
+      draft.storm ??= newStorm();
+      known = readStormOption(draft.storm, options);
+    }
+    return known ? undefined : false;
+  }),
+  rule('ethernet-switching-options secure-access-port interface <port> dhcp-trusted', (context, m, statement) => {
+    for (const draft of portsOf(context, m.port, statement)) draft.port.dhcpTrusted = true;
+  }),
+  rule('ethernet-switching-options secure-access-port interface <port> no-dhcp-trusted', (context, m, statement) => {
+    for (const draft of portsOf(context, m.port, statement)) draft.port.dhcpTrusted = false;
   }),
   rule('ethernet-switching-options secure-access-port vlan <name> examine-dhcp', (context, m) => {
     const id = vlanIdOf(context, m.name);
@@ -407,6 +544,9 @@ const globalRules = new RuleTable<Context>([
   rule('switch-options interface <port> persistent-learning', (context, m, statement) => {
     for (const draft of portsOf(context, m.port, statement)) draft.port.persistMac = true;
   }),
+  rule('ethernet-switching-options secure-access-port interface <port> persistent-learning', (context, m, statement) => {
+    for (const draft of portsOf(context, m.port, statement)) draft.port.persistMac = true;
+  }),
   rule('switch-options voip interface <port> vlan <vlan>', (context, m, statement) => {
     for (const draft of portsOf(context, m.port, statement)) draft.voiceVlan = m.vlan;
   }),
@@ -450,7 +590,6 @@ const globalRules = new RuleTable<Context>([
     'poe ...',
     'switch-options voip interface <port> forwarding-class <class>',
     'ethernet-switching-options voip interface <port> forwarding-class <class>',
-    'ethernet-switching-options secure-access-port interface <port> dhcp-trusted',
     'access profile <profile> authentication-order ...',
     'access profile <profile> accounting ...',
     'access profile <profile> radius options ...',
@@ -486,7 +625,7 @@ function draftOf(context: Context, name: string, line: number): PortDraft {
       port.aeIndex = read.number;
       port.lacp = false;
     }
-    draft = { port, line, trunk: false, switching: false, routed: false, members: [], readingRange: false };
+    draft = { port, line, trunk: false, switching: false, routed: false, members: [], readingRange: false, source: new Map() };
     context.drafts.set(name, draft);
   }
   return draft;
@@ -543,7 +682,7 @@ function readInterfaces(context: Context, statements: Statement[]): void {
 
 function readInterfaceStatement(context: Context, draft: PortDraft, statement: Statement, words: string[]): void {
   const port = draft.port;
-  port.lines.push(statement.text);
+  draft.source.set(statement.line, statement.text);
   if (port.kind === 'svi') {
     // "set interfaces irb unit 10 family inet address 10.1.10.1/24": the subnet of the VLAN whose l3-interface is irb.10
     const [unit, unitNumber, family, inet, address, value] = words;
@@ -563,6 +702,8 @@ function readInterfaceStatement(context: Context, draft: PortDraft, statement: S
 /** Turns what was read on a port into a port, once the whole file is read. */
 function finishPort(context: Context, draft: PortDraft): void {
   const port = draft.port;
+  // In the order of the file
+  port.lines = [...draft.source.entries()].sort(([a], [b]) => a - b).map(([, text]) => text);
   const declared = [...context.vlans.values()].filter((vlan) => vlan.declared).map((vlan) => vlan.id);
   const resolve = (reference: string | undefined): number | undefined => {
     if (reference === undefined) return undefined;
@@ -596,6 +737,7 @@ function finishPort(context: Context, draft: PortDraft): void {
     port.accessVlan = (members === 'all' ? undefined : members[0]) ?? vlanIdOf(context, 'default') ?? 1;
     port.voiceVlan = resolve(draft.voiceVlan);
   }
+  port.stormControl = stormControlOf(context, draft);
   port.auth.guestVlan = resolve(draft.guestVlan);
   port.auth.serverFailVlan = resolve(draft.serverFailVlan);
   port.auth.serverRejectVlan = resolve(draft.serverRejectVlan);
@@ -618,6 +760,8 @@ function finishServers(context: Context): void {
   // The accounting servers are those of the profile. Without any profile, they are the servers with "accounting-port".
   const acctHosts = profiles.length > 0 ? listed('acct') : [...context.radius.keys()].filter((host) => context.radius.get(host)?.acctPort !== undefined);
   system.radius.acct = acctHosts.map((host) => ({ host, port: context.radius.get(host)?.acctPort ?? 1813, timeout: timeoutOf(host) }));
+  const unused = [...context.radius.keys()].filter((host) => !authHosts.includes(host) && !acctHosts.includes(host));
+  if (unused.length > 0) context.report.info('radius-unused', `RADIUS servers that the access profile does not list are left out: ${unused.join(', ')}`);
   system.radius.coaPort = [...context.radius.values()].find((server) => server.coaPort !== undefined)?.coaPort;
 }
 
@@ -638,6 +782,9 @@ export function extractJunos(file: SourceFile, report: Report): Device {
     syslog: new Map(),
     tacacsAuth: new Map(),
     tacacsAcct: new Map(),
+    stormProfiles: new Map(),
+    stormShutdown: false,
+    dhcpGroups: new Map(),
   };
 
   // Pass 1: the VLANs and their ids
@@ -654,6 +801,7 @@ export function extractJunos(file: SourceFile, report: Report): Device {
 
   // Pass 3: everything else
   for (const statement of statements) {
+    if (statement.words[0] !== 'interfaces') noteNamedPorts(context, statement);
     if (globalRules.apply(context, statement) === 'unknown') report.notConverted(statementKey(statement.words), statement.line);
   }
 
@@ -661,6 +809,10 @@ export function extractJunos(file: SourceFile, report: Report): Device {
   const device = context.device;
   device.hostname ??= /^[\w.-]+@([\w.-]+)[>#]/m.exec(file.text)?.[1];
   finishServers(context);
+  // The ports of a DHCP security group are trusted, or not, when the group says so
+  for (const group of context.dhcpGroups.values()) {
+    if (group.trusted !== undefined) for (const draft of group.ports) draft.port.dhcpTrusted = group.trusted;
+  }
 
   const ports: Port[] = [];
   for (const draft of context.drafts.values()) {

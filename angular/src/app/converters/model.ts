@@ -94,6 +94,13 @@ export interface Port {
   /** Learned MAC addresses are kept (sticky MAC, persistent learning). */
   persistMac: boolean;
   auth: PortAuth;
+  /** Undefined when the port has no storm control. */
+  stormControl?: StormControl;
+  /**
+   * With DHCP snooping: true when the port may face a DHCP server, false when it may not.
+   * Undefined when the source says nothing: a trunk is then trusted and an access port is not.
+   */
+  dhcpTrusted?: boolean;
   /** Set on a physical port that is a member of a link aggregation. */
   lag?: LagMembership;
   /** On a link aggregation: false when it is static, without LACP. */
@@ -104,6 +111,20 @@ export interface Port {
   groups: string[];
   /** The lines of the source that configure this port, as written. */
   lines: string[];
+}
+
+/** Storm control: the traffic that floods a VLAN is limited to a share of the bandwidth of the port. */
+export interface StormControl {
+  /** The limit, in percent of the bandwidth of the port. */
+  percentage: number;
+  /** The kinds of traffic that are limited. */
+  broadcast: boolean;
+  multicast: boolean;
+  /** False when multicast is limited, except the groups that hosts have joined. */
+  registeredMulticast: boolean;
+  unknownUnicast: boolean;
+  /** The port is shut down when the limit is passed. */
+  shutdown: boolean;
 }
 
 export interface PortAuth {

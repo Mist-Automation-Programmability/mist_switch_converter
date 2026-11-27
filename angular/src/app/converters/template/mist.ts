@@ -49,6 +49,18 @@ export interface MistNetwork {
   subnet: string | null;
 }
 
+export interface MistStormControl {
+  /** True when broadcast is not limited. The same for the three that follow. */
+  no_broadcast: boolean;
+  no_multicast: boolean;
+  no_registered_multicast: boolean;
+  no_unknown_unicast: boolean;
+  /** Percent of the bandwidth of the port. */
+  percentage: number;
+  /** The port is shut down when the limit is passed. */
+  disable_port?: boolean;
+}
+
 export interface MistPortUsage {
   all_networks: boolean;
   disable_autoneg: boolean;
@@ -77,8 +89,10 @@ export interface MistPortUsage {
   reauth_interval?: number;
   server_fail_network?: string;
   server_reject_network?: string;
-  /** The Mist API spells it this way. */
-  bypass_auth_when_server_down_for_unkown_client?: boolean;
+  storm_control?: MistStormControl;
+  /** With DHCP snooping: whether a DHCP server may answer on the port. Absent: yes on a trunk, no on an access port. */
+  allow_dhcpd?: boolean;
+  bypass_auth_when_server_down_for_unknown_client?: boolean;
 }
 
 export interface MistRadiusServer {

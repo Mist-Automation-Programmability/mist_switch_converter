@@ -32,11 +32,11 @@
             <mat-selection-list #files (selectionChange)="selectFile($event)">
                 <mat-list-option color="primary" *ngFor="let file of config_files" [value]="file">
                     <div class="file-container">
-                        <div class="fileformat" [ngClass]="file.format.toLowerCase()">{{file.format}}</div>
+                        <div class="fileformat" [ngClass]="(file.report?.format || 'Unknown').toLowerCase()">{{file.report?.format || 'Unknown'}}</div>
                         <div class="filename">{{file.name}}</div>
-                        <img *ngIf="file.format=='Unknown'" src="images/ico_error.svg" class="error" [matTooltip]="file.error_message" />
-                        <img *ngIf="file.format != 'Unknown' && (!file.success_config || !file.success_vlan)" src="images/ico_warning.svg" class="warning" [matTooltip]="file.error_message" />
-                        <img *ngIf="file.success_config && file.success_vlan" src="images/ico_success.svg" class="success" matTooltip="Configuration file processed" />
+                        <img *ngIf="statusOf(file)=='error'" src="images/ico_error.svg" class="error" [matTooltip]="file.report?.message || ''" />
+                        <img *ngIf="statusOf(file)=='warning'" src="images/ico_warning.svg" class="warning" [matTooltip]="file.report?.message || ''" />
+                        <img *ngIf="statusOf(file)=='success'" src="images/ico_success.svg" class="success" matTooltip="Configuration file processed" />
                     </div>
                 </mat-list-option>
             </mat-selection-list>
@@ -64,14 +64,14 @@
         </div>
     </div>
     <!-- PROCESSIN -->
-    <div *ngIf="config_files.length > 0 && !config_parser.process_done">
+    <div *ngIf="reading > 0">
         <mat-divider></mat-divider>
         <mat-progress-bar mode="indeterminate"></mat-progress-bar>
 
 
     </div>
     <!-- RESULT -->
-    <div class="result" *ngIf="config_parser.process_done">
+    <div class="result" *ngIf="conversion">
         <mat-divider></mat-divider>
 
         <div class="header">
@@ -86,11 +86,12 @@
             <div class="export">
                 <mat-form-field>
                     <mat-label>Template name</mat-label>
-                    <input matInput [(ngModel)]="config_parser.config_data.mist_template.name" (change)="display()">
+                    <input matInput [(ngModel)]="template_name" (change)="renameTemplate()">
                 </mat-form-field>
 
                 <button mat-raised-button color="primary" (click)="save()">Download</button>
                 <button mat-raised-button color="primary" (click)="openDetails()">View Details</button>
+                <div class="problems" *ngIf="problem_summary">{{problem_summary}}: see the Logs tab of the details</div>
             </div>
         </div>
         <div class="file-warning" *ngIf="show_file_warning">

@@ -26,6 +26,18 @@ function startsWith(words: string[], path: string[]): boolean {
 }
 
 /**
+ * A list between brackets, as typed in configuration mode: "set a b [ x y ]" is
+ * "set a b x" and "set a b y". "display set" never prints one, a pasted script can.
+ */
+function expandList(words: string[]): string[][] {
+  if (words.length === 0) return [];
+  const open = words.indexOf('[');
+  if (open === -1 || words[words.length - 1] !== ']') return [words];
+  const head = words.slice(0, open);
+  return words.slice(open + 1, -1).map((value) => [...head, value]);
+}
+
+/**
  * The active statements of a file, without the word "set", in the order of the file.
  * The statements of applied groups come first, so that the statements of the
  * configuration itself, which Junos prefers, are read after them.
@@ -36,8 +48,9 @@ export function readSetLines(text: string): Statement[] {
   for (const line of numberedLines(text)) {
     const content = line.text.trim();
     if (content.startsWith('set ')) {
-      const words = splitQuotedWords(content).slice(1);
-      if (words.length > 0) statements.push({ words, text: content, line: line.line, children: [] });
+      for (const words of expandList(splitQuotedWords(content).slice(1))) {
+        statements.push({ words, text: content, line: line.line, children: [] });
+      }
     } else if (content.startsWith('deactivate ')) {
       deactivated.push(splitQuotedWords(content).slice(1));
     }

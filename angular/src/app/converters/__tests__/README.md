@@ -25,14 +25,15 @@ npm run test:local    # only the real configurations of test_configs/ (local, ne
 | `invariants.test.ts` | Rules every template must respect (every network exists, port names are valid...), on every fixture. |
 | `fixture-privacy.test.ts` | No secret, public address or real domain in the fixtures and the tests. No file of `test_configs/` in git. |
 | `local-configs.test.ts` | Real configurations in `test_configs/`, compared with the results of the previous run. Local only, skipped when the folder does not exist. |
-| `helpers.test.ts` | The subnet calculation and the translation of Cisco port names. |
+| `unit/` | The building blocks of the converter on their own: readers, command rules, values, port names, extractors, file detection, the `convert()` entry point. |
 | `support/` | The harness shared by the tests. |
 
 ## Writing a test
 
 `convert()` takes configuration text and returns what a user gets from the app: the
 exported template, the status of each file and the log. Tests assert on that result,
-not on the internals of the parsers, so they stay useful when the parsers are reworked.
+not on the internals of the converter, so they stay useful when the converter changes.
+It calls the same `convert(files)` function as the app (`../convert.ts`).
 
 ```ts
 it('converts the access VLAN and the voice VLAN', async () => {
@@ -60,67 +61,34 @@ it('converts the access VLAN and the voice VLAN', async () => {
 - `usageOfPort(result, 'ge-0/0/0')` returns the port usage that the switch rule gives to that port.
 - `vlanIds`, `endpoints`, `missingNetworks`, `configuredPorts`, `switchRule`, `logsOf` cover the rest.
 
-Profile ids are random in the app. In the tests `uuid` is replaced by a counter
-(`support/deterministic-uuid.ts`), so names such as `printer-0002` are stable.
+Nothing in the converter is random: the same files always give the same template, so
+names such as `printer-0002` are stable.
 
 ## Known defects
 
-A test written with `knownDefect('A5', ...)` describes the **correct** behaviour for a
-defect that is not fixed yet. It is reported as passed while the defect is there, so the
-suite stays green and the defect stays documented. It turns red when the defect is
-fixed: replace `knownDefect('A5', ...)` by `it(...)`, move its line to the list of fixed
-defects below, and the test keeps guarding the fix.
+A test written with `knownDefect('A21', 'title', ...)` describes the **correct**
+behaviour for a defect that is not fixed yet. It is reported as passed while the defect
+is there, so the suite stays green and the defect stays documented. It turns red when
+the defect is fixed: replace `knownDefect('A21', 'title', ...)` by `it('title (A21)', ...)`,
+add a line to the list of fixed defects below, and the test keeps guarding the fix.
 It also turns red if the body crashes instead of failing an expectation.
 
 `it.todo(...)` marks syntax that the converter does not read yet.
+
+**No defect is open at the moment.** The next free ids are A21 (Cisco), B17 (Junos) and
+C10 (shared).
 
 A14 to A20, B15 and B16 were found by converting real configurations (see the end of
 this file) and are reproduced here with synthetic lines. A9, A18 and A19 mostly show
 up with files that are not a `show running-config` but the commands typed in
 configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a file.
 
-| Id | What happens today |
-| --- | --- |
-| A1 | Cisco: a port list wrapped over several lines in `show vlan brief` ends the VLAN table. The VLANs after it lose their name (`vlan10` instead of `users`). |
-| A2 | Cisco: `switchport trunk allowed vlan add ...` replaces the list and creates a network named `vlanadd 150`. `none` creates `vlannone`. |
-| A4 | Cisco: `banner motd` is never converted, and the banner block never closes. |
-| A5 | Cisco: `ip name-server a b` keeps the first address only. |
-| A6 | Cisco: with `vrf <name>` in `ip name-server` or `ntp server`, the server is the word `vrf`. |
-| A7 | Cisco: `GigabitEthernet0/0` becomes port `ge-0/0/-1`. `TwoGigabitEthernet`, `FiveGigabitEthernet` and `HundredGigE` are not translated. |
-| A8 | Cisco: `switchport mode dynamic auto` is copied as the Mist mode. |
-| A9 | Cisco: interfaces that are not separated by `!` are merged into one, and all but the last are lost. |
-| A10 | Cisco: a file is flagged "No VLAN database found" even when its VLAN table was read. |
-| A11 | Cisco: a port in VLAN 1 has no network when the file has no VLAN table. |
-| A12 | Cisco: `Loopback0` becomes a switch port. |
-| A13 | Cisco: a `radius server` without explicit ports is dropped. |
-| A18 | Cisco: `interface range ...` (configuration script) creates one port named `range GigabitEthernet1/0/5 - 8`. |
-| A19 | Cisco: an interface configured in two blocks (configuration script) keeps the settings of the last block only. |
-| B1 | Junos: the ports of an interface range that have no statement of their own are not created. |
-| B2 | Junos: a port of an interface range with its own statements loses the VLAN of the range, and its settings leak to the other ports of the range. |
-| B4 | Junos: a RADIUS server on the default port is dropped, and a server inherits the ports of the one before it. |
-| B5 | Junos: a TACACS+ server without `port` gets an empty port, and a syslog server inherits the port of the one before it. |
-| B6 | Junos: `mac-radius` without option does not enable MAC authentication. |
-| B7 | Junos: voice and guest VLAN names are copied as written (`VOICE`) and do not match the network (`voice`). |
-| B8 | Junos: `switch-options voip interface access-ports` creates a port named `access-ports`. |
-| B9 | Junos: `ae10` and above get the wrong aggregated interface number. |
-| B10 | Junos: an interface range with a wildcard member (`ge-0/0/*`) raises an exception and the ranges after it are skipped. |
-| B11 | Junos: with Windows line endings the subnets of the VLANs are lost. |
-| B12 | Junos: `port-mode trunk` (switches without ELS) gives an access port on the first VLAN. |
-| B13 | Junos: `protocols rstp interface all` creates a port named `all`. |
-| B14 | Junos: a port without VLAN has no network. |
-| B15 | Junos: DHCP snooping is not seen on a VLAN whose `dhcp-security` has an option (`arp-inspection`, `group ... overrides trusted`...). |
-| B16 | Junos: the server lists of `access profile <name> radius` are not read. A server listed as `accounting-server` is not an accounting server unless it has `accounting-port`. |
-| C3 | Two files that name the same VLAN id differently leave a port usage pointing to a network that does not exist. |
-| C4 | Two files that use the same VLAN name for different ids keep one of the two VLANs only. |
-| C5 | Port usage names keep characters such as `+`, `/`, `.`, `(`. |
-| C6 | An Aruba AOS-CX configuration is detected as Cisco and converts to nothing. |
-| C7 | A file without hostname creates a switch rule with an empty name. |
-| C8 | The member ports of a link aggregation leave an unused port usage in the template. |
-| C9 | Log lines about the VLANs of a Cisco file do not name that file. |
-
 ### Fixed defects
 
-Their tests are normal tests now and keep the id in their name.
+Their tests are normal tests now and keep the id in their name. The first table lists
+the defects that were fixed one by one in the first parsers. The second one lists those
+that went away when the converter was rewritten as readers, extractors and a template
+builder.
 
 | Id | What was wrong | What the converter does now |
 | --- | --- | --- |
@@ -132,13 +100,52 @@ Their tests are normal tests now and keep the id in their name.
 | A20 | Cisco: the voice VLAN of a port was dropped when the file had no VLAN table. | The voice VLAN gets a network like the access VLAN does (`vlan20` when nothing names it). `dot1p`, `none` and `untagged` create no network. |
 | B3 | Junos: `disable` was not read, because the parser looked for the word `disabled`. | `set interfaces <port> disable` gives a disabled port, also when it is set on an interface range. |
 | C1 | RADIUS accounting servers were added to `auth_servers`, and `acct_servers` was always empty. | Accounting servers go to `acct_servers`, authentication servers to `auth_servers`. |
-| C2 | RADIUS change of authorization was read from Junos (`dynamic-request-port`) but never written to the template. | `radius_config.coa_enabled` and `coa_port` follow the source. Reading it from Cisco is still a todo. |
+| C2 | RADIUS change of authorization was read from Junos (`dynamic-request-port`) but never written to the template. | `radius_config.coa_enabled` and `coa_port` follow the source: `dynamic-request-port` on Junos, `aaa server radius dynamic-author` on Cisco. |
+
+| Id | What was wrong | What the converter does now |
+| --- | --- | --- |
+| A1 | Cisco: a port list wrapped over several lines in `show vlan brief` ended the VLAN table. The VLANs after it lost their name (`vlan10` instead of `users`). | The table is read to its end. A wrapped line belongs to the VLAN before it. |
+| A2 | Cisco: `switchport trunk allowed vlan add ...` replaced the list and created a network named `vlanadd 150`. `none` created `vlannone`. | `add`, `remove` and `except` change the list, `none` empties it, `all` allows every network. |
+| A4 | Cisco: `banner motd` was never converted, and the banner block never closed. | The text of `banner motd` (`banner login` when there is no motd) goes to `switch_mgmt.cli_banner`, whatever its delimiter. |
+| A5 | Cisco: `ip name-server a b` kept the first address only. | Every address of the line is kept. |
+| A6 | Cisco: with `vrf <name>` in `ip name-server` or `ntp server`, the server was the word `vrf`. | The VRF is skipped and the address is read. |
+| A7 | Cisco: `GigabitEthernet0/0` became port `ge-0/0/-1`. `TwoGigabitEthernet`, `FiveGigabitEthernet` and `HundredGigE` were not translated. | Port names are translated by position (`extractors/cisco_interfaces.ts`), with every Ethernet speed. A name that cannot be a switch port is reported and left out. |
+| A8 | Cisco: `switchport mode dynamic auto` was copied as the Mist mode. | A dynamic port is converted as an access port, with a warning. |
+| A9 | Cisco: interfaces that were not separated by `!` were merged into one, and all but the last were lost. | Blocks are read from the indentation and from the commands, not from the `!` lines. |
+| A10 | Cisco: a file was flagged "No VLAN database found" even when its VLAN table was read. | The flag follows what was read. |
+| A11 | Cisco: a port in VLAN 1 had no network when the file had no VLAN table. | VLAN 1 is the network `default`. |
+| A12 | Cisco: `Loopback0` became a switch port. | Loopback, tunnel, management and other interfaces that are not switch ports are left out. |
+| A13 | Cisco: a `radius server` without explicit ports was dropped. | It is kept with ports 1812 and 1813. |
+| A18 | Cisco: `interface range ...` (configuration script) created one port named `range GigabitEthernet1/0/5 - 8`. | Every port of the range gets the settings of the range. |
+| A19 | Cisco: an interface configured in two blocks (configuration script) kept the settings of the last block only. | The settings of all its blocks are merged, in the order of the file. |
+| B1 | Junos: the ports of an interface range that had no statement of their own were not created. | Every member of the range is a port, `member-range` included. |
+| B2 | Junos: a port of an interface range with its own statements lost the VLAN of the range, and its settings leaked to the other ports of the range. | A port has the settings of its ranges, then its own, which win. |
+| B4 | Junos: a RADIUS server on the default port was dropped, and a server inherited the ports of the one before it. | Each server has its own ports, 1812 and 1813 unless the file gives others. |
+| B5 | Junos: a TACACS+ server without `port` got an empty port, and a syslog server inherited the port of the one before it. | The ports are 49 and 514 unless the file gives others. |
+| B6 | Junos: `mac-radius` without option did not enable MAC authentication. | It does. `mac-radius restrict` gives MAC authentication only. |
+| B7 | Junos: voice and guest VLAN names were copied as written (`VOICE`) and did not match the network (`voice`). | A VLAN is known by its id everywhere, so every reference uses the name of the network. |
+| B8 | Junos: `switch-options voip interface access-ports` created a port named `access-ports`. | `access-ports` gives the voice VLAN to every access port. |
+| B9 | Junos: `ae10` and above got the wrong aggregated interface number. | `ae_idx` is the number of the `ae` interface. |
+| B10 | Junos: an interface range with a wildcard member (`ge-0/0/*`) raised an exception and the ranges after it were skipped. | The wildcard matches the ports that the file configures by name, with a warning that says so. The other ranges are read. |
+| B11 | Junos: with Windows line endings the subnets of the VLANs were lost. | Line endings are removed by the reader. |
+| B12 | Junos: `port-mode trunk` (switches without ELS) gave an access port on the first VLAN. | `port-mode` is read like `interface-mode`. |
+| B13 | Junos: `protocols rstp interface all` created a port named `all`. | `all` applies the setting to every port. |
+| B14 | Junos: a port without VLAN had no network. | It is in the `default` network (VLAN 1). |
+| B15 | Junos: DHCP snooping was not seen on a VLAN whose `dhcp-security` had an option (`arp-inspection`, `group ... overrides trusted`...). | Any `dhcp-security` statement of a VLAN enables it. |
+| B16 | Junos: the server lists of `access profile <name> radius` were not read. A server listed as `accounting-server` was not an accounting server unless it had `accounting-port`. | When the file has an access profile, its lists say which server is used for what. |
+| C3 | Two files that named the same VLAN id differently left a port usage pointing to a network that did not exist. | A VLAN id has one network, named by the first file that names it. The other names are listed in a warning. |
+| C4 | Two files that used the same VLAN name for different ids kept one of the two VLANs only. | Both are kept. The second one gets the id in its name (`users-vl20`). |
+| C5 | Port usage names kept characters such as `+`, `/`, `.`, `(`. | Names only have lower case letters, digits and `_`, plus `-` before a number that tells two usages apart. |
+| C6 | An Aruba AOS-CX configuration was detected as Cisco and converted to nothing. | It is recognised and refused with a message, as NX-OS and Junos with braces are. |
+| C7 | A file without hostname created a switch rule with an empty name. | The rule is named after the file, with a warning. |
+| C8 | The member ports of a link aggregation left an unused port usage in the template. | Members get the port usage of their link aggregation and create none. |
+| C9 | Log lines about the VLANs of a Cisco file did not name that file. | Every message about a file carries its name, and its line numbers when it has some. |
 
 ## Golden files
 
 Each directory under `__fixtures__` holds one or more input files and `expected.json`,
 the full result of converting them together. `expected.json` records what the converter
-does **today**, known defects included. Its job is to show the whole effect of a change:
+does **today**. Its job is to show the whole effect of a change:
 
 1. change the converter,
 2. run `npm test -- -u`,
@@ -151,7 +158,8 @@ on their own.
 ## Invariants
 
 `invariants.test.ts` lists rules that hold for any valid template. A rule that a fixture
-breaks today is listed in `KNOWN_VIOLATIONS` with the id of the defect that explains it.
+breaks because of a known defect is listed in `KNOWN_VIOLATIONS` with the id of that
+defect. The list is empty at the moment.
 Two rules are assumptions about what Mist accepts and are marked as such in the file.
 
 ## Test data: no customer configuration, ever

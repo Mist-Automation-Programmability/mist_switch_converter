@@ -90,7 +90,7 @@ export const INVARIANTS: Record<string, Check> = {
       .map(([name, usage]) => `${name}: speed ${usage.speed}, duplex ${usage.duplex}`),
 
   [SERVERS_ARE_COMPLETE]: (result) => {
-    const lists: Record<string, object[]> = {
+    const lists: Record<string, Array<{ host: string; port: string }>> = {
       'radius auth': result.template.radius_config.auth_servers,
       'radius acct': result.template.radius_config.acct_servers,
       tacacs: result.template.switch_mgmt.tacacs.tacplus_servers,
@@ -105,7 +105,7 @@ export const INVARIANTS: Record<string, Check> = {
   },
 
   'a RADIUS server is not listed with two different ports for authentication': (result) =>
-    duplicates((result.template.radius_config.auth_servers as Array<{ host: string }>).map((server) => server.host)),
+    duplicates(result.template.radius_config.auth_servers.map((server) => server.host)),
 
   [SECRETS_ARE_NOT_COPIED]: (result) =>
     // Every secret in the fixtures is the word REDACTED, so finding it in the output means a secret was copied.

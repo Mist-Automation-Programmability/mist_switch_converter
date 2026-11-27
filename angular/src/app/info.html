@@ -24,6 +24,7 @@
                         <div class="title">Authentication</div>
                         <div class="text">
                             <div>RADIUS Authentication and Accounting Servers</div>
+                            <div>RADIUS Change of Authorization (CoA)</div>
                             <div>TACACS+ Servers</div>
                         </div>
                     </div>
@@ -31,7 +32,7 @@
                         <div class="title">VLANs</div>
                         <div class="text">
                             <div>VLAN IDs</div>
-                            <div>VLAN Names (For Cisco, requires the VLAN Database)</div>
+                            <div>VLAN Names (For Cisco, from the VLAN Database or from the VLAN names of the configuration)</div>
                             <div>DHCP Snooping</div>
                         </div>
                     </div>
@@ -41,7 +42,7 @@
                             <div>Mode (Access/Trunk)</div>
                             <div>VLANs (access, native/untaggued, trunk allowed, voice VLAN)</div>
                             <div>Speed/Duplex or Auto Negociation</div>
-                            <div>Authentication (dot1x, MAC Auth, MAC Auth only, rejected/guest VLAN)</div>
+                            <div>Authentication (dot1x, MAC Auth, MAC Auth only, guest/server reject/server fail VLAN, multiple supplicants, reauthentication interval)</div>
                             <div>MAC Limit</div>
                             <div>Persitant MAC</div>
                             <div>MTU</div>
@@ -49,6 +50,8 @@
                             <div>PoE (enabled/disabled)</div>
                             <div>Admin Status (enabled/disabled)</div>
                             <div>STP Edge</div>
+                            <div>Storm Control (level in percent, kinds of traffic, port shutdown)</div>
+                            <div>DHCP Snooping trusted ports</div>
                         </div>
                     </div>
                 </div>
@@ -57,7 +60,8 @@
         <mat-tab label="Juniper">
             <div class="text">
                 <div>To get a good result, each Junos file must contain the configuration from a single switch with the result of the <samp>show | display inheritance | display set</samp> command.</div>
-                <div>The Juniper interface-ragnes </div>
+                <div>The Juniper interface-ranges are used to name the port profiles. Without interface-range, a port profile is named after the description that most of its ports have, or after its settings (<samp>access_users_voip</samp>, <samp>trunk_all</samp>).</div>
+                <div>What is not converted (routed ports, unknown settings...) is listed in the "Logs" tab of the details, with the file and the line numbers.</div>
                 <div><b>TIPS:</b> you can use the <samp>set cli screen-length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
             </div>
             <pre>
@@ -85,6 +89,9 @@ set interfaces interface-range ap member ge-0/0/8
         <mat-tab label="Cisco">
             <div class="text">
                 <div>To get a good result, each Cisco file must contain the configuration from a single switch with the result of the <samp>show running-config</samp> and <samp>show vlan brief</samp> commands.</div>
+                <div>Cisco IOS and IOS-XE are supported. NX-OS is not.</div>
+                <div>A port profile is named after the description that most of its ports have, or after its settings (<samp>access_users_voip</samp>, <samp>trunk_all</samp>).</div>
+                <div>What is not converted (routed ports, unknown settings...) is listed in the "Logs" tab of the details, with the file and the line numbers.</div>
                 <div><b>TIPS:</b> you can use the <samp>terminal length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
             </div>
             <pre>

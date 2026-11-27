@@ -3,16 +3,16 @@
     {
       "name": "sw-branch-01.txt",
       "format": "Cisco",
-      "success_vlan": false,
+      "success_vlan": true,
       "success_config": true,
-      "error_message": "Unable to parse the VLAN database"
+      "error_message": ""
     },
     {
       "name": "sw-branch-02.txt",
       "format": "Cisco",
-      "success_vlan": false,
+      "success_vlan": true,
       "success_config": true,
-      "error_message": "Unable to parse the VLAN database"
+      "error_message": ""
     }
   ],
   "ports": [
@@ -25,11 +25,7 @@
     "sw-branch-02 TenGigabitEthernet1/1/1 = uplink_to_wan_router"
   ],
   "problems": [
-    "warning: No VLAN database found in the file",
-    "error: Error when reading VLANs list from sw-branch-01.txt",
-    "warning: No VLAN database found in the file",
-    "error: Error when reading VLANs list from sw-branch-02.txt",
-    "warning: VLAN 99 has multiple subnets (10.101.99.0/24,10.102.99.0/24). Using the first one: \"10.101.99.0/24\""
+    "warning: VLAN 99 has multiple subnets (10.101.99.0/24, 10.102.99.0/24). Using the first one: \"10.101.99.0/24\""
   ],
   "errors": [],
   "template": {
