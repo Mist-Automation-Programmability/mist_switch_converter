@@ -540,6 +540,8 @@ export class ConfigData {
         this.radius_acct.forEach((radius_acct: string) => {
             this.mist_template.radius_config.acct_servers.push(JSON.parse(radius_acct));
         })
+        this.mist_template.radius_config.coa_enabled = this.radius_coa.coa_enabled;
+        this.mist_template.radius_config.coa_port = this.radius_coa.coa_port;
         if (this.tacacs_auth.length > 0) {
             this.mist_template.switch_mgmt.tacacs.enabled = true;
             this.tacacs_auth.forEach((tacplus_server: string) => {

@@ -115,7 +115,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | B14 | Junos: a port without VLAN has no network. |
 | B15 | Junos: DHCP snooping is not seen on a VLAN whose `dhcp-security` has an option (`arp-inspection`, `group ... overrides trusted`...). |
 | B16 | Junos: the server lists of `access profile <name> radius` are not read. A server listed as `accounting-server` is not an accounting server unless it has `accounting-port`. |
-| C2 | RADIUS change of authorization is read but never written to the template. |
 | C3 | Two files that name the same VLAN id differently leave a port usage pointing to a network that does not exist. |
 | C4 | Two files that use the same VLAN name for different ids keep one of the two VLANs only. |
 | C5 | Port usage names keep characters such as `+`, `/`, `.`, `(`. |
@@ -133,6 +132,7 @@ Their tests are normal tests now and keep the id in their name.
 | A3 | Cisco: every port was an STP edge port, with or without `spanning-tree portfast`. | A port is an edge port when it has `spanning-tree portfast` (also `edge`, `trunk`, `edge trunk`) or `spanning-tree bpduguard enable`. With the global `spanning-tree portfast [edge] default`, access ports are edge ports unless they have `spanning-tree portfast disable`. |
 | B3 | Junos: `disable` was not read, because the parser looked for the word `disabled`. | `set interfaces <port> disable` gives a disabled port, also when it is set on an interface range. |
 | C1 | RADIUS accounting servers were added to `auth_servers`, and `acct_servers` was always empty. | Accounting servers go to `acct_servers`, authentication servers to `auth_servers`. |
+| C2 | RADIUS change of authorization was read from Junos (`dynamic-request-port`) but never written to the template. | `radius_config.coa_enabled` and `coa_port` follow the source. Reading it from Cisco is still a todo. |
 
 ## Golden files
 

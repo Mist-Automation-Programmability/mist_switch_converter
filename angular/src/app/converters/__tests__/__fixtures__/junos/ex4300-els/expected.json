@@ -267,7 +267,7 @@
       ],
       "auth_servers_retries": 3,
       "auth_servers_timeout": 5,
-      "coa_enabled": false,
+      "coa_enabled": true,
       "coa_port": 3799
     },
     "switch_mgmt": {
