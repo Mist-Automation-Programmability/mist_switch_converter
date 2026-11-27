@@ -67,6 +67,7 @@ interface Port-channel1
  description UPLINK-CORE
  switchport trunk allowed vlan 10,20,30,40,99
  switchport mode trunk
+ ip dhcp snooping trust
 !
 interface GigabitEthernet0/0
  vrf forwarding Mgmt-vrf
@@ -120,6 +121,9 @@ interface GigabitEthernet1/0/5
  switchport mode access
  speed 100
  duplex full
+ storm-control broadcast level 5.00
+ storm-control multicast level 5.00
+ storm-control action shutdown
  spanning-tree portfast
 !
 interface GigabitEthernet1/0/6
@@ -154,12 +158,14 @@ interface TenGigabitEthernet1/1/1
  description UPLINK-CORE-1
  switchport trunk allowed vlan 10,20,30,40,99
  switchport mode trunk
+ ip dhcp snooping trust
  channel-group 1 mode active
 !
 interface TenGigabitEthernet1/1/2
  description UPLINK-CORE-2
  switchport trunk allowed vlan 10,20,30,40,99
  switchport mode trunk
+ ip dhcp snooping trust
  channel-group 1 mode active
 !
 interface TenGigabitEthernet1/1/3

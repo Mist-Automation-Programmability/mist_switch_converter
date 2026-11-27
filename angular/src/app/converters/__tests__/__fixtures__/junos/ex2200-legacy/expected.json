@@ -71,7 +71,14 @@
         "voip_network": "floor3_voice",
         "port_network": "floor3_data",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": false,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 80
+        }
       },
       "printer_3rd_floor": {
         "all_networks": false,
@@ -89,7 +96,14 @@
         "stp_edge": false,
         "port_network": "floor3_data",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": false,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 80
+        }
       },
       "access_default": {
         "all_networks": false,
@@ -107,7 +121,14 @@
         "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": false,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 80
+        }
       },
       "ap_floor_3": {
         "all_networks": false,
@@ -128,7 +149,14 @@
         "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": false,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 80
+        }
       },
       "uplink_to_core": {
         "all_networks": true,
@@ -145,7 +173,14 @@
         "poe_disabled": false,
         "stp_edge": false,
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": false,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 80
+        }
       }
     },
     "radius_config": {

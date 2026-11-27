@@ -107,7 +107,7 @@ const PORT_USAGE_FIELDS = [
   'all_networks', 'disable_autoneg', 'disabled', 'duplex', 'speed', 'enable_mac_auth', 'enable_qos', 'mac_auth_only', 'mac_limit',
   'guest_network', 'mode', 'mtu', 'poe_disabled', 'port_auth', 'stp_edge', 'networks', 'port_network',
   'voip_network', 'persist_mac', 'bypass_auth_when_server_down', 'allow_multiple_supplicants', 'reauth_interval',
-  'server_fail_network', 'server_reject_network', 'bypass_auth_when_server_down_for_unkown_client',
+  'server_fail_network', 'server_reject_network', 'bypass_auth_when_server_down_for_unknown_client', 'storm_control', 'allow_dhcpd',
 ];
 
 /** Parts of the template that hold settings and no name taken from the configurations. */

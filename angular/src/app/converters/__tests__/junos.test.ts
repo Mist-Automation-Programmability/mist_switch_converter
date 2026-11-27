@@ -304,7 +304,127 @@ describe('Junos: access ports', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
   });
 
-  it.todo('converts "storm-control <profile>" and its storm control profile into storm_control');
+  it('converts "storm-control <profile>" and its storm control profile into storm_control', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching storm-control EDGE
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching storm-control default
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set forwarding-options storm-control-profiles EDGE all bandwidth-percentage 20
+        set forwarding-options storm-control-profiles EDGE all no-broadcast
+        set forwarding-options storm-control-profiles EDGE all no-registered-multicast
+        set forwarding-options storm-control-profiles EDGE action-shutdown
+        set forwarding-options storm-control-profiles default all
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').storm_control).toEqual({ no_broadcast: true, no_multicast: false, no_registered_multicast: true, no_unknown_unicast: false, percentage: 20, disable_port: true });
+    // Without a level, Junos limits the traffic to 80 % of the bandwidth.
+    expect(usageFor(result, 'ge-0/0/1').storm_control).toEqual({ no_broadcast: false, no_multicast: false, no_registered_multicast: false, no_unknown_unicast: false, percentage: 80 });
+    expect(usageFor(result, 'ge-0/0/2')).not.toHaveProperty('storm_control');
+    expect(logsOf(result, 'warning').join('\n')).not.toMatch(/storm control/i);
+  });
+
+  it('gives the storm control of an interface range to its ports', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces interface-range DESKS member-range ge-0/0/0 to ge-0/0/1
+        set interfaces interface-range DESKS unit 0 family ethernet-switching vlan members USERS
+        set interfaces interface-range DESKS unit 0 family ethernet-switching storm-control EDGE
+        set forwarding-options storm-control-profiles EDGE all bandwidth-percentage 5
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/1').storm_control?.percentage).toBe(5);
+  });
+
+  it('leaves out a storm control profile that is not defined or has a level in kilobits per second, with a warning', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching storm-control MISSING
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching storm-control KBPS
+        set forwarding-options storm-control-profiles KBPS all bandwidth-level 5000
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).not.toHaveProperty('storm_control');
+    expect(usageFor(result, 'ge-0/0/1')).not.toHaveProperty('storm_control');
+    const warnings = logsOf(result, 'warning').join('\n');
+    expect(warnings).toContain('is not defined in the file: left out on ge-0/0/0');
+    expect(warnings).toContain('Mist takes a percentage: left out on ge-0/0/1');
+  });
+
+  it('reads the storm control of a switch without ELS: for all ports, and for one port', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set ethernet-switching-options storm-control action-shutdown
+        set ethernet-switching-options storm-control interface all
+        set ethernet-switching-options storm-control interface ge-0/0/1.0 level 30
+        set ethernet-switching-options storm-control interface ge-0/0/1.0 no-unknown-unicast
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').storm_control).toEqual({ no_broadcast: false, no_multicast: false, no_registered_multicast: false, no_unknown_unicast: false, percentage: 80, disable_port: true });
+    // What a port says for itself replaces what "all" says.
+    expect(usageFor(result, 'ge-0/0/1').storm_control).toEqual({ no_broadcast: false, no_multicast: false, no_registered_multicast: false, no_unknown_unicast: true, percentage: 30, disable_port: true });
+  });
+
+  it('converts the trusted and untrusted groups of "dhcp-security" into allow_dhcpd', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching interface-mode trunk
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/3 unit 0 family ethernet-switching interface-mode trunk
+        set interfaces ge-0/0/3 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/4 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+        set vlans USERS forwarding-options dhcp-security group SERVERS overrides trusted
+        set vlans USERS forwarding-options dhcp-security group SERVERS interface ge-0/0/1.0
+        set vlans USERS forwarding-options dhcp-security group GUESTS interface ge-0/0/3.0
+        set vlans USERS forwarding-options dhcp-security group GUESTS overrides untrusted
+        set vlans USERS forwarding-options dhcp-security group OPTIONS interface ge-0/0/4.0
+        set vlans USERS forwarding-options dhcp-security group OPTIONS overrides no-option82
+      `),
+    );
+
+    // Junos and Mist agree on the ports that say nothing: a trunk is trusted, an access port is not.
+    expect(usageFor(result, 'ge-0/0/0')).not.toHaveProperty('allow_dhcpd');
+    expect(usageFor(result, 'ge-0/0/1').allow_dhcpd).toBe(true);
+    expect(usageFor(result, 'ge-0/0/2')).not.toHaveProperty('allow_dhcpd');
+    expect(usageFor(result, 'ge-0/0/3').allow_dhcpd).toBe(false);
+    expect(usageFor(result, 'ge-0/0/4')).not.toHaveProperty('allow_dhcpd');
+    expect(result.template.dhcp_snooping).toEqual({ enabled: true, networks: ['users'] });
+  });
+
+  it('converts "dhcp-trusted" and "no-dhcp-trusted" of a switch without ELS into allow_dhcpd', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching port-mode trunk
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set ethernet-switching-options secure-access-port interface ge-0/0/0.0 dhcp-trusted
+        set ethernet-switching-options secure-access-port interface ge-0/0/1.0 no-dhcp-trusted
+        set ethernet-switching-options secure-access-port vlan USERS examine-dhcp
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').allow_dhcpd).toBe(true);
+    expect(usageFor(result, 'ge-0/0/1').allow_dhcpd).toBe(false);
+  });
+
   it('reports a routed port ("family inet" on a physical port) and does not convert it', async () => {
     const result = await convert(
       junos(`
@@ -490,7 +610,7 @@ describe('Junos: 802.1X', () => {
     );
 
     const usage = usageFor(result, 'ge-0/0/0');
-    expect(usage.bypass_auth_when_server_down_for_unkown_client).toBe(true);
+    expect(usage.bypass_auth_when_server_down_for_unknown_client).toBe(true);
     expect(usage.bypass_auth_when_server_down).toBe(false);
   });
 

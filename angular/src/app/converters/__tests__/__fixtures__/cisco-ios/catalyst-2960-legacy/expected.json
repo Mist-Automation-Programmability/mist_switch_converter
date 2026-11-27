@@ -22,6 +22,7 @@
   ],
   "problems": [
     "warning: \"switchport mode dynamic desirable\" is negotiated with the neighbour: converted as an access port on FastEthernet0/22 (line 81)",
+    "warning: DHCP snooping: the trunk has no \"ip dhcp snooping trust\", DHCP servers are refused on it on GigabitEthernet0/2 (line 91)",
     "warning: Port usage \"desk\" is shared by ports with different descriptions and is named after the words they have in common: Desk 2.01,Desk 2.02"
   ],
   "errors": [],
@@ -189,7 +190,8 @@
         "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": true
       },
       "spare_uplink": {
         "all_networks": true,
@@ -206,7 +208,8 @@
         "poe_disabled": false,
         "stp_edge": false,
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": false
       }
     },
     "radius_config": {

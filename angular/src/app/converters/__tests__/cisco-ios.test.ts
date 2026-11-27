@@ -622,7 +622,117 @@ describe('Cisco IOS: access ports', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1').mac_limit).toBe(0);
   });
 
-  it.todo('converts "storm-control <type> level <n>" into storm_control');
+});
+
+describe('Cisco IOS: storm control', () => {
+  const port = (...settings: string[]): string => ['interface GigabitEthernet1/0/1', ' switchport access vlan 10', ' switchport mode access', ...settings.map((setting) => ` ${setting}`), '!'].join('\n');
+
+  it('converts "storm-control <traffic> level <percent>" into storm_control', async () => {
+    const result = await convert(ios(port('storm-control broadcast level 10.00 5.00', 'storm-control multicast level 10.00'), { vlans: VLANS }));
+
+    // Unknown unicast is not limited on the switch: Mist is told not to limit it.
+    expect(usageFor(result, 'GigabitEthernet1/0/1').storm_control).toEqual({ no_broadcast: false, no_multicast: false, no_registered_multicast: false, no_unknown_unicast: true, percentage: 10 });
+    expect(logsOf(result, 'warning')).toEqual([]);
+  });
+
+  it('converts "storm-control action shutdown" into disable_port', async () => {
+    const result = await convert(ios(port('storm-control unicast level 2.50', 'storm-control action shutdown', 'storm-control action trap'), { vlans: VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').storm_control).toEqual({ no_broadcast: true, no_multicast: true, no_registered_multicast: true, no_unknown_unicast: false, percentage: 3, disable_port: true });
+  });
+
+  it('reads the abbreviated command and "unknown-unicast"', async () => {
+    const result = await convert(ios(port('storm-control broad level 0.20', 'storm-control unknown-unicast level 0.20'), { vlans: VLANS }));
+
+    // A level under 1 % is not rounded to 0, which would block the traffic.
+    expect(usageFor(result, 'GigabitEthernet1/0/1').storm_control).toMatchObject({ no_broadcast: false, no_multicast: true, no_unknown_unicast: false, percentage: 1 });
+  });
+
+  it('keeps the highest level when the kinds of traffic have different levels, with a warning', async () => {
+    const result = await convert(ios(port('storm-control broadcast level 5.00', 'storm-control multicast level 20.00'), { vlans: VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').storm_control?.percentage).toBe(20);
+    expect(logsOf(result, 'warning').join('\n')).toContain('the highest one is kept on GigabitEthernet1/0/1');
+  });
+
+  it('leaves out a level in bits or packets per second, with a warning', async () => {
+    const result = await convert(ios(port('storm-control broadcast level bps 10m', 'storm-control multicast level pps 500'), { vlans: VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).not.toHaveProperty('storm_control');
+    expect(logsOf(result, 'warning').join('\n')).toContain('Mist takes a percentage: left out on GigabitEthernet1/0/1');
+  });
+
+  it('a port without storm control has no storm_control', async () => {
+    const result = await convert(ios(port(), { vlans: VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).not.toHaveProperty('storm_control');
+  });
+});
+
+describe('Cisco IOS: DHCP snooping trust', () => {
+  const ports = (snooping: string): string => `
+    ${snooping}
+    interface GigabitEthernet1/0/1
+     switchport access vlan 10
+    !
+    interface GigabitEthernet1/0/2
+     switchport access vlan 10
+     ip dhcp snooping trust
+    !
+    interface GigabitEthernet1/0/3
+     switchport mode trunk
+     ip dhcp snooping trust
+    !
+    interface GigabitEthernet1/0/4
+     switchport mode trunk
+    !
+  `;
+
+  it('converts "ip dhcp snooping trust" into allow_dhcpd', async () => {
+    const result = await convert(ios(ports('ip dhcp snooping vlan 10'), { vlans: VLANS }));
+
+    // An access port is not trusted unless it says so: nothing to write for it.
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).not.toHaveProperty('allow_dhcpd');
+    expect(usageFor(result, 'GigabitEthernet1/0/2').allow_dhcpd).toBe(true);
+    expect(usageFor(result, 'GigabitEthernet1/0/3').allow_dhcpd).toBe(true);
+  });
+
+  it('with DHCP snooping, a trunk without "ip dhcp snooping trust" is not trusted, with a warning', async () => {
+    const result = await convert(ios(ports('ip dhcp snooping vlan 10'), { vlans: VLANS }));
+
+    // A Juniper switch trusts every trunk unless it is told otherwise.
+    expect(usageFor(result, 'GigabitEthernet1/0/4').allow_dhcpd).toBe(false);
+    expect(logsOf(result, 'warning').join('\n')).toContain('DHCP servers are refused on it on GigabitEthernet1/0/4');
+  });
+
+  it('without DHCP snooping, a trunk says nothing about DHCP', async () => {
+    const result = await convert(ios(ports('!'), { vlans: VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/4')).not.toHaveProperty('allow_dhcpd');
+    expect(logsOf(result, 'warning')).toEqual([]);
+  });
+
+  it('a link aggregation is trusted when one of its members is', async () => {
+    const result = await convert(
+      ios(
+        `
+        ip dhcp snooping vlan 10
+        interface Port-channel1
+         switchport mode trunk
+        !
+        interface GigabitEthernet1/0/1
+         switchport mode trunk
+         ip dhcp snooping trust
+         channel-group 1 mode active
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(usageFor(result, 'Port-channel1').allow_dhcpd).toBe(true);
+    expect(logsOf(result, 'warning')).toEqual([]);
+  });
 });
 
 describe('Cisco IOS: 802.1X options of a port', () => {

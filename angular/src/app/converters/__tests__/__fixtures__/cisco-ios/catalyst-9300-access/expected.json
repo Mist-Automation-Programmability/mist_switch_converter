@@ -27,7 +27,9 @@
     "sw-access-01 TenGigabitEthernet1/1/3 = access_default",
     "sw-access-01 TenGigabitEthernet1/1/4 = access_default"
   ],
-  "problems": [],
+  "problems": [
+    "warning: DHCP snooping: the trunk has no \"ip dhcp snooping trust\", DHCP servers are refused on it on 2 ports, the first is GigabitEthernet1/0/6 (lines 129, 135)"
+  ],
   "errors": [],
   "template": {
     "name": "template_name",
@@ -146,7 +148,8 @@
         "poe_disabled": false,
         "stp_edge": false,
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": true
       },
       "access_users_voip_dot1x_mab": {
         "all_networks": false,
@@ -184,7 +187,15 @@
         "stp_edge": true,
         "port_network": "printers",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": false,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": true,
+          "percentage": 5,
+          "disable_port": true
+        }
       },
       "ap_floor1": {
         "all_networks": false,
@@ -207,7 +218,8 @@
         "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": false
       },
       "ap_floor2": {
         "all_networks": false,
@@ -243,7 +255,8 @@
         "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": false
       },
       "unused": {
         "all_networks": false,

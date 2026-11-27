@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { convert } from '../../convert';
 
-const CISCO = ['sw1#show running-config', 'hostname sw1', '!', 'vlan 10', ' name USERS', '!', 'interface GigabitEthernet1/0/1', ' description Desk 12', ' switchport access vlan 10', ' storm-control broadcast level 1.00', '!', 'end', ''].join('\n');
+const CISCO = ['sw1#show running-config', 'hostname sw1', '!', 'vlan 10', ' name USERS', '!', 'interface GigabitEthernet1/0/1', ' description Desk 12', ' switchport access vlan 10', ' ip verify source', '!', 'end', ''].join('\n');
 const JUNOS = ['set system host-name ex1', 'set interfaces ge-0/0/0 description "Desk 13"', 'set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS', 'set vlans USERS vlan-id 10', ''].join('\n');
 
 describe('convert()', () => {
@@ -51,7 +51,7 @@ describe('convert()', () => {
         junosName: 'ge-0/0/0',
         usage: 'desk_12',
         description: 'Desk 12',
-        lines: ['interface GigabitEthernet1/0/1', ' description Desk 12', ' switchport access vlan 10', ' storm-control broadcast level 1.00'],
+        lines: ['interface GigabitEthernet1/0/1', ' description Desk 12', ' switchport access vlan 10', ' ip verify source'],
       },
     ]);
   });
@@ -60,7 +60,7 @@ describe('convert()', () => {
     const result = convert([{ name: 'sw1.txt', text: CISCO }]);
 
     expect(result.diagnostics).toEqual([
-      { severity: 'warning', code: 'port-setting-not-converted', message: 'Not converted: "storm-control broadcast" on GigabitEthernet1/0/1', file: 'sw1.txt', lines: [10] },
+      { severity: 'warning', code: 'port-setting-not-converted', message: 'Not converted: "ip verify" on GigabitEthernet1/0/1', file: 'sw1.txt', lines: [10] },
       { severity: 'info', code: 'vlans', message: 'VLANs of the file: 10', file: 'sw1.txt' },
     ]);
   });
