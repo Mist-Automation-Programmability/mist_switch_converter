@@ -24,6 +24,8 @@ export interface ConvertedPort {
   junosName?: string;
   /** Name of its port usage. */
   usage: string;
+  /** Key of the port in the `port_config` of its switch rule: "ge-0/0/1", or "ge-0/0/24,ge-0/0/25" for an aggregation and its members. */
+  portConfig: string;
   description: string;
   /** The lines of the source file that configure the port. */
   lines: string[];
@@ -85,8 +87,8 @@ function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsa
     }
     const { rule, taken } = entry;
 
-    const record = (port: Port, usage: { readonly name: string }): void => {
-      const converted: ConvertedPort = { file: device.file, hostname: rule.name, name: port.name, junosName: port.junosName, usage: '', description: port.description ?? '', lines: port.lines, lineNumbers: port.lineNumbers };
+    const record = (port: Port, usage: { readonly name: string }, portConfig: string): void => {
+      const converted: ConvertedPort = { file: device.file, hostname: rule.name, name: port.name, junosName: port.junosName, usage: '', portConfig, description: port.description ?? '', lines: port.lines, lineNumbers: port.lineNumbers };
       ports.push(converted);
       ruleSource.ports?.push(port.name);
       ruleSource.lines.push(...port.lineNumbers);
@@ -125,8 +127,8 @@ function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsa
       rule.port_config[names.join(',')] = config;
       pending.push({ usage, apply: (name) => (config.usage = name) });
 
-      record(port, usage);
-      members.forEach((member) => record(member, usage));
+      record(port, usage, names.join(','));
+      members.forEach((member) => record(member, usage, names.join(',')));
     }
   }
 

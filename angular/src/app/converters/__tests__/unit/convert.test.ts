@@ -50,6 +50,7 @@ describe('convert()', () => {
         name: 'GigabitEthernet1/0/1',
         junosName: 'ge-0/0/0',
         usage: 'desk_12',
+        portConfig: 'ge-0/0/0',
         description: 'Desk 12',
         lines: ['interface GigabitEthernet1/0/1', ' description Desk 12', ' switchport access vlan 10', ' ip verify source'],
         lineNumbers: [7, 8, 9, 10],
