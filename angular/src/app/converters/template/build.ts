@@ -8,6 +8,7 @@
 import { Device, Port } from '../model';
 import { Report } from '../report';
 import { emptyTemplate, MistPortConfig, MistSwitchRule, MistTemplate, SECRET_PLACEHOLDER } from './mist';
+import { buildSnmp } from './snmp';
 import { buildNetworks, Networks } from './networks';
 import { PortUsages, portUsageOf } from './port_usages';
 
@@ -119,7 +120,7 @@ function addServers<S, T>(target: T[], servers: S[], keyOf: (server: S) => strin
   }
 }
 
-export function buildTemplate(devices: Device[], report: Report): BuiltTemplate {
+export function buildTemplate(devices: Device[], report: Report, copyClearTextSecrets = false): BuiltTemplate {
   const template = emptyTemplate();
 
   const networks = buildNetworks(devices, report);
@@ -166,6 +167,9 @@ export function buildTemplate(devices: Device[], report: Report): BuiltTemplate 
       report.info('banners', `The files have different login banners: the template has the banner of ${banners[0].file}`);
     }
   }
+
+  const snmp = buildSnmp(devices, report, copyClearTextSecrets);
+  if (snmp) template.snmp_config = snmp;
 
   // DHCP snooping is a setting of the template: a VLAN that one device snoops is snooped everywhere.
   const snooped = new Set(devices.flatMap((device) => device.vlans.filter((vlan) => vlan.dhcpSnooping).map((vlan) => vlan.id)));

@@ -328,6 +328,15 @@
           "match_name[0:9]": "sw-floor2"
         }
       ]
+    },
+    "snmp_config": {
+      "enabled": true,
+      "v2c_config": [
+        {
+          "community_name": "to_be_replaced_1",
+          "authorization": "read-only"
+        }
+      ]
     }
   }
 }

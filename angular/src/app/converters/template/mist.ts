@@ -42,6 +42,54 @@ export interface MistTemplate {
     enabled: boolean;
     rules: MistSwitchRule[];
   };
+  /** Present when a source file has SNMP. */
+  snmp_config?: MistSnmpConfig;
+}
+
+/** SNMP of the switches. Mist describes it as Junos does. */
+export interface MistSnmpConfig {
+  enabled: boolean;
+  contact?: string;
+  description?: string;
+  location?: string;
+  engine_id_type?: 'use_mac_address';
+  client_list?: Array<{ client_list_name: string; clients: string[] }>;
+  views?: Array<{ view_name: string; oid: string; include: boolean }>;
+  v2c_config?: Array<{ community_name: string; authorization: string; client_list_name?: string; view?: string }>;
+  trap_groups?: Array<{ group_name: string; version: string; targets: string[]; categories: string[] }>;
+  v3_config?: MistSnmpV3Config;
+}
+
+export interface MistSnmpV3Config {
+  usm?: Array<{ engine_type: 'local_engine' | 'remote_engine'; remote_engine_id?: string; users: MistSnmpUser[] }>;
+  vacm?: {
+    security_to_group?: { security_model: string; content: Array<{ security_name: string; group: string }> };
+    access?: Array<{ group_name: string; prefix_list: MistSnmpAccess[] }>;
+  };
+  notify?: Array<{ name: string; tag?: string; type: string }>;
+  notify_filter?: Array<{ profile_name: string; contents: Array<{ oid: string; include: boolean }> }>;
+  target_address?: Array<{ target_address_name: string; address: string; address_mask?: string; port: string; tag_list?: string; target_parameters?: string }>;
+  target_parameters?: Array<{ name: string; message_processing_model?: string; security_model?: string; security_level?: string; security_name?: string; notify_filter?: string }>;
+}
+
+export interface MistSnmpUser {
+  name: string;
+  /** "authentication-sha", "authentication-none"... */
+  authentication_type: string;
+  authentication_password?: string;
+  /** "privacy-aes128", "privacy-none"... */
+  encryption_type: string;
+  encryption_password?: string;
+}
+
+export interface MistSnmpAccess {
+  type: 'default_context_prefix' | 'context_prefix';
+  context_prefix?: string;
+  security_model: string;
+  security_level: string;
+  read_view?: string;
+  write_view?: string;
+  notify_view?: string;
 }
 
 export interface MistNetwork {

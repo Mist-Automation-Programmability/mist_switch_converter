@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configuredPorts, convert, endpoints, ios, logsOf, missingNetworks, portConfig, switchRule, usageFor, usageOfPort, vlanIds } from './support/harness';
+import { configuredPorts, convert, convertWith, endpoints, ios, logsOf, missingNetworks, portConfig, switchRule, usageFor, usageOfPort, vlanIds } from './support/harness';
 
 const VLANS = { 1: 'default', 10: 'USERS', 20: 'VOICE', 30: 'PRINTERS', 99: 'MGMT' };
 
@@ -1385,7 +1385,7 @@ describe('Cisco IOS: system settings', () => {
     expect(result.template.switch_mgmt.cli_banner).toBe('Authorized access only');
   });
 
-  it('leaves out what the converter does not handle: SNMP, local users, lines', async () => {
+  it('leaves out what the converter does not handle (local users, lines) and hides the SNMP community', async () => {
     const result = await convert(
       ios(`
         username admin privilege 15 secret 9 REDACTED
@@ -1444,5 +1444,270 @@ describe('Cisco IOS: system settings', () => {
     expect(result.template.switch_mgmt.tacacs.enabled).toBe(true);
     expect(endpoints(result.template.switch_mgmt.tacacs.tacplus_servers)).toEqual(['10.0.0.70:49', '10.0.0.71:4949']);
     expect(JSON.stringify(result.template)).not.toContain('REDACTED');
+  });
+});
+
+describe('Cisco IOS: SNMP', () => {
+  const withVlans = (body: string): string => ios(body, { vlans: VLANS });
+
+  it('gives a template without SNMP to a file without SNMP', async () => {
+    const result = await convert(withVlans('ip domain name example.net'));
+
+    expect(result.template.snmp_config).toBeUndefined();
+  });
+
+  it('reads where the switch is and who to call', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server location Building A, floor 2
+        snmp-server contact noc@example.com
+      `),
+    );
+
+    expect(result.template.snmp_config).toEqual({ enabled: true, location: 'Building A, floor 2', contact: 'noc@example.com' });
+  });
+
+  it('reads the communities of version 2c with their rights and views, and hides the communities', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server view SYSTEM system included
+        snmp-server view SYSTEM 1.3.6.1.2.1.1.9 excluded
+        snmp-server community N3tMon RO
+        snmp-server community wr1te view SYSTEM RW
+        snmp-server community bare
+      `),
+    );
+
+    expect(result.template.snmp_config).toEqual({
+      enabled: true,
+      views: [
+        // Junos does not know the names of Cisco for the objects.
+        { view_name: 'SYSTEM', oid: '.1.3.6.1.2.1.1', include: true },
+        { view_name: 'SYSTEM', oid: '1.3.6.1.2.1.1.9', include: false },
+      ],
+      v2c_config: [
+        { community_name: 'to_be_replaced_1', authorization: 'read-only' },
+        { community_name: 'to_be_replaced_2', authorization: 'read-write', view: 'SYSTEM' },
+        { community_name: 'to_be_replaced_3', authorization: 'read-only' },
+      ],
+    });
+    expect(logsOf(result, 'info').filter((message) => message.includes('community'))).toHaveLength(3);
+    expect(JSON.stringify(result)).not.toMatch(/n3tmon|wr1te|bare/i);
+  });
+
+  it('turns the standard access list of a community into a client list', async () => {
+    const result = await convert(
+      withVlans(`
+        access-list 10 permit 10.0.0.0 0.0.0.255
+        access-list 10 permit 10.0.1.5
+        access-list 10 deny   any log
+        ip access-list standard NMS
+         10 permit host 10.0.0.70
+         20 permit 10.0.2.0 0.0.0.127
+        snmp-server community n3tmon RO 10
+        snmp-server community wr1te RW NMS
+      `),
+    );
+
+    expect(result.template.snmp_config).toMatchObject({
+      client_list: [
+        { client_list_name: 'acl_10', clients: ['10.0.0.0/24', '10.0.1.5/32'] },
+        { client_list_name: 'acl_NMS', clients: ['10.0.0.70/32', '10.0.2.0/25'] },
+      ],
+      v2c_config: [
+        { community_name: 'to_be_replaced_1', authorization: 'read-only', client_list_name: 'acl_10' },
+        { community_name: 'to_be_replaced_2', authorization: 'read-write', client_list_name: 'acl_NMS' },
+      ],
+    });
+    expect(logsOf(result, 'warning')).toEqual([]);
+  });
+
+  it('warns when an access list says what a client list cannot say, or is not in the file', async () => {
+    const result = await convert(
+      withVlans(`
+        access-list 10 deny   10.0.0.9
+        access-list 10 permit 10.0.0.0 0.0.0.255
+        snmp-server community n3tmon RO 10
+        snmp-server community wr1te RW MISSING
+      `),
+    );
+
+    expect(result.template.snmp_config?.v2c_config).toEqual([
+      { community_name: 'to_be_replaced_1', authorization: 'read-only', client_list_name: 'acl_10' },
+      { community_name: 'to_be_replaced_2', authorization: 'read-write' },
+    ]);
+    expect(logsOf(result, 'warning')).toEqual([
+      'SNMP: the access list of a community has entries that a client list cannot say ("deny", a mask with holes). Check the client list',
+      'SNMP: the access list of a community is not a standard access list of the file. The community has no client list: every station can use it',
+    ]);
+  });
+
+  it('never copies a community that the file has encrypted', async () => {
+    const text = withVlans('snmp-server community 7 0822455D0A16544541 RO');
+    const result = await convertWith({ copyClearTextSecrets: true }, text);
+
+    expect(result.template.snmp_config?.v2c_config).toEqual([{ community_name: 'to_be_replaced_1', authorization: 'read-only' }]);
+    expect(logsOf(result, 'info')).toContain('SNMP: the community of this line is "to_be_replaced_1" in the template. The file has it encrypted: type it in the template');
+    expect(JSON.stringify(result)).not.toContain('0822455D0A16544541');
+  });
+
+  it('turns the stations of versions 1 and 2c into trap groups, with the kinds of traps as categories', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server enable traps snmp authentication linkdown linkup coldstart warmstart
+        snmp-server enable traps config
+        snmp-server enable traps envmon fan shutdown supply temperature status
+        snmp-server enable traps bgp
+        snmp-server enable traps vtp
+        snmp-server enable traps mac-notification change move threshold
+        snmp-server host 10.0.0.70 version 2c n3tmon
+        snmp-server host 10.0.0.71 vrf Mgmt-vrf version 2c n3tmon udp-port 162
+        snmp-server host 10.0.0.72 n3tmon
+      `),
+    );
+
+    const categories = ['authentication', 'link', 'startup', 'configuration', 'chassis', 'routing'];
+    expect(result.template.snmp_config?.trap_groups).toEqual([
+      { group_name: 'traps_v2', version: 'v2', targets: ['10.0.0.70', '10.0.0.71'], categories },
+      { group_name: 'traps_v1', version: 'v1', targets: ['10.0.0.72'], categories },
+    ]);
+    expect(logsOf(result, 'info')).toContain('SNMP: 2 kinds of traps of "snmp-server enable traps" have no category in Junos and are left out');
+    // The community of a station is not kept: Junos sends the name of the trap group.
+    expect(JSON.stringify(result)).not.toContain('n3tmon');
+  });
+
+  it('sends every category when "snmp-server enable traps" names no kind', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server enable traps
+        snmp-server host 10.0.0.70 version 2c n3tmon
+      `),
+    );
+
+    expect(result.template.snmp_config?.trap_groups).toEqual([{ group_name: 'traps_v2', version: 'v2', targets: ['10.0.0.70'], categories: [] }]);
+  });
+
+  it('warns about a station of version 2c on another port than 162', async () => {
+    const result = await convert(withVlans('snmp-server host 10.0.0.70 version 2c n3tmon udp-port 1162'));
+
+    expect(logsOf(result, 'warning')).toEqual(['SNMP: a trap group has no port, the traps of versions 1 and 2c go to port 162']);
+  });
+
+  it('reads the groups of version 3, and says that a running configuration does not show the users', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server view SYSTEM system included
+        snmp-server group READERS v3 priv read SYSTEM notify SYSTEM
+        snmp-server group WRITERS v3 auth write SYSTEM
+        snmp-server group OPEN v3 noauth
+      `),
+    );
+
+    expect(result.template.snmp_config).toEqual({
+      enabled: true,
+      views: [
+        { view_name: 'SYSTEM', oid: '.1.3.6.1.2.1.1', include: true },
+        // The view that a Cisco group reads when it names none: everything.
+        { view_name: 'v1default', oid: '.1', include: true },
+      ],
+      v3_config: {
+        vacm: {
+          access: [
+            { group_name: 'READERS', prefix_list: [{ type: 'default_context_prefix', security_model: 'usm', security_level: 'privacy', read_view: 'SYSTEM', notify_view: 'SYSTEM' }] },
+            { group_name: 'WRITERS', prefix_list: [{ type: 'default_context_prefix', security_model: 'usm', security_level: 'authentication', read_view: 'v1default', write_view: 'SYSTEM' }] },
+            { group_name: 'OPEN', prefix_list: [{ type: 'default_context_prefix', security_model: 'usm', security_level: 'none', read_view: 'v1default' }] },
+          ],
+        },
+      },
+    });
+    expect(logsOf(result, 'info')).toContain('SNMP version 3: the file has groups and no user. A running configuration does not show the users ("show snmp user" does): add them to the template');
+  });
+
+  it('reads the users of version 3 of a configuration script, without their passwords', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server group READERS v3 priv
+        snmp-server user monitor READERS v3 auth sha authpass123 priv aes 128 privpass123
+        snmp-server user reader READERS v3 auth sha-2 256 authpass456
+        snmp-server user legacy READERS v3 auth md5 authpass789 priv des privpass789
+        snmp-server user anyone READERS v3
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config).toMatchObject({
+      usm: [
+        {
+          engine_type: 'local_engine',
+          users: [
+            { name: 'monitor', authentication_type: 'authentication-sha', authentication_password: 'to_be_replaced', encryption_type: 'privacy-aes128', encryption_password: 'to_be_replaced' },
+            { name: 'reader', authentication_type: 'authentication-sha256', authentication_password: 'to_be_replaced', encryption_type: 'privacy-none' },
+            { name: 'legacy', authentication_type: 'authentication-md5', authentication_password: 'to_be_replaced', encryption_type: 'privacy-des', encryption_password: 'to_be_replaced' },
+            { name: 'anyone', authentication_type: 'authentication-none', encryption_type: 'privacy-none' },
+          ],
+        },
+      ],
+      vacm: {
+        security_to_group: {
+          security_model: 'usm',
+          content: [
+            { security_name: 'monitor', group: 'READERS' },
+            { security_name: 'reader', group: 'READERS' },
+            { security_name: 'legacy', group: 'READERS' },
+            { security_name: 'anyone', group: 'READERS' },
+          ],
+        },
+      },
+    });
+    expect(logsOf(result, 'info')).toContain('SNMP version 3: the passwords of 3 users are "to_be_replaced" in the template: type them there, or turn on "Copy the SNMP secrets that are in clear text" for those that a file has in clear text');
+    expect(JSON.stringify(result)).not.toMatch(/authpass|privpass/);
+  });
+
+  it('uses AES with 128 bits in place of 192 or 256 bits, with a warning', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server group READERS v3 priv
+        snmp-server user monitor READERS v3 auth sha authpass123 priv aes 256 privpass123
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config?.usm?.[0].users[0]).toMatchObject({ encryption_type: 'privacy-aes128' });
+    expect(logsOf(result, 'warning')).toEqual(['SNMP version 3: the template has AES with 128 bits only, it is used in place of AES with 192 or 256 bits']);
+  });
+
+  it('turns the stations of version 3 into targets, with how the notifications are sent to them', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server host 10.0.0.71 version 3 priv monitor
+        snmp-server host 10.0.0.72 informs version 3 auth monitor udp-port 1162
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config).toEqual({
+      notify: [
+        { name: 'traps', tag: 'traps', type: 'trap' },
+        { name: 'informs', tag: 'informs', type: 'inform' },
+      ],
+      target_address: [
+        { target_address_name: 'target_10.0.0.71', address: '10.0.0.71', port: '162', tag_list: 'traps', target_parameters: 'traps_monitor' },
+        { target_address_name: 'target_10.0.0.72', address: '10.0.0.72', port: '1162', tag_list: 'informs', target_parameters: 'informs_monitor' },
+      ],
+      target_parameters: [
+        { name: 'traps_monitor', message_processing_model: 'v3', security_model: 'usm', security_level: 'privacy', security_name: 'monitor' },
+        { name: 'informs_monitor', message_processing_model: 'v3', security_model: 'usm', security_level: 'authentication', security_name: 'monitor' },
+      ],
+    });
+  });
+
+  it('reports the SNMP commands that it does not convert, by their first words', async () => {
+    const result = await convert(
+      withVlans(`
+        snmp-server community n3tmon RO
+        snmp-server trap-source Vlan10
+        snmp-server ifindex persist
+        snmp-server group OLD v2c
+      `),
+    );
+
+    expect(logsOf(result, 'info').filter((message) => message.startsWith('Not converted'))).toEqual(['Not converted: "snmp-server trap-source"', 'Not converted: "snmp-server ifindex"', 'Not converted: "snmp-server group"']);
   });
 });

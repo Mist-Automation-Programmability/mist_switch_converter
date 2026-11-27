@@ -50,6 +50,16 @@ export interface Conversion {
   diagnostics: Diagnostic[];
 }
 
+export interface ConvertOptions {
+  /**
+   * Copies into the template the secrets that a file has in clear text: the SNMP communities,
+   * and the passwords of SNMP version 3 when a file has them in clear text. False by default:
+   * they are replaced by a placeholder. A secret that a file only has encrypted or hashed is
+   * never copied.
+   */
+  copyClearTextSecrets?: boolean;
+}
+
 const FORMATS: Record<Vendor, FileFormat> = { 'cisco-ios': 'Cisco', junos: 'Juniper' };
 const EXTRACTORS: Record<Vendor, (file: SourceFile, report: Report) => Device> = { 'cisco-ios': extractCiscoIos, junos: extractJunos };
 const NO_VLAN: Record<Vendor, string> = {
@@ -57,7 +67,7 @@ const NO_VLAN: Record<Vendor, string> = {
   junos: 'Unable to retrieve the VLAN list',
 };
 
-export function convert(files: SourceFile[]): Conversion {
+export function convert(files: SourceFile[], options: ConvertOptions = {}): Conversion {
   const report = new Report();
   const reports: FileReport[] = [];
   const devices: Device[] = [];
@@ -92,6 +102,6 @@ export function convert(files: SourceFile[]): Conversion {
     }
   }
 
-  const { template, ports } = buildTemplate(devices, report);
+  const { template, ports } = buildTemplate(devices, report, options.copyClearTextSecrets === true);
   return { template, files: reports, ports, diagnostics: report.diagnostics };
 }

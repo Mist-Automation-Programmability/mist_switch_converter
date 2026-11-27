@@ -441,6 +441,86 @@
           "match_name[0:12]": "ex-access-01"
         }
       ]
+    },
+    "snmp_config": {
+      "enabled": true,
+      "contact": "noc@example.com",
+      "location": "Building A",
+      "client_list": [
+        {
+          "client_list_name": "NMS",
+          "clients": [
+            "10.0.0.0/24"
+          ]
+        }
+      ],
+      "views": [
+        {
+          "view_name": "NMS-VIEW",
+          "oid": ".1",
+          "include": true
+        }
+      ],
+      "v2c_config": [
+        {
+          "community_name": "to_be_replaced_1",
+          "authorization": "read-only",
+          "client_list_name": "NMS"
+        }
+      ],
+      "trap_groups": [
+        {
+          "group_name": "NMS",
+          "version": "v2",
+          "targets": [
+            "10.0.0.90"
+          ],
+          "categories": [
+            "link",
+            "chassis"
+          ]
+        }
+      ],
+      "v3_config": {
+        "usm": [
+          {
+            "engine_type": "local_engine",
+            "users": [
+              {
+                "name": "nms",
+                "authentication_type": "authentication-sha",
+                "authentication_password": "to_be_replaced",
+                "encryption_type": "privacy-aes128",
+                "encryption_password": "to_be_replaced"
+              }
+            ]
+          }
+        ],
+        "vacm": {
+          "security_to_group": {
+            "security_model": "usm",
+            "content": [
+              {
+                "security_name": "nms",
+                "group": "MONITORING"
+              }
+            ]
+          },
+          "access": [
+            {
+              "group_name": "MONITORING",
+              "prefix_list": [
+                {
+                  "type": "default_context_prefix",
+                  "security_model": "usm",
+                  "security_level": "privacy",
+                  "read_view": "NMS-VIEW"
+                }
+              ]
+            }
+          ]
+        }
+      }
     }
   }
 }

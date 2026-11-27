@@ -472,6 +472,91 @@
           "match_name[0:12]": "sw-access-01"
         }
       ]
+    },
+    "snmp_config": {
+      "enabled": true,
+      "contact": "noc@example.com",
+      "location": "Building A",
+      "client_list": [
+        {
+          "client_list_name": "acl_NMS",
+          "clients": [
+            "10.0.0.0/24"
+          ]
+        }
+      ],
+      "views": [
+        {
+          "view_name": "NMS-VIEW",
+          "oid": ".1",
+          "include": true
+        }
+      ],
+      "v2c_config": [
+        {
+          "community_name": "to_be_replaced_1",
+          "authorization": "read-only",
+          "client_list_name": "acl_NMS"
+        }
+      ],
+      "trap_groups": [
+        {
+          "group_name": "traps_v2",
+          "version": "v2",
+          "targets": [
+            "10.0.0.90"
+          ],
+          "categories": [
+            "authentication",
+            "link",
+            "startup",
+            "configuration",
+            "chassis"
+          ]
+        }
+      ],
+      "v3_config": {
+        "vacm": {
+          "access": [
+            {
+              "group_name": "MONITORING",
+              "prefix_list": [
+                {
+                  "type": "default_context_prefix",
+                  "security_model": "usm",
+                  "security_level": "privacy",
+                  "read_view": "NMS-VIEW"
+                }
+              ]
+            }
+          ]
+        },
+        "notify": [
+          {
+            "name": "traps",
+            "tag": "traps",
+            "type": "trap"
+          }
+        ],
+        "target_address": [
+          {
+            "target_address_name": "target_10.0.0.91",
+            "address": "10.0.0.91",
+            "port": "162",
+            "tag_list": "traps",
+            "target_parameters": "traps_nms"
+          }
+        ],
+        "target_parameters": [
+          {
+            "name": "traps_nms",
+            "message_processing_model": "v3",
+            "security_model": "usm",
+            "security_level": "privacy",
+            "security_name": "nms"
+          }
+        ]
+      }
     }
   }
 }

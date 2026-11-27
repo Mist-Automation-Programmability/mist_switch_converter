@@ -1061,3 +1061,218 @@ describe('Junos: switches without ELS (EX2200, EX3300, EX4200...)', () => {
     expect(missingNetworks(result)).toEqual([]);
   });
 });
+
+describe('Junos: SNMP', () => {
+  it('gives a template without SNMP to a file without SNMP', async () => {
+    const result = await convert(junos('set vlans USERS vlan-id 10'));
+
+    expect(result.template.snmp_config).toBeUndefined();
+  });
+
+  it('reads where the switch is and who to call', async () => {
+    const result = await convert(
+      junos(`
+        set snmp location "Building A, floor 2"
+        set snmp contact "noc@example.com"
+        set snmp description "Access switch"
+        set snmp engine-id use-mac-address
+      `),
+    );
+
+    expect(result.template.snmp_config).toEqual({ enabled: true, location: 'Building A, floor 2', contact: 'noc@example.com', description: 'Access switch', engine_id_type: 'use_mac_address' });
+  });
+
+  it('reads the communities of version 2c with their rights, client lists and views, and hides the communities', async () => {
+    const result = await convert(
+      junos(`
+        set snmp client-list MONITORING 10.0.0.0/24
+        set snmp client-list MONITORING 10.0.1.0/24
+        set snmp view SYSTEM oid .1.3.6.1.2.1.1 include
+        set snmp view SYSTEM oid .1.3.6.1.2.1.1.9 exclude
+        set snmp view EVERYTHING oid .1
+        set snmp community n3tmon authorization read-only
+        set snmp community n3tmon client-list-name MONITORING
+        set snmp community wr1te authorization read-write
+        set snmp community wr1te view SYSTEM
+        set snmp community bare
+      `),
+    );
+
+    expect(result.template.snmp_config).toEqual({
+      enabled: true,
+      client_list: [{ client_list_name: 'MONITORING', clients: ['10.0.0.0/24', '10.0.1.0/24'] }],
+      views: [
+        { view_name: 'SYSTEM', oid: '.1.3.6.1.2.1.1', include: true },
+        { view_name: 'SYSTEM', oid: '.1.3.6.1.2.1.1.9', include: false },
+        { view_name: 'EVERYTHING', oid: '.1', include: true },
+      ],
+      v2c_config: [
+        { community_name: 'to_be_replaced_1', authorization: 'read-only', client_list_name: 'MONITORING' },
+        { community_name: 'to_be_replaced_2', authorization: 'read-write', view: 'SYSTEM' },
+        // Without "authorization", a community can only read.
+        { community_name: 'to_be_replaced_3', authorization: 'read-only' },
+      ],
+    });
+    // The message gives the line of the community, not the community.
+    expect(result.logs.filter((entry) => entry.message.includes('community'))).toEqual([
+      { level: 'info', file: 'file1.txt', lines: [6], message: 'SNMP: the community of this line is "to_be_replaced_1" in the template. A community is a password: type it in the template, or turn on "Copy the SNMP secrets that are in clear text"' },
+      { level: 'info', file: 'file1.txt', lines: [8], message: 'SNMP: the community of this line is "to_be_replaced_2" in the template. A community is a password: type it in the template, or turn on "Copy the SNMP secrets that are in clear text"' },
+      { level: 'info', file: 'file1.txt', lines: [10], message: 'SNMP: the community of this line is "to_be_replaced_3" in the template. A community is a password: type it in the template, or turn on "Copy the SNMP secrets that are in clear text"' },
+    ]);
+    expect(JSON.stringify(result)).not.toMatch(/n3tmon|wr1te|bare/);
+  });
+
+  it('turns the clients written under a community into a client list', async () => {
+    const result = await convert(
+      junos(`
+        set snmp community n3tmon clients 10.0.0.70/32
+        set snmp community n3tmon clients 10.0.0.71/32
+      `),
+    );
+
+    expect(result.template.snmp_config).toMatchObject({
+      client_list: [{ client_list_name: 'community_1_clients', clients: ['10.0.0.70/32', '10.0.0.71/32'] }],
+      v2c_config: [{ community_name: 'to_be_replaced_1', authorization: 'read-only', client_list_name: 'community_1_clients' }],
+    });
+  });
+
+  it('reports a client that a community refuses: a client list cannot say that', async () => {
+    const result = await convert(
+      junos(`
+        set snmp community n3tmon clients 10.0.0.0/24
+        set snmp community n3tmon clients 10.0.0.9/32 restrict
+      `),
+    );
+
+    expect(result.template.snmp_config?.client_list).toEqual([{ client_list_name: 'community_1_clients', clients: ['10.0.0.0/24'] }]);
+    expect(logsOf(result, 'info')).toContain('Not converted: "snmp community"');
+    expect(JSON.stringify(result.logs)).not.toContain('n3tmon');
+  });
+
+  it('reads the trap groups', async () => {
+    const result = await convert(
+      junos(`
+        set snmp trap-group NMS version v2
+        set snmp trap-group NMS categories link
+        set snmp trap-group NMS categories authentication
+        set snmp trap-group NMS targets 10.0.0.70
+        set snmp trap-group NMS targets 10.0.0.71
+        set snmp trap-group LEGACY targets 10.0.0.72
+      `),
+    );
+
+    expect(result.template.snmp_config?.trap_groups).toEqual([
+      { group_name: 'NMS', version: 'v2', targets: ['10.0.0.70', '10.0.0.71'], categories: ['link', 'authentication'] },
+      { group_name: 'LEGACY', version: 'all', targets: ['10.0.0.72'], categories: [] },
+    ]);
+  });
+
+  it('reads the users of version 3: their algorithms are kept, their keys are not', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 usm local-engine user monitor authentication-sha authentication-key "REDACTED"
+        set snmp v3 usm local-engine user monitor privacy-aes128 privacy-key "REDACTED"
+        set snmp v3 usm local-engine user reader authentication-sha256 authentication-key "REDACTED"
+        set snmp v3 usm local-engine user anyone authentication-none
+        set snmp v3 usm remote-engine 80000a4c010a000046 user informer authentication-md5 authentication-key "REDACTED"
+        set snmp v3 usm remote-engine 80000a4c010a000046 user informer privacy-des privacy-key "REDACTED"
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config?.usm).toEqual([
+      {
+        engine_type: 'local_engine',
+        users: [
+          { name: 'monitor', authentication_type: 'authentication-sha', authentication_password: 'to_be_replaced', encryption_type: 'privacy-aes128', encryption_password: 'to_be_replaced' },
+          { name: 'reader', authentication_type: 'authentication-sha256', authentication_password: 'to_be_replaced', encryption_type: 'privacy-none' },
+          { name: 'anyone', authentication_type: 'authentication-none', encryption_type: 'privacy-none' },
+        ],
+      },
+      {
+        engine_type: 'remote_engine',
+        remote_engine_id: '80000a4c010a000046',
+        users: [{ name: 'informer', authentication_type: 'authentication-md5', authentication_password: 'to_be_replaced', encryption_type: 'privacy-des', encryption_password: 'to_be_replaced' }],
+      },
+    ]);
+    expect(logsOf(result, 'info')).toContain('SNMP version 3: the passwords of 3 users are "to_be_replaced" in the template: a configuration only has their keys, type them there');
+    expect(JSON.stringify(result.template)).not.toContain('REDACTED');
+  });
+
+  it('reads the groups of version 3 and what they may see', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 vacm security-to-group security-model usm security-name monitor group READERS
+        set snmp v3 vacm security-to-group security-model usm security-name operator group WRITERS
+        set snmp v3 vacm access group READERS default-context-prefix security-model usm security-level privacy read-view SYSTEM
+        set snmp v3 vacm access group READERS default-context-prefix security-model usm security-level privacy notify-view SYSTEM
+        set snmp v3 vacm access group WRITERS context-prefix lab security-model any security-level authentication read-view EVERYTHING
+        set snmp v3 vacm access group WRITERS context-prefix lab security-model any security-level authentication write-view EVERYTHING
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config?.vacm).toEqual({
+      security_to_group: {
+        security_model: 'usm',
+        content: [
+          { security_name: 'monitor', group: 'READERS' },
+          { security_name: 'operator', group: 'WRITERS' },
+        ],
+      },
+      access: [
+        { group_name: 'READERS', prefix_list: [{ type: 'default_context_prefix', security_model: 'usm', security_level: 'privacy', read_view: 'SYSTEM', notify_view: 'SYSTEM' }] },
+        { group_name: 'WRITERS', prefix_list: [{ type: 'context_prefix', context_prefix: 'lab', security_model: 'any', security_level: 'authentication', read_view: 'EVERYTHING', write_view: 'EVERYTHING' }] },
+      ],
+    });
+  });
+
+  it('keeps the groups of version 3 only: the template has one security model for them', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 vacm security-to-group security-model v2c security-name old group READERS
+        set snmp v3 vacm security-to-group security-model usm security-name monitor group READERS
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config?.vacm?.security_to_group).toEqual({ security_model: 'usm', content: [{ security_name: 'monitor', group: 'READERS' }] });
+    expect(logsOf(result, 'info')).toContain('SNMP: the groups of the security names of versions 1 and 2c are left out, the template has those of version 3');
+  });
+
+  it('reads where the notifications of version 3 go', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 target-address NMS address 10.0.0.70
+        set snmp v3 target-address NMS port 1162
+        set snmp v3 target-address NMS tag-list "TRAPS INFORMS"
+        set snmp v3 target-address NMS target-parameters NMS-V3
+        set snmp v3 target-parameters NMS-V3 parameters message-processing-model v3
+        set snmp v3 target-parameters NMS-V3 parameters security-model usm
+        set snmp v3 target-parameters NMS-V3 parameters security-level privacy
+        set snmp v3 target-parameters NMS-V3 parameters security-name monitor
+        set snmp v3 target-parameters NMS-V3 notify-filter LINKS
+        set snmp v3 notify ALL type trap
+        set snmp v3 notify ALL tag TRAPS
+        set snmp v3 notify-filter LINKS oid .1.3.6.1.6.3.1.1.5 include
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config).toEqual({
+      notify: [{ name: 'ALL', tag: 'TRAPS', type: 'trap' }],
+      notify_filter: [{ profile_name: 'LINKS', contents: [{ oid: '.1.3.6.1.6.3.1.1.5', include: true }] }],
+      target_address: [{ target_address_name: 'NMS', address: '10.0.0.70', port: '1162', tag_list: 'TRAPS INFORMS', target_parameters: 'NMS-V3' }],
+      target_parameters: [{ name: 'NMS-V3', message_processing_model: 'v3', security_model: 'usm', security_level: 'privacy', security_name: 'monitor', notify_filter: 'LINKS' }],
+    });
+  });
+
+  it('reports the SNMP statements that it does not convert, by their first words', async () => {
+    const result = await convert(
+      junos(`
+        set snmp community n3tmon authorization read-only
+        set snmp trap-options source-address 10.0.0.1
+        set snmp v3 snmp-community INDEX community-name "REDACTED"
+        set snmp name ex1
+      `),
+    );
+
+    expect(logsOf(result, 'info').filter((message) => message.startsWith('Not converted'))).toEqual(['Not converted: "snmp trap-options"', 'Not converted: "snmp v3 snmp-community"', 'Not converted: "snmp name"']);
+  });
+});
