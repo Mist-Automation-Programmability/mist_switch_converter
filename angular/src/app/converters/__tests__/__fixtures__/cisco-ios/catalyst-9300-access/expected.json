@@ -271,7 +271,20 @@
     },
     "radius_config": {
       "acct_interim_interval": 0,
-      "acct_servers": [],
+      "acct_servers": [
+        {
+          "port": "1813",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1813",
+          "host": "10.0.0.81",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
       "auth_servers": [
         {
           "port": "1812",
@@ -280,19 +293,7 @@
           "timeout": 5
         },
         {
-          "port": "1813",
-          "host": "10.0.0.80",
-          "secret": "to_be_replaced",
-          "timeout": 5
-        },
-        {
           "port": "1812",
-          "host": "10.0.0.81",
-          "secret": "to_be_replaced",
-          "timeout": 5
-        },
-        {
-          "port": "1813",
           "host": "10.0.0.81",
           "secret": "to_be_replaced",
           "timeout": 5

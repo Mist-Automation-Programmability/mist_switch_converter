@@ -32,7 +32,6 @@ export const NAMES_ARE_VALID = 'names of networks and port usages only use lette
 export const MODE_IS_KNOWN = 'port usages are in access or trunk mode';
 export const ACCESS_HAS_NETWORK = 'port usages in access mode have a network';
 export const SERVERS_ARE_COMPLETE = 'servers have a host and a port, and are listed once';
-export const ONE_RADIUS_PORT = 'a RADIUS server is not listed with two different ports for authentication';
 // On fixtures this rule looks for the placeholder REDACTED. Local configurations have real
 // secrets, so local-configs.test.ts replaces it by a search for the secrets of the sources.
 export const SECRETS_ARE_NOT_COPIED = 'secrets of the source files are never copied';
@@ -105,7 +104,7 @@ export const INVARIANTS: Record<string, Check> = {
     });
   },
 
-  [ONE_RADIUS_PORT]: (result) =>
+  'a RADIUS server is not listed with two different ports for authentication': (result) =>
     duplicates((result.template.radius_config.auth_servers as Array<{ host: string }>).map((server) => server.host)),
 
   [SECRETS_ARE_NOT_COPIED]: (result) =>

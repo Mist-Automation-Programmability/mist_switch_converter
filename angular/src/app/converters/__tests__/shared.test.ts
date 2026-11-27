@@ -213,7 +213,7 @@ describe('Port usages (profiles)', () => {
 });
 
 describe('RADIUS', () => {
-  knownDefect('C1', 'RADIUS accounting servers go to acct_servers (Cisco)', async () => {
+  it('puts RADIUS accounting servers in acct_servers and authentication servers in auth_servers (Cisco, C1)', async () => {
     const result = await convert(
       ios(`
         radius server ISE1
@@ -226,7 +226,7 @@ describe('RADIUS', () => {
     expect(endpoints(result.template.radius_config.acct_servers)).toEqual(['10.0.0.80:1813']);
   });
 
-  knownDefect('C1', 'RADIUS accounting servers go to acct_servers (Junos)', async () => {
+  it('puts RADIUS accounting servers in acct_servers and authentication servers in auth_servers (Junos, C1)', async () => {
     const result = await convert(
       junos(`
         set access radius-server 10.0.0.80 port 1812

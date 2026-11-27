@@ -252,9 +252,9 @@ export class ConfigData {
             "secret": "to_be_replaced",
             "timeout": radius_timeout
         })
-        if (!this.radius_auth.includes(tmp)) {
+        if (!this.radius_acct.includes(tmp)) {
             this._config_logger.info("RADIUS Acct servers: Adding " + radius_ip + ":" + radius_port, filename);
-            this.radius_auth.push(tmp);
+            this.radius_acct.push(tmp);
         }
     }
 
