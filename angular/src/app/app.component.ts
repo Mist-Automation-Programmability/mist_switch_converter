@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, Inject } from '@angular/core';
+import { Component, ElementRef, OnInit, Inject, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { JsonToHtml } from "./common/function/json-to-html"
 import { MatDialog, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -24,7 +24,9 @@ const DEFAULT_TEMPLATE_NAME = "template_name";
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  standalone: false
 })
 export class AppComponent implements OnInit {
   title = 'switch migration';
@@ -270,7 +272,9 @@ export class AppComponent implements OnInit {
 @Component({
   selector: 'info',
   templateUrl: 'info.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  standalone: false
 })
 export class InfoDialog {
   constructor(
@@ -286,7 +290,9 @@ export class InfoDialog {
 @Component({
   selector: 'result',
   templateUrl: 'result.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  standalone: false
 })
 export class DetailsDialog {
 

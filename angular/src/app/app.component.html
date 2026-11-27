@@ -1,116 +1,190 @@
 <!-- Toolbar -->
 <div class="toolbar" role="banner" class="banner">
-    <div class="logo">
-        <img src="images/juniper.png" />
-        <div>
-            Switch Configuration Converter
-        </div>
-    </div>
-    <div class="help">
-        <button mat-raised-button color="warn" (click)="openInfo()">
-            <div class="read">
-                PLEASE READ
-                <img src="images/ico_error.svg" /> 
-            </div>
-        </button>
-    </div>
+  <div class="logo">
+    <img src="images/juniper.png" />
+    <div>Switch Configuration Converter</div>
+  </div>
+  <div class="help">
+    <button mat-raised-button color="warn" (click)="openInfo()">
+      <div class="read">
+        PLEASE READ
+        <img src="images/ico_error.svg" />
+      </div>
+    </button>
+  </div>
 </div>
 
 <div class="content" role="main">
-    <!-- INPUT -->
-    <div *ngIf="config_files.length==0" style="height: calc(100vh / 20)"></div>
-    <div class="files" [class.dragover]="dragover">
-        <div class="list" *ngIf="config_files.length > 0">
-            <h2>
-                <span>
-                    Processed files
-                </span>
-                <div [class.enabled]="files.selectedOptions.selected.length > 0" (click)="removeConfigFile()">
-                    <mat-icon>delete_forever</mat-icon>
+  <!-- INPUT -->
+  @if (config_files.length == 0) {
+    <div style="height: calc(100vh / 20)"></div>
+  }
+  <div class="files" [class.dragover]="dragover">
+    @if (config_files.length > 0) {
+      <div class="list">
+        <h2>
+          <span> Processed files </span>
+          <div
+            [class.enabled]="files.selectedOptions.selected.length > 0"
+            (click)="removeConfigFile()"
+          >
+            <mat-icon>delete_forever</mat-icon>
+          </div>
+        </h2>
+        <mat-selection-list #files (selectionChange)="selectFile($event)">
+          @for (file of config_files; track file) {
+            <mat-list-option color="primary" [value]="file">
+              <div class="file-container">
+                <div
+                  class="fileformat"
+                  [ngClass]="(file.report?.format || 'Unknown').toLowerCase()"
+                >
+                  {{ file.report?.format || "Unknown" }}
                 </div>
-            </h2>
-            <mat-selection-list #files (selectionChange)="selectFile($event)">
-                <mat-list-option color="primary" *ngFor="let file of config_files" [value]="file">
-                    <div class="file-container">
-                        <div class="fileformat" [ngClass]="(file.report?.format || 'Unknown').toLowerCase()">{{file.report?.format || 'Unknown'}}</div>
-                        <div class="filename">{{file.name}}</div>
-                        <img *ngIf="statusOf(file)=='error'" src="images/ico_error.svg" class="error" [matTooltip]="file.report?.message || ''" />
-                        <img *ngIf="statusOf(file)=='warning'" src="images/ico_warning.svg" class="warning" [matTooltip]="file.report?.message || ''" />
-                        <img *ngIf="statusOf(file)=='success'" src="images/ico_success.svg" class="success" matTooltip="Configuration file processed" />
-                    </div>
-                </mat-list-option>
-            </mat-selection-list>
-        </div>
-        <div class="drops" [class.dragover]="dragover" dropContainer>
-            <input type="file" #dropsRef id="dropsRef" multiple (change)="onFilechange($event)" />
-            <div>
-                <mat-icon class="drop_icon" aria-label="drop files">post_add</mat-icon>
-            </div>
-            <h3>Drop your configuration files here</h3>
-            <h3>or</h3>
-            <button for="dropsRef" mat-raised-button color="primary">Browse your Files</button>
-        </div>
+                <div class="filename">{{ file.name }}</div>
+                @if (statusOf(file) == "error") {
+                  <img
+                    src="images/ico_error.svg"
+                    class="error"
+                    [matTooltip]="file.report?.message || ''"
+                  />
+                }
+                @if (statusOf(file) == "warning") {
+                  <img
+                    src="images/ico_warning.svg"
+                    class="warning"
+                    [matTooltip]="file.report?.message || ''"
+                  />
+                }
+                @if (statusOf(file) == "success") {
+                  <img
+                    src="images/ico_success.svg"
+                    class="success"
+                    matTooltip="Configuration file processed"
+                  />
+                }
+              </div>
+            </mat-list-option>
+          }
+        </mat-selection-list>
+      </div>
+    }
+    <div class="drops" [class.dragover]="dragover" dropContainer>
+      <input
+        type="file"
+        #dropsRef
+        id="dropsRef"
+        multiple
+        (change)="onFilechange($event)"
+      />
+      <div>
+        <mat-icon class="drop_icon" aria-label="drop files">post_add</mat-icon>
+      </div>
+      <h3>Drop your configuration files here</h3>
+      <h3>or</h3>
+      <button for="dropsRef" mat-raised-button color="primary">
+        Browse your Files
+      </button>
     </div>
-    <!-- DISCLAIMER -->
-    <div class="info" *ngIf="config_files.length == 0">
-        <div class="disclaimer">
-            <div>
-                {{disclaimer}}
-            </div>
+  </div>
+  <!-- DISCLAIMER -->
+  @if (config_files.length == 0) {
+    <div class="info">
+      <div class="disclaimer">
+        <div>
+          {{ disclaimer }}
         </div>
-        <div class="source">
-            <a *ngIf="github_url" href={{github_url}} target="_blank"><img src="images/github.png"></a>
-            <a *ngIf="docker_url" href={{docker_url}} target="_blank"><img src="images/docker.png"></a>
-        </div>
+      </div>
+      <div class="source">
+        @if (github_url) {
+          <a href="{{ github_url }}" target="_blank"
+            ><img src="images/github.png"
+          /></a>
+        }
+        @if (docker_url) {
+          <a href="{{ docker_url }}" target="_blank"
+            ><img src="images/docker.png"
+          /></a>
+        }
+      </div>
     </div>
-    <!-- PROCESSIN -->
-    <div *ngIf="reading > 0">
-        <mat-divider></mat-divider>
-        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-
-
+  }
+  <!-- PROCESSIN -->
+  @if (reading > 0) {
+    <div>
+      <mat-divider></mat-divider>
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
     </div>
-    <!-- RESULT -->
-    <div class="result" *ngIf="conversion">
-        <mat-divider></mat-divider>
+  }
+  <!-- RESULT -->
+  @if (conversion) {
+    <div class="result">
+      <mat-divider></mat-divider>
 
-        <div class="header">
-            <div class="warning">
-                <div>
-                    Please validate the generated configuration.
-                </div>
-                <div *ngIf="!copy_secrets">
-                    Passwords from the configuration files were replaced with "to_be_replaced".
-                </div>
-                <div *ngIf="copy_secrets">
-                    SNMP secrets in clear text were copied, other passwords were replaced.
-                </div>
-                <mat-checkbox class="secrets" color="warn" [(ngModel)]="copy_secrets" (change)="processFiles()"
-                    matTooltip="SNMP communities, and SNMPv3 passwords when a file has them in clear text, go into the template as they are. Encrypted or hashed secrets are never copied.">
-                    Copy the SNMP secrets that are in clear text
-                </mat-checkbox>
+      <div class="header">
+        <div class="warning">
+          <div>Please validate the generated configuration.</div>
+          @if (!copy_secrets) {
+            <div>
+              Passwords from the configuration files were replaced with
+              "to_be_replaced".
             </div>
-            <div class="export">
-                <mat-form-field>
-                    <mat-label>Template name</mat-label>
-                    <input matInput [(ngModel)]="template_name" (change)="renameTemplate()">
-                </mat-form-field>
+          }
+          @if (copy_secrets) {
+            <div>
+              SNMP secrets in clear text were copied, other passwords were
+              replaced.
+            </div>
+          }
+          <mat-checkbox
+            class="secrets"
+            color="warn"
+            [(ngModel)]="copy_secrets"
+            (change)="processFiles()"
+            matTooltip="SNMP communities, and SNMPv3 passwords when a file has them in clear text, go into the template as they are. Encrypted or hashed secrets are never copied."
+          >
+            Copy the SNMP secrets that are in clear text
+          </mat-checkbox>
+        </div>
+        <div class="export">
+          <mat-form-field>
+            <mat-label>Template name</mat-label>
+            <input
+              matInput
+              [(ngModel)]="template_name"
+              (change)="renameTemplate()"
+            />
+          </mat-form-field>
 
-                <button mat-raised-button color="primary" (click)="save()">Download</button>
-                <button mat-raised-button color="primary" (click)="openDetails()">View Details</button>
-                <div class="problems" *ngIf="problem_summary">{{problem_summary}}: see the Logs tab of the details</div>
+          <button mat-raised-button color="primary" (click)="save()">
+            Download
+          </button>
+          <button mat-raised-button color="primary" (click)="openDetails()">
+            View Details
+          </button>
+          @if (problem_summary) {
+            <div class="problems">
+              {{ problem_summary }}: see the Logs tab of the details
             </div>
+          }
         </div>
-        <div class="file-warning" *ngIf="show_file_warning">
-            <div>
-                The format of some of your files are not optimized for automated processing
-            </div>
-            <div>
-                <button mat-stroked-button (click)="openInfo()">Please check the recommanded file formart</button>
-            </div>
+      </div>
+      @if (show_file_warning) {
+        <div class="file-warning">
+          <div>
+            The format of some of your files are not optimized for automated
+            processing
+          </div>
+          <div>
+            <button mat-stroked-button (click)="openInfo()">
+              Please check the recommanded file formart
+            </button>
+          </div>
         </div>
-        <div class="template" [class.show_file_warning]="show_file_warning">
-            <pre><code class="raw" [innerHtml]="mist_config_html"></code></pre>
-        </div>
+      }
+      <div class="template" [class.show_file_warning]="show_file_warning">
+        <pre><code class="raw" [innerHtml]="mist_config_html"></code></pre>
+      </div>
     </div>
+  }
 </div>
