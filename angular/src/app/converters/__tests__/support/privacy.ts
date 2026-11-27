@@ -48,7 +48,7 @@ const UNIVERSAL_RULES: Record<string, Rule> = {
 };
 
 /** A statement that carries a secret; the second group is the secret. */
-const SECRET = /\b(secret|password|encrypted-password|key|community|authentication-key|pre-shared-key|key-string)\s+(?:\d\s+)?"?([^\s"]+)"?/i;
+const SECRET = /\b(secret|password|encrypted-password|key|community|authentication-key|pre-shared-key|key-string|auth-pass|priv-pass)\s+(?:(?:\d|plaintext|ciphertext)\s+)?"?([^\s"]+)"?/i;
 
 /** Rules for device configurations only: they would misfire on prose and on code. */
 const CONFIGURATION_RULES: Record<string, Rule> = {

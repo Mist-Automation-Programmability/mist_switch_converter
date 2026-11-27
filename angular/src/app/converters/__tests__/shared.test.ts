@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configuredPorts, convert, convertWith, endpoints, ios, junos, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
+import { configuredPorts, convert, convertWith, cx, endpoints, ios, junos, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
 
 describe('File format detection', () => {
   it('reports a file that is neither Cisco nor Junos and converts nothing from it', async () => {
@@ -69,7 +69,7 @@ describe('File format detection', () => {
     expect(configuredPorts(result, 'ex1')).toEqual(['ge-0/0/0']);
   });
 
-  it('an Aruba AOS-CX configuration is not taken for a Cisco configuration (C6)', async () => {
+  it('an Aruba AOS-CX configuration is not taken for a Cisco configuration, and is converted (C6)', async () => {
     const result = await convert(`!
 !Version ArubaOS-CX FL.10.10.1020
 !export-password: default
@@ -89,7 +89,24 @@ interface 1/1/2
     vlan trunk allowed 10
 `);
 
-    expect(result.files[0].format).not.toBe('Cisco');
+    expect(result.files[0]).toMatchObject({ format: 'Aruba', success_config: true, success_vlan: true });
+    expect(vlanIds(result)).toEqual({ default: 1, users: 10 });
+    expect(configuredPorts(result, 'cx-access-01')).toEqual(['ge-0/0/0', 'ge-0/0/1']);
+  });
+
+  it('puts a Cisco, a Juniper and an Aruba switch in one template, with the VLANs they share', async () => {
+    const result = await convert(
+      { name: 'sw1.txt', text: ios('interface GigabitEthernet1/0/1\n switchport access vlan 10\n!', { vlans: { 10: 'USERS' } }) },
+      { name: 'ex1.txt', text: junos('set system host-name ex1\nset interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS\nset vlans USERS vlan-id 10') },
+      { name: 'cx1.txt', text: cx('vlan 10\n    name Users\nvlan 30\n    name PRINTERS\ninterface 1/1/1\n    no shutdown\n    no routing\n    vlan access 10\ninterface 1/1/2\n    no shutdown\n    no routing\n    vlan access 30') },
+    );
+
+    expect(result.files.map((file) => file.format)).toEqual(['Cisco', 'Juniper', 'Aruba']);
+    expect(vlanIds(result)).toEqual({ users: 10, printers: 30 });
+    expect(result.template.switch_matching.rules.map((rule) => rule.name)).toEqual(['sw1', 'ex1', 'cx1']);
+    // The three ports of VLAN 10 share one port usage.
+    expect(new Set([result.ports[0].usage, result.ports[1].usage, result.ports[2].usage]).size).toBe(1);
+    expect(missingNetworks(result)).toEqual([]);
   });
 });
 

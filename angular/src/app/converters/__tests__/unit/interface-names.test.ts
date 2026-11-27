@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { expandArubaInterfaceRange, readArubaInterface } from '../../extractors/aruba_cx_interfaces';
 import { expandCiscoInterfaceRange, readCiscoInterface } from '../../extractors/cisco_interfaces';
 import { expandMember, expandMemberRange, readJunosInterface, wildcardMember } from '../../extractors/junos_interfaces';
 
@@ -85,5 +86,48 @@ describe('Junos interface names', () => {
   it('matches the names that a member with wildcards stands for', () => {
     expect(['ge-0/0/1', 'ge-0/0/47', 'ge-1/0/1', 'xe-0/0/1'].map((name) => wildcardMember('ge-0/0/*').test(name))).toEqual([true, true, false, false]);
     expect(['ge-0/0/1', 'ge-0/1/1', 'ge-0/10/1'].map((name) => wildcardMember('ge-0/?/1').test(name))).toEqual([true, true, false]);
+  });
+});
+
+describe('Aruba AOS-CX interface names', () => {
+  it.each([
+    ['1/1/1', 'ge-0/0/0'],
+    ['1/1/48', 'ge-0/0/47'],
+    ['3/1/12', 'ge-2/0/11'],
+    // A chassis: the slot of the line card is the PIC
+    ['1/3/5', 'ge-0/2/4'],
+  ])('%s is a port, at %s', (text, junosName) => {
+    expect(readArubaInterface(text)).toEqual({ name: text, kind: 'physical', junosName });
+  });
+
+  it('tells the kinds of interfaces apart', () => {
+    expect(readArubaInterface('lag 12')).toEqual({ name: 'lag12', kind: 'lag', number: 12 });
+    expect(readArubaInterface('lag12')).toEqual({ name: 'lag12', kind: 'lag', number: 12 });
+    expect(readArubaInterface('lag 1 multi-chassis')).toEqual({ name: 'lag1', kind: 'lag', number: 1 });
+    expect(readArubaInterface('vlan 99')).toEqual({ name: 'vlan99', kind: 'svi', number: 99 });
+    expect(readArubaInterface('vlan99')).toEqual({ name: 'vlan99', kind: 'svi', number: 99 });
+    expect(readArubaInterface('loopback 0').kind).toBe('loopback');
+    expect(readArubaInterface('mgmt')).toEqual({ name: 'mgmt', kind: 'management' });
+    expect(readArubaInterface('1/1/1.100').kind).toBe('other');
+    expect(readArubaInterface('tunnel 5').kind).toBe('other');
+    expect(readArubaInterface('vxlan 1').kind).toBe('other');
+  });
+
+  it('does not translate a position that has no equivalent', () => {
+    // One lane of a port that is split, and a number that no port has
+    expect(readArubaInterface('1/1/49:1')).toEqual({ name: '1/1/49:1', kind: 'physical' });
+    expect(readArubaInterface('1/1/0')).toEqual({ name: '1/1/0', kind: 'physical', junosName: undefined });
+  });
+
+  it('lists the ports of a range or of a list', () => {
+    expect(expandArubaInterfaceRange('1/1/1-1/1/3')).toEqual(['1/1/1', '1/1/2', '1/1/3']);
+    expect(expandArubaInterfaceRange('1/1/1,1/1/5-1/1/6, 2/1/1')).toEqual(['1/1/1', '1/1/5', '1/1/6', '2/1/1']);
+    // One port, and the names that are not ports, are not a range
+    expect(expandArubaInterfaceRange('1/1/1')).toBeUndefined();
+    expect(expandArubaInterfaceRange('lag 1 multi-chassis')).toBeUndefined();
+    // A range stays within one member and one slot, and goes up
+    expect(expandArubaInterfaceRange('1/1/1-2/1/3')).toBeUndefined();
+    expect(expandArubaInterfaceRange('1/1/8-1/1/5')).toBeUndefined();
+    expect(expandArubaInterfaceRange('1/1/1-1/1/9999')).toBeUndefined();
   });
 });

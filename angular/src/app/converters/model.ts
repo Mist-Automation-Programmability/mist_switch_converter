@@ -16,7 +16,7 @@ export interface SourceFile {
   text: string;
 }
 
-export type Vendor = 'cisco-ios' | 'junos';
+export type Vendor = 'cisco-ios' | 'junos' | 'aruba-cx';
 
 /* ----------------------------------------------------------------- device */
 
@@ -47,7 +47,7 @@ export interface Vlan {
 
 export type PortKind =
   | 'physical'
-  | 'lag' // Port-channel, ae
+  | 'lag' // Port-channel, ae, lag
   | 'svi' // Vlan10, irb, vlan
   | 'management'
   | 'loopback'
@@ -60,7 +60,7 @@ export type Speed = 'auto' | '10m' | '100m' | '1g' | '2.5g' | '5g' | '10g' | '25
 export type Duplex = 'auto' | 'half' | 'full';
 
 export interface Port {
-  /** Name as the source writes it, in its long form: GigabitEthernet1/0/1, ge-0/0/1, ae0. */
+  /** Name as the source writes it, in its long form: GigabitEthernet1/0/1, ge-0/0/1, ae0, 1/1/1, lag1. */
   name: string;
   kind: PortKind;
   /**
