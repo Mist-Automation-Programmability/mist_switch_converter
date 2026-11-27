@@ -257,7 +257,7 @@
             flex-direction: row;
             justify-content: flex-start;
             align-items: center;
-            height: 4em;
+            height: 5em;
 
             .export {
                 display: flex;
@@ -283,21 +283,32 @@
                 flex-direction: column;
                 align-items: center;
                 border: 1px solid #c33d35;
-                padding: .5em;
+                padding: .25em .5em;
                 border-radius: 5px;
                 color: #c33d35;
-                height: 4em;
                 margin-right: 2em;
                 display: flex;
                 justify-content: center;
                 align-items: center;
+                white-space: nowrap;
+
+                // The option that copies secrets, as a third line of the notice about passwords
+                .secrets {
+                    --mdc-checkbox-state-layer-size: 22px;
+
+                    ::ng-deep label {
+                        color: #c33d35;
+                        font-size: inherit;
+                        padding-left: 2px;
+                    }
+                }
             }
         }
 
         .template {
             width: 100%;
             margin: auto;
-            height: calc(100vh - 3em - 360px);
+            height: calc(100vh - 3em - 376px);
 
             pre {
                 height: 100%;
@@ -306,7 +317,7 @@
         }
 
         .template.show_file_warning {
-            height: calc(100vh - 3em - 360px - 60px);
+            height: calc(100vh - 3em - 376px - 60px);
         }
     }
 }

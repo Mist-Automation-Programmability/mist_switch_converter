@@ -18,6 +18,7 @@
                             <div>DNS Domain</div>
                             <div>SYSLOG Servers</div>
                             <div>CLI Banner</div>
+                            <div>SNMP v2c and v3 (communities, users and groups, views, client lists, trap groups and targets)</div>
                         </div>
                     </div>
                     <div class="general-converted b">
@@ -62,6 +63,7 @@
                 <div>To get a good result, each Junos file must contain the configuration from a single switch with the result of the <samp>show | display inheritance | display set</samp> command.</div>
                 <div>The Juniper interface-ranges are used to name the port profiles. Without interface-range, a port profile is named after the description that most of its ports have, or after its settings (<samp>access_users_voip</samp>, <samp>trunk_all</samp>).</div>
                 <div>What is not converted (routed ports, unknown settings...) is listed in the "Logs" tab of the details, with the file and the line numbers.</div>
+                <div>SNMP communities are replaced with <samp>to_be_replaced_1</samp>, <samp>to_be_replaced_2</samp>... unless "Copy the SNMP secrets that are in clear text" is checked. A configuration only has the keys of the SNMPv3 users: their passwords are to be typed in the template.</div>
                 <div><b>TIPS:</b> you can use the <samp>set cli screen-length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
             </div>
             <pre>
@@ -92,6 +94,7 @@ set interfaces interface-range ap member ge-0/0/8
                 <div>Cisco IOS and IOS-XE are supported. NX-OS is not.</div>
                 <div>A port profile is named after the description that most of its ports have, or after its settings (<samp>access_users_voip</samp>, <samp>trunk_all</samp>).</div>
                 <div>What is not converted (routed ports, unknown settings...) is listed in the "Logs" tab of the details, with the file and the line numbers.</div>
+                <div>SNMP communities are replaced with <samp>to_be_replaced_1</samp>, <samp>to_be_replaced_2</samp>... unless "Copy the SNMP secrets that are in clear text" is checked. A running configuration does not show the SNMPv3 users (<samp>show snmp user</samp> does): add them to the template.</div>
                 <div><b>TIPS:</b> you can use the <samp>terminal length 0</samp> command to set the screen length to 0, which will allow the displayed output to scroll without pause </div>
             </div>
             <pre>
