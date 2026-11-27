@@ -1,0 +1,401 @@
+{
+  "files": [
+    {
+      "name": "ex-access-01.txt",
+      "format": "Juniper",
+      "success_vlan": true,
+      "success_config": true,
+      "error_message": "Unknown error"
+    }
+  ],
+  "ports": [
+    "ex-access-01 ge-0/0/14 = phone_+_pc",
+    "ex-access-01 ge-0/0/12 = spare",
+    "ex-access-01 access-ports = profile",
+    "ex-access-01 ge-0/0/1 = access",
+    "ex-access-01 ge-0/0/2 = access-0005",
+    "ex-access-01 ge-0/0/3 = access-0005",
+    "ex-access-01 ge-0/0/13 = ap_floor_1",
+    "ex-access-01 ge-0/0/15 = lab_bench",
+    "ex-access-01 xe-0/2/0 = uplink_core",
+    "ex-access-01 xe-0/2/1 = uplink_core",
+    "ex-access-01 xe-0/2/2 = uplink_core",
+    "ex-access-01 ae0 = uplink",
+    "ex-access-01 ae10 = uplink"
+  ],
+  "problems": [
+    "warning: Mutliple entries found profile 00080000-0000-4000-8000-000000000000: Uplink core 1,Uplink core 2",
+    "warning: Mutliple entries found profile 00090000-0000-4000-8000-000000000000: Uplink core,Uplink distribution"
+  ],
+  "errors": [],
+  "template": {
+    "name": "template_name",
+    "ntp_servers": [
+      "10.0.0.123",
+      "10.0.1.123"
+    ],
+    "dns_servers": [
+      "10.0.0.53",
+      "10.0.1.53"
+    ],
+    "dns_suffix": [
+      "corp.example.com"
+    ],
+    "networks": {
+      "users": {
+        "vlan_id": "10",
+        "subnet": null
+      },
+      "voice": {
+        "vlan_id": "20",
+        "subnet": null
+      },
+      "printers": {
+        "vlan_id": "30",
+        "subnet": null
+      },
+      "guest_wifi": {
+        "vlan_id": "40",
+        "subnet": null
+      },
+      "mgmt": {
+        "vlan_id": "99",
+        "subnet": "10.99.0.0/24"
+      }
+    },
+    "port_usages": {
+      "phone_+_pc": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": true,
+        "mac_auth_only": false,
+        "mac_limit": 3,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "port_auth": "dot1x",
+        "stp_edge": true,
+        "voip_network": "VOICE",
+        "port_network": "users",
+        "persist_mac": false,
+        "guest_network": "GUEST-WIFI",
+        "bypass_auth_when_server_down": true
+      },
+      "spare": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": true,
+        "stp_edge": false,
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "voip_network": "VOICE",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "access": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "100m",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "access-0005": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "100m",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "ap_floor_1": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "users",
+          "guest_wifi",
+          "mgmt"
+        ],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "mgmt",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "lab_bench": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "mtu": "9216",
+        "networks": [
+          "users",
+          "voice",
+          "printers",
+          "guest_wifi"
+        ],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "uplink_core": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "uplink": {
+        "all_networks": true,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      }
+    },
+    "radius_config": {
+      "acct_interim_interval": 0,
+      "acct_servers": [],
+      "auth_servers": [
+        {
+          "port": "1645",
+          "host": "10.0.0.81",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1646",
+          "host": "10.0.0.81",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1645",
+          "host": "10.0.0.82",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1646",
+          "host": "10.0.0.82",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
+      "auth_servers_retries": 3,
+      "auth_servers_timeout": 5,
+      "coa_enabled": false,
+      "coa_port": 3799
+    },
+    "switch_mgmt": {
+      "cli_banner": "Authorized access only\nAll activity is logged",
+      "tacacs": {
+        "enabled": true,
+        "tacplus_servers": [
+          {
+            "host": "10.0.0.70",
+            "port": "",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          },
+          {
+            "host": "10.0.0.71",
+            "port": "4949",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ],
+        "acct_servers": [
+          {
+            "host": "10.0.0.70",
+            "port": "",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ]
+      }
+    },
+    "additional_config_cmds": [],
+    "dhcp_snooping": {
+      "enabled": true,
+      "networks": [
+        "guest_wifi",
+        "users"
+      ]
+    },
+    "remote_syslog": {
+      "enabled": true,
+      "servers": [
+        {
+          "host": "10.0.0.60",
+          "protocol": "udp",
+          "port": "514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        },
+        {
+          "host": "10.0.0.61",
+          "protocol": "udp",
+          "port": "1514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        },
+        {
+          "host": "10.0.0.62",
+          "protocol": "udp",
+          "port": "1514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        }
+      ]
+    },
+    "switch_matching": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "ex-access-01",
+          "port_config": {
+            "ge-0/0/14": {
+              "description": "Phone + PC",
+              "usage": "phone_+_pc"
+            },
+            "ge-0/0/12": {
+              "description": "Spare",
+              "usage": "spare"
+            },
+            "access-ports": {
+              "usage": "profile"
+            },
+            "ge-0/0/1": {
+              "description": "Desk 12",
+              "usage": "access"
+            },
+            "ge-0/0/2": {
+              "description": "Desk 13",
+              "usage": "access-0005"
+            },
+            "ge-0/0/3": {
+              "description": "Desk 14",
+              "usage": "access-0005"
+            },
+            "ge-0/0/13": {
+              "description": "AP floor 1",
+              "usage": "ap_floor_1"
+            },
+            "ge-0/0/15": {
+              "description": "Lab bench",
+              "usage": "lab_bench"
+            },
+            "xe-0/2/0,xe-0/2/1": {
+              "ae_idx": 0,
+              "aggregated": true,
+              "description": "Uplink core",
+              "usage": "uplink"
+            },
+            "xe-0/2/2": {
+              "ae_idx": 1,
+              "aggregated": true,
+              "description": "Uplink distribution",
+              "usage": "uplink"
+            }
+          },
+          "match_name[0:12]": "ex-access-01"
+        }
+      ]
+    }
+  }
+}

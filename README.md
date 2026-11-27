@@ -35,6 +35,18 @@ This app can be used to convert Cisco IOS configuration file(s) into a single Mi
 * This application is not able to retrieve the passwords or the secrets (RADIUS, TACACS+, ...). These parameters MUST be reconfigured from the Mist dashboard.
 * The port profile names re generated from the interface description in the Cisco configuration. If the same configuration is detected multiple times but with different descriptions, the app will generate a new name based on the most recurrent words in the Cisco descriptions.
 
+## Tests
+
+The conversion code has unit tests that run in Node:
+
+```sh
+cd angular
+npm ci
+npm test
+```
+
+See [angular/src/app/converters/__tests__/README.md](angular/src/app/converters/__tests__/README.md) for what they cover, the list of known defects, and the rules for test data. Test data is synthetic: never add a customer configuration to this repository.
+
 ## Installation
 
 This app can be run as a standalone Node application, or can be deployed as a Docker container.

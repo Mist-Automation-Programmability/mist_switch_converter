@@ -77,3 +77,7 @@ typings/
 src/config.js
 .DS_Store
 .angular/
+
+# Real switch configurations used for local tests only.
+# They can hold customer data and must never be committed.
+/test_configs/

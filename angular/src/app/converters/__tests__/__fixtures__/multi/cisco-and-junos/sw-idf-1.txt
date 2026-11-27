@@ -1,0 +1,63 @@
+sw-idf-1#show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Gi1/0/4
+10   USERS                            active    Gi1/0/1, Gi1/0/2
+20   VOICE                            active    Gi1/0/1, Gi1/0/2
+30   PRINTERS                         active    Gi1/0/3
+1002 fddi-default                     act/unsup
+1003 token-ring-default               act/unsup
+1004 fddinet-default                  act/unsup
+1005 trnet-default                    act/unsup
+
+sw-idf-1#show running-config
+Building configuration...
+
+Current configuration : 2210 bytes
+!
+version 17.9
+!
+hostname sw-idf-1
+!
+ip name-server 10.0.0.53
+!
+interface GigabitEthernet1/0/1
+ description User port
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/2
+ description User port
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/3
+ description Printer
+ switchport access vlan 30
+ switchport mode access
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/4
+!
+interface TenGigabitEthernet1/1/1
+ description Uplink
+ switchport mode trunk
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+logging host 10.0.0.60
+!
+radius server ISE1
+ address ipv4 10.0.0.80 auth-port 1812 acct-port 1813
+ key 7 REDACTED
+!
+ntp server 10.0.0.123
+!
+end

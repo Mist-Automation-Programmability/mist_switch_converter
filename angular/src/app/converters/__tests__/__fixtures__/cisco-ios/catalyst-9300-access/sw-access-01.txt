@@ -1,0 +1,213 @@
+sw-access-01#terminal length 0
+sw-access-01#show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Gi1/0/9, Gi1/0/10, Gi1/0/11
+                                                Gi1/0/12, Te1/1/3, Te1/1/4
+10   USERS                            active    Gi1/0/1, Gi1/0/2, Gi1/0/3
+                                                Gi1/0/4
+20   VOICE                            active    Gi1/0/1, Gi1/0/2, Gi1/0/3
+                                                Gi1/0/4
+30   PRINTERS                         active    Gi1/0/5
+40   GUEST-WIFI                       active
+99   MGMT                             active
+999  PARKING                          active    Gi1/0/8
+1002 fddi-default                     act/unsup
+1003 token-ring-default               act/unsup
+1004 fddinet-default                  act/unsup
+1005 trnet-default                    act/unsup
+
+sw-access-01#show running-config
+Building configuration...
+
+Current configuration : 9812 bytes
+!
+! Last configuration change at 09:42:44 CET Thu Oct 6 2022
+!
+version 17.9
+service timestamps debug datetime msec localtime
+service timestamps log datetime msec localtime
+service password-encryption
+!
+hostname sw-access-01
+!
+vrf definition Mgmt-vrf
+ !
+ address-family ipv4
+ exit-address-family
+!
+enable secret 9 REDACTED
+!
+aaa new-model
+!
+aaa group server radius ISE
+ server name ISE1
+ server name ISE2
+!
+aaa authentication dot1x default group ISE
+aaa authorization network default group ISE
+aaa accounting dot1x default start-stop group ISE
+!
+ip name-server 10.0.0.53 10.0.1.53
+ip domain name corp.example.com
+!
+ip dhcp snooping vlan 10,20,30-31
+no ip dhcp snooping information option
+ip dhcp snooping
+!
+dot1x system-auth-control
+!
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+!
+username admin privilege 15 secret 9 REDACTED
+!
+interface Port-channel1
+ description UPLINK-CORE
+ switchport trunk allowed vlan 10,20,30,40,99
+ switchport mode trunk
+!
+interface GigabitEthernet0/0
+ vrf forwarding Mgmt-vrf
+ no ip address
+ shutdown
+ negotiation auto
+!
+interface GigabitEthernet1/0/1
+ description USER+PHONE
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ authentication port-control auto
+ mab
+ dot1x pae authenticator
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/2
+ description USER+PHONE
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ authentication port-control auto
+ mab
+ dot1x pae authenticator
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/3
+ description USER+PHONE
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ authentication port-control auto
+ mab
+ dot1x pae authenticator
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/4
+ description MEETING-ROOM
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ authentication port-control auto
+ mab
+ dot1x pae authenticator
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/5
+ description PRINTER
+ switchport access vlan 30
+ switchport mode access
+ speed 100
+ duplex full
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/6
+ description AP-FLOOR1
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,40,99
+ switchport mode trunk
+!
+interface GigabitEthernet1/0/7
+ description AP-FLOOR2
+ switchport trunk native vlan 99
+ switchport trunk allowed vlan 10,20,30,40,50,60,70,80,90,100,110,120,130,140
+ switchport trunk allowed vlan add 150,160,170
+ switchport mode trunk
+!
+interface GigabitEthernet1/0/8
+ description UNUSED
+ switchport access vlan 999
+ switchport mode access
+ shutdown
+!
+interface GigabitEthernet1/0/9
+!
+interface GigabitEthernet1/0/10
+!
+interface GigabitEthernet1/0/11
+ power inline never
+!
+interface GigabitEthernet1/0/12
+!
+interface TenGigabitEthernet1/1/1
+ description UPLINK-CORE-1
+ switchport trunk allowed vlan 10,20,30,40,99
+ switchport mode trunk
+ channel-group 1 mode active
+!
+interface TenGigabitEthernet1/1/2
+ description UPLINK-CORE-2
+ switchport trunk allowed vlan 10,20,30,40,99
+ switchport mode trunk
+ channel-group 1 mode active
+!
+interface TenGigabitEthernet1/1/3
+!
+interface TenGigabitEthernet1/1/4
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+interface Vlan99
+ description MGMT
+ ip address 10.99.0.11 255.255.255.0
+!
+ip default-gateway 10.99.0.1
+ip forward-protocol nd
+no ip http server
+!
+logging host 10.0.0.60
+logging host 10.0.0.61 transport udp port 1514
+!
+snmp-server community REDACTED RO
+snmp-server location Building A
+!
+tacacs server TAC1
+ address ipv4 10.0.0.70
+ key 7 REDACTED
+!
+radius server ISE1
+ address ipv4 10.0.0.80 auth-port 1812 acct-port 1813
+ key 7 REDACTED
+!
+radius server ISE2
+ address ipv4 10.0.0.81 auth-port 1812 acct-port 1813
+ key 7 REDACTED
+!
+banner motd ^C
+Authorized access only
+^C
+!
+line con 0
+ stopbits 1
+line vty 0 4
+ transport input ssh
+!
+ntp server 10.0.0.123
+ntp server 10.0.1.123 prefer
+!
+end
+
+sw-access-01#

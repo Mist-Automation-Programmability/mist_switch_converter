@@ -1,0 +1,158 @@
+sw-floor2#show running-config
+Building configuration...
+
+Current configuration : 4386 bytes
+!
+! Last configuration change at 14:02:11 CET Mon Mar 7 2022
+!
+version 15.0
+no service pad
+service timestamps debug datetime msec
+service timestamps log datetime msec
+service password-encryption
+!
+hostname sw-floor2
+!
+boot-start-marker
+boot-end-marker
+!
+enable secret 5 REDACTED
+!
+username admin privilege 15 secret 5 REDACTED
+aaa new-model
+!
+aaa authentication login default group tacacs+ local
+aaa authentication dot1x default group radius
+!
+clock timezone CET 1 0
+!
+ip dhcp snooping vlan 110,120
+ip dhcp snooping
+ip domain-name corp.example.com
+ip name-server 10.0.0.53
+!
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+!
+vlan internal allocation policy ascending
+!
+interface FastEthernet0/1
+ description Desk 2.01
+ switchport access vlan 110
+ switchport mode access
+ switchport voice vlan 120
+ spanning-tree portfast
+!
+interface FastEthernet0/2
+ description Desk 2.02
+ switchport access vlan 110
+ switchport mode access
+ switchport voice vlan 120
+ spanning-tree portfast
+!
+interface FastEthernet0/3
+ description Desk 2.03
+ switchport access vlan 110
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/10
+ description CCTV entrance
+ switchport access vlan 130
+ switchport mode access
+ switchport port-security maximum 2
+ switchport port-security
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+!
+interface FastEthernet0/11
+ description Badge reader
+ switchport access vlan 130
+ switchport mode access
+ speed 10
+ duplex half
+ spanning-tree portfast
+!
+interface FastEthernet0/20
+!
+interface FastEthernet0/21
+ shutdown
+!
+interface FastEthernet0/22
+ switchport mode dynamic desirable
+!
+interface GigabitEthernet0/1
+ description Uplink to sw-core Gi1/0/12
+ switchport trunk native vlan 199
+ switchport trunk allowed vlan 110,120,130,199
+ switchport mode trunk
+!
+interface GigabitEthernet0/2
+ description Spare uplink
+ switchport mode trunk
+ shutdown
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+interface Vlan199
+ ip address 10.2.199.12 255.255.255.0
+!
+ip default-gateway 10.2.199.1
+ip http server
+ip http secure-server
+!
+logging 10.0.0.60
+!
+snmp-server community REDACTED RO
+!
+tacacs-server host 10.0.0.70
+tacacs-server key 7 REDACTED
+radius-server host 10.0.0.80 auth-port 1645 acct-port 1646 key 7 REDACTED
+!
+banner motd ^CAuthorized access only^C
+!
+line con 0
+line vty 0 4
+ transport input ssh
+line vty 5 15
+ transport input ssh
+!
+ntp server 10.0.0.123
+end
+
+sw-floor2#show vlan
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Fa0/20, Fa0/21, Fa0/22
+110  FLOOR2-DATA                      active    Fa0/1, Fa0/2, Fa0/3
+120  FLOOR2-VOICE                     active    Fa0/1, Fa0/2
+130  CCTV                             active    Fa0/10, Fa0/11
+199  MGMT                             active
+1002 fddi-default                     act/unsup
+1003 token-ring-default               act/unsup
+1004 fddinet-default                  act/unsup
+1005 trnet-default                    act/unsup
+
+VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2
+---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------
+1    enet  100001     1500  -      -      -        -    -        0      0
+110  enet  100110     1500  -      -      -        -    -        0      0
+120  enet  100120     1500  -      -      -        -    -        0      0
+130  enet  100130     1500  -      -      -        -    -        0      0
+199  enet  100199     1500  -      -      -        -    -        0      0
+1002 fddi  101002     1500  -      -      -        -    -        0      0
+1003 tr    101003     1500  -      -      -        -    -        0      0
+1004 fdnet 101004     1500  -      -      -        ieee -        0      0
+1005 trnet 101005     1500  -      -      -        ibm  -        0      0
+
+Remote SPAN VLANs
+------------------------------------------------------------------------------
+
+
+Primary Secondary Type              Ports
+------- --------- ----------------- ------------------------------------------
+
+sw-floor2#

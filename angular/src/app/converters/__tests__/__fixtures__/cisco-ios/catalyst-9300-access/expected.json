@@ -1,0 +1,434 @@
+{
+  "files": [
+    {
+      "name": "sw-access-01.txt",
+      "format": "Cisco",
+      "success_vlan": false,
+      "success_config": true,
+      "error_message": "Unable to parse the VLAN database"
+    }
+  ],
+  "ports": [
+    "sw-access-01 Port-channel1 = uplink_core",
+    "sw-access-01 GigabitEthernet0/0 = profile",
+    "sw-access-01 GigabitEthernet1/0/1 = user+phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/2 = user+phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/3 = user+phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/4 = user+phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/5 = printer",
+    "sw-access-01 GigabitEthernet1/0/6 = ap_floor1",
+    "sw-access-01 GigabitEthernet1/0/7 = ap_floor2",
+    "sw-access-01 GigabitEthernet1/0/8 = unused",
+    "sw-access-01 GigabitEthernet1/0/9 = profile-0008",
+    "sw-access-01 GigabitEthernet1/0/10 = profile-0008",
+    "sw-access-01 GigabitEthernet1/0/11 = profile-0009",
+    "sw-access-01 GigabitEthernet1/0/12 = profile-0008",
+    "sw-access-01 TenGigabitEthernet1/1/1 = uplink_core",
+    "sw-access-01 TenGigabitEthernet1/1/2 = uplink_core",
+    "sw-access-01 TenGigabitEthernet1/1/3 = profile-0008",
+    "sw-access-01 TenGigabitEthernet1/1/4 = profile-0008"
+  ],
+  "problems": [
+    "warning: No VLAN database found in the file",
+    "error: Error when reading VLANs list from sw-access-01.txt",
+    "warning: Mutliple entries found profile 00010000-0000-4000-8000-000000000000: UPLINK-CORE,UPLINK-CORE-1,UPLINK-CORE-2",
+    "warning: Mutliple entries found profile 00030000-0000-4000-8000-000000000000: USER+PHONE,MEETING-ROOM"
+  ],
+  "errors": [],
+  "template": {
+    "name": "template_name",
+    "ntp_servers": [
+      "10.0.0.123",
+      "10.0.1.123"
+    ],
+    "dns_servers": [
+      "10.0.0.53"
+    ],
+    "dns_suffix": [
+      "corp.example.com"
+    ],
+    "networks": {
+      "default": {
+        "vlan_id": "1",
+        "subnet": null
+      },
+      "vlan10": {
+        "vlan_id": "10",
+        "subnet": null
+      },
+      "vlan20": {
+        "vlan_id": "20",
+        "subnet": null
+      },
+      "vlan30": {
+        "vlan_id": "30",
+        "subnet": null
+      },
+      "vlan40": {
+        "vlan_id": "40",
+        "subnet": null
+      },
+      "mgmt": {
+        "vlan_id": "99",
+        "subnet": "10.99.0.0/24"
+      },
+      "vlan160": {
+        "vlan_id": "160",
+        "subnet": null
+      },
+      "vlan170": {
+        "vlan_id": "170",
+        "subnet": null
+      },
+      "vlan999": {
+        "vlan_id": "999",
+        "subnet": null
+      },
+      "vlanadd 150": {
+        "vlan_id": "add 150",
+        "subnet": null
+      }
+    },
+    "port_usages": {
+      "uplink_core": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "vlan10",
+          "vlan20",
+          "vlan30",
+          "vlan40",
+          "mgmt"
+        ],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": true,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "default",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "user+phone_meeting_room": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": true,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "port_auth": "dot1x",
+        "stp_edge": true,
+        "voip_network": "vlan20",
+        "port_network": "vlan10",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "printer": {
+        "all_networks": false,
+        "disable_autoneg": true,
+        "disabled": false,
+        "duplex": "full",
+        "speed": "100m",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "vlan30",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "ap_floor1": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "vlan10",
+          "vlan20",
+          "vlan40",
+          "mgmt"
+        ],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "mgmt",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "ap_floor2": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "vlanadd 150",
+          "vlan160",
+          "vlan170"
+        ],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "mgmt",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "unused": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": true,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "vlan999",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile-0008": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "port_network": "default",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "profile-0009": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": true,
+        "stp_edge": true,
+        "port_network": "default",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      }
+    },
+    "radius_config": {
+      "acct_interim_interval": 0,
+      "acct_servers": [],
+      "auth_servers": [
+        {
+          "port": "1812",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1813",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1812",
+          "host": "10.0.0.81",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        },
+        {
+          "port": "1813",
+          "host": "10.0.0.81",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
+      "auth_servers_retries": 3,
+      "auth_servers_timeout": 5,
+      "coa_enabled": false,
+      "coa_port": 3799
+    },
+    "switch_mgmt": {
+      "tacacs": {
+        "enabled": true,
+        "tacplus_servers": [
+          {
+            "host": "10.0.0.70",
+            "port": "49",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ],
+        "acct_servers": [
+          {
+            "host": "10.0.0.70",
+            "port": "49",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ]
+      }
+    },
+    "additional_config_cmds": [],
+    "dhcp_snooping": {
+      "enabled": true,
+      "networks": [
+        "vlan10",
+        "vlan20",
+        "vlan30"
+      ]
+    },
+    "remote_syslog": {
+      "enabled": true,
+      "servers": [
+        {
+          "host": "10.0.0.60",
+          "protocol": "udp",
+          "port": "514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        },
+        {
+          "host": "10.0.0.61",
+          "protocol": "udp",
+          "port": "1514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        }
+      ]
+    },
+    "switch_matching": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "sw-access-01",
+          "port_config": {
+            "mge-0/1/0,mge-0/1/1": {
+              "ae_idx": 0,
+              "aggregated": true,
+              "description": "UPLINK-CORE",
+              "usage": "uplink_core"
+            },
+            "ge-0/0/-1": {
+              "usage": "profile"
+            },
+            "ge-0/0/0": {
+              "description": "USER+PHONE",
+              "usage": "user+phone_meeting_room"
+            },
+            "ge-0/0/1": {
+              "description": "USER+PHONE",
+              "usage": "user+phone_meeting_room"
+            },
+            "ge-0/0/2": {
+              "description": "USER+PHONE",
+              "usage": "user+phone_meeting_room"
+            },
+            "ge-0/0/3": {
+              "description": "MEETING-ROOM",
+              "usage": "user+phone_meeting_room"
+            },
+            "ge-0/0/4": {
+              "description": "PRINTER",
+              "usage": "printer"
+            },
+            "ge-0/0/5": {
+              "description": "AP-FLOOR1",
+              "usage": "ap_floor1"
+            },
+            "ge-0/0/6": {
+              "description": "AP-FLOOR2",
+              "usage": "ap_floor2"
+            },
+            "ge-0/0/7": {
+              "description": "UNUSED",
+              "usage": "unused"
+            },
+            "ge-0/0/8": {
+              "usage": "profile-0008"
+            },
+            "ge-0/0/9": {
+              "usage": "profile-0008"
+            },
+            "ge-0/0/10": {
+              "usage": "profile-0009"
+            },
+            "ge-0/0/11": {
+              "usage": "profile-0008"
+            },
+            "mge-0/1/2": {
+              "usage": "profile-0008"
+            },
+            "mge-0/1/3": {
+              "usage": "profile-0008"
+            }
+          },
+          "match_name[0:12]": "sw-access-01"
+        }
+      ]
+    }
+  }
+}
