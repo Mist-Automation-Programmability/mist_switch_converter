@@ -18,7 +18,7 @@
     "ex-access-01 ge-0/0/6 = access",
     "ex-access-01 ge-0/0/7 = access",
     "ex-access-01 ge-0/0/8 = access",
-    "ex-access-01 ge-0/0/9 = access",
+    "ex-access-01 ge-0/0/9 = access_trusted",
     "ex-access-01 ge-0/0/10 = printers",
     "ex-access-01 ge-0/0/11 = printers",
     "ex-access-01 ge-0/0/12 = spare",
@@ -89,7 +89,14 @@
         "voip_network": "voice",
         "port_network": "users",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": true,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 20
+        }
       },
       "access_100m": {
         "all_networks": false,
@@ -108,7 +115,41 @@
         "voip_network": "voice",
         "port_network": "users",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": true,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 20
+        }
+      },
+      "access_trusted": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": true,
+        "voip_network": "voice",
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": true,
+          "no_registered_multicast": false,
+          "no_unknown_unicast": false,
+          "percentage": 20
+        },
+        "allow_dhcpd": true
       },
       "printers": {
         "all_networks": false,
@@ -360,7 +401,7 @@
               "usage": "access"
             },
             "ge-0/0/9": {
-              "usage": "access"
+              "usage": "access_trusted"
             },
             "ge-0/0/10": {
               "usage": "printers"

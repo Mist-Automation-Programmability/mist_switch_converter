@@ -150,6 +150,7 @@ describe('Cisco IOS extractor', () => {
       'info interface-skipped: Interface GigabitEthernet0/0: management port, not converted',
       'warning routed-port: Interface GigabitEthernet1/0/2: routed port ("no switchport"), not converted',
       'info not-converted: Not converted: "snmp-server community"',
+      'warning dhcp-untrusted-trunk: DHCP snooping: the trunk has no "ip dhcp snooping trust", DHCP servers are refused on it on Port-channel1',
     ]);
     expect(JSON.stringify([device.system, device.vlans, report.diagnostics])).not.toContain('REDACTED');
   });

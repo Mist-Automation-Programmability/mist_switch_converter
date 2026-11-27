@@ -44,6 +44,18 @@ export function portUsageOf(port: Port, networkOf: (id: number) => string): Mist
     guest_network: auth.dot1x ? network(auth.guestVlan) : undefined,
     bypass_auth_when_server_down: auth.dot1x && auth.bypassWhenServerDown,
   };
+  const storm = port.stormControl;
+  if (storm) {
+    usage.storm_control = {
+      no_broadcast: !storm.broadcast,
+      no_multicast: !storm.multicast,
+      no_registered_multicast: !storm.registeredMulticast,
+      no_unknown_unicast: !storm.unknownUnicast,
+      percentage: storm.percentage,
+      ...(storm.shutdown ? { disable_port: true } : {}),
+    };
+  }
+  if (port.dhcpTrusted !== undefined) usage.allow_dhcpd = port.dhcpTrusted;
   if (auth.dot1x) {
     if (auth.multipleSupplicants) usage.allow_multiple_supplicants = true;
     if (auth.reauthInterval !== undefined) usage.reauth_interval = auth.reauthInterval;
@@ -141,6 +153,8 @@ const DISTINCTIVE: Array<(usage: MistPortUsage) => string> = [
   (usage) => (usage.mtu !== undefined ? `mtu${usage.mtu}` : ''),
   (usage) => (usage.mac_limit > 0 ? `mac${usage.mac_limit}` : ''),
   (usage) => (usage.persist_mac ? 'sticky' : ''),
+  (usage) => (usage.storm_control ? `storm${usage.storm_control.percentage}` : ''),
+  (usage) => (usage.allow_dhcpd === undefined ? '' : usage.allow_dhcpd ? 'trusted' : 'untrusted'),
 ];
 
 /** The words that tell each port usage apart from the others of the list. */
@@ -179,10 +193,9 @@ function tellApart(names: string[], usages: MistPortUsage[]): string[] {
     if (name === '' || alike.length === 1) return name;
     const position = alike.indexOf(usages[index]);
     const settings = alike.map(settingsWords);
-    // The first words that all of them have say nothing: "access" when all are access ports
-    let shared = 0;
-    while (settings.every((words) => shared < words.length && words[shared] === settings[0][shared])) shared += 1;
-    return withWords(name, [...settings[position].slice(shared), ...distinctiveWords(alike)[position]]);
+    // A word that all of them have says nothing: "access" when all are access ports
+    const telling = settings[position].filter((word) => !settings.every((words) => words.includes(word)));
+    return withWords(name, [...telling, ...distinctiveWords(alike)[position]]);
   });
 }
 

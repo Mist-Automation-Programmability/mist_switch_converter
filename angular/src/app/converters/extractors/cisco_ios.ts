@@ -5,7 +5,7 @@
  * The commands the extractor understands are in the rule tables below, one line per
  * command. A command without a rule is reported as not converted.
  */
-import { Device, Duplex, newDevice, newPort, Port, SourceFile, Speed, Vlan, addOnce } from '../model';
+import { Device, Duplex, newDevice, newPort, Port, SourceFile, Speed, StormControl, Vlan, addOnce } from '../model';
 import { commandKey, Report } from '../report';
 import { readIndentedBlocks } from '../readers/indented_blocks';
 import { abbreviates, readIosCapture } from '../readers/ios_capture';
@@ -22,6 +22,14 @@ const LEGACY_VLANS = [1002, 1003, 1004, 1005];
 const GLOBAL_KEYWORDS = new Set(['aaa', 'crypto', 'ip', 'ipv6', 'logging', 'mac', 'ntp', 'router', 'snmp-server', 'spanning-tree', 'vlan']);
 const PORT_KEYWORDS = new Set(['access-session', 'authentication', 'auto', 'cdp', 'dot1x', 'ip', 'ipv6', 'lldp', 'logging', 'mls', 'power', 'service-policy', 'snmp', 'spanning-tree', 'storm-control', 'switchport', 'udld']);
 
+/** The kinds of traffic of "storm-control <traffic> level". Some switches say "unknown-unicast". */
+type StormTraffic = 'broadcast' | 'multicast' | 'unicast';
+const STORM_TRAFFIC: Array<[string, StormTraffic]> = [
+  ['broadcast', 'broadcast'],
+  ['multicast', 'multicast'],
+  ['unicast', 'unicast'],
+  ['unknown-unicast', 'unicast'],
+];
 const SPEEDS: Record<string, Speed> = { '10': '10m', '100': '100m', '1000': '1g', '2500': '2.5g', '5000': '5g', '10000': '10g', '25000': '25g', '40000': '40g', '100000': '100g' };
 
 /* ------------------------------------------------------------ what is read */
@@ -49,6 +57,9 @@ interface PortDraft {
   portSecurityMaximum?: number;
   periodicReauthentication: boolean;
   reauthenticationTimer?: number;
+  /** "storm-control <traffic> level ...": the level in percent, or undefined when it is in bits or packets per second. */
+  storm: Map<StormTraffic, number | undefined>;
+  stormShutdown: boolean;
   /** Commands of the port without a rule. They are reported when the port is converted. */
   unknown: Array<{ command: string; line: number }>;
 }
@@ -261,6 +272,23 @@ const portRules = new RuleTable<PortDraft>(
       draft.port.persistMac = true;
     }),
 
+    // Storm control and DHCP snooping
+    rule('storm-control action shutdown', (draft) => {
+      draft.stormShutdown = true;
+    }),
+    ignore('storm-control action trap'),
+    rule('storm-control <traffic> level <levels...>', (draft, m) => {
+      const traffic = STORM_TRAFFIC.find(([word]) => abbreviates(m.traffic.toLowerCase(), word, 1))?.[1];
+      // "level 10.00 5.00": the rising level, then the falling one. "level bps 10m", "level pps 500": not a percentage.
+      const [rising] = m.levels.split(' ');
+      if (traffic === undefined || !/^(\d+(\.\d+)?|bps|pps)$/i.test(rising)) return false;
+      draft.storm.set(traffic, /^\d/.test(rising) ? Number(rising) : undefined);
+      return undefined;
+    }),
+    rule('ip dhcp snooping trust', (draft) => {
+      draft.port.dhcpTrusted = true;
+    }),
+
     ignore(
       'exit',
       'switchport nonegotiate',
@@ -287,7 +315,6 @@ const portRules = new RuleTable<PortDraft>(
       'power inline port ...',
       'spanning-tree link-type ...',
       'spanning-tree bpduguard disable',
-      'ip dhcp snooping trust',
       'ip dhcp snooping limit ...',
       'ip arp inspection trust',
       'ip arp inspection limit ...',
@@ -430,7 +457,7 @@ function draftOf(context: Context, name: string, statement: Statement): PortDraf
     const port = newPort(read.name, read.kind);
     port.junosName = read.junosName;
     if (read.kind === 'lag' && read.number !== undefined) port.aeIndex = read.number - 1;
-    draft = { port, line: statement.line, switchport: true, removed: [], bpduGuard: false, dot1x: false, mab: false, portSecurity: false, periodicReauthentication: false, unknown: [] };
+    draft = { port, line: statement.line, switchport: true, removed: [], bpduGuard: false, dot1x: false, mab: false, portSecurity: false, periodicReauthentication: false, storm: new Map(), stormShutdown: false, unknown: [] };
     context.drafts.set(read.name, draft);
   }
   return draft;
@@ -768,6 +795,30 @@ function finishPort(context: Context, draft: PortDraft, knownVlans: number[]): v
   port.auth.macAuthOnly = draft.mab && !draft.dot1x;
   if (draft.periodicReauthentication) port.auth.reauthInterval = draft.reauthenticationTimer;
   if (draft.portSecurity) port.macLimit = draft.portSecurityMaximum ?? 1;
+  port.stormControl = stormControlOf(context, draft);
+}
+
+/**
+ * A Cisco switch has one level per kind of traffic. Mist has one level for the port and says
+ * which kinds of traffic it applies to: the highest level is kept, so that nothing that
+ * passed before is dropped.
+ */
+function stormControlOf(context: Context, draft: PortDraft): StormControl | undefined {
+  const note = (code: string, text: string): void => context.report.portNote('warning', code, text, draft.line, draft.port.name);
+  const levels = [...draft.storm.entries()].filter((entry): entry is [StormTraffic, number] => entry[1] !== undefined);
+  if (levels.length < draft.storm.size) note('storm-control-unit', 'Storm control with a level in bits or packets per second has no equivalent, Mist takes a percentage: left out');
+  if (levels.length === 0) return undefined;
+  const percentages = levels.map(([, level]) => Math.min(100, Math.max(Math.round(level), level > 0 ? 1 : 0)));
+  if (new Set(percentages).size > 1) note('storm-control-levels', 'Storm control has one level per kind of traffic and Mist has one for the port: the highest one is kept');
+  const limited = (traffic: StormTraffic): boolean => levels.some(([kind]) => kind === traffic);
+  return {
+    percentage: Math.max(...percentages),
+    broadcast: limited('broadcast'),
+    multicast: limited('multicast'),
+    registeredMulticast: limited('multicast'),
+    unknownUnicast: limited('unicast'),
+    shutdown: draft.stormShutdown,
+  };
 }
 
 /** The VLANs that a port names one by one: they exist on the switch even when nothing else in the file says so. */
@@ -851,6 +902,19 @@ export function extractCiscoIos(file: SourceFile, report: Report): Device {
   // DHCP snooping is enabled on the listed VLANs that the switch has.
   const snooping = expandVlanRanges(context.dhcpSnooping, [...context.vlans.keys()], false);
   for (const vlan of context.vlans.values()) vlan.dhcpSnooping = snooping === 'all' || snooping.includes(vlan.id);
+  // A link aggregation is trusted when the file says so on the aggregation or on one of its members.
+  for (const lag of device.ports.filter((port) => port.kind === 'lag')) {
+    if (device.ports.some((port) => port.lag?.name === lag.name && port.dhcpTrusted)) lag.dhcpTrusted = true;
+  }
+  // With DHCP snooping, a Cisco switch trusts a trunk only when the trunk says so. A Juniper switch trusts every trunk.
+  if (context.dhcpSnooping.length > 0) {
+    for (const port of device.ports) {
+      if (port.mode !== 'trunk' || port.lag || port.dhcpTrusted !== undefined) continue;
+      port.dhcpTrusted = false;
+      const line = context.drafts.get(port.name)?.line ?? 0;
+      report.portNote('warning', 'dhcp-untrusted-trunk', 'DHCP snooping: the trunk has no "ip dhcp snooping trust", DHCP servers are refused on it', line, port.name);
+    }
+  }
 
   device.vlans = [...context.vlans.values()];
   report.flush();

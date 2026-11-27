@@ -86,6 +86,7 @@ interface GigabitEthernet0/1
  switchport trunk native vlan 199
  switchport trunk allowed vlan 110,120,130,199
  switchport mode trunk
+ ip dhcp snooping trust
 !
 interface GigabitEthernet0/2
  description Spare uplink
