@@ -60,7 +60,7 @@ describe('convert()', () => {
     const result = convert([{ name: 'sw1.txt', text: CISCO }]);
 
     expect(result.diagnostics).toEqual([
-      { severity: 'warning', code: 'port-setting-not-converted', message: 'Not converted: "storm-control broadcast" on GigabitEthernet1/0/1 (line 10)', file: 'sw1.txt', lines: [10] },
+      { severity: 'warning', code: 'port-setting-not-converted', message: 'Not converted: "storm-control broadcast" on GigabitEthernet1/0/1', file: 'sw1.txt', lines: [10] },
       { severity: 'info', code: 'vlans', message: 'VLANs of the file: 10', file: 'sw1.txt' },
     ]);
   });

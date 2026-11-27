@@ -149,7 +149,7 @@ describe('Cisco IOS extractor', () => {
     expect(messages(report)).toEqual([
       'info interface-skipped: Interface GigabitEthernet0/0: management port, not converted',
       'warning routed-port: Interface GigabitEthernet1/0/2: routed port ("no switchport"), not converted',
-      'info not-converted: Not converted: "snmp-server community" (line 55)',
+      'info not-converted: Not converted: "snmp-server community"',
     ]);
     expect(JSON.stringify([device.system, device.vlans, report.diagnostics])).not.toContain('REDACTED');
   });
@@ -190,7 +190,7 @@ describe('Junos extractor', () => {
     expect(messages(report)).toEqual([
       'warning routed-port: Interface et-0/1/0: routed port (it has an address or tagged units of its own), not converted',
       'info interface-skipped: Interface vme: management port, not converted',
-      'info not-converted: Not converted: "snmp community" (line 22)',
+      'info not-converted: Not converted: "snmp community"',
     ]);
     expect(JSON.stringify([device.system, device.vlans, report.diagnostics])).not.toContain('REDACTED');
   });

@@ -24,6 +24,8 @@ export interface LogEntry {
   level: 'info' | 'warning' | 'error';
   file: string;
   message: string;
+  /** Lines of the file that the message is about. */
+  lines?: number[];
 }
 
 /** Status of one input file, as shown in the file list of the app. */
@@ -79,7 +81,7 @@ export async function convert(...inputs: Array<string | InputFile>): Promise<Con
     template: JSON.parse(JSON.stringify(result.template)) as MistTemplate,
     files: result.files.map((file) => ({ name: file.name, format: file.format, success_vlan: file.hasVlans, success_config: file.converted, error_message: file.message ?? '' })),
     ports: result.ports.map((port) => ({ file: port.file, hostname: port.hostname, source: port.name, usage: port.usage, description: port.description })),
-    logs: result.diagnostics.map((entry) => ({ level: entry.severity, file: entry.file, message: entry.message })),
+    logs: result.diagnostics.map((entry) => ({ level: entry.severity, file: entry.file, message: entry.message, ...(entry.lines ? { lines: entry.lines } : {}) })),
     errors: result.diagnostics.filter((entry) => entry.code === 'internal-error').map((entry) => entry.message),
   };
 }

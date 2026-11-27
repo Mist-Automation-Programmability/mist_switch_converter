@@ -2,7 +2,8 @@
  * What the converter tells the user: the diagnostics of a conversion.
  *
  * Messages that would repeat for every port or every line are collected and written
- * once, with the number of ports and the line numbers. The text of a command never
+ * once, with the number of ports. The lines a message is about are in its `lines`,
+ * not in its text: `linesText` writes them for a person. The text of a command never
  * goes into a message: only its first keywords do (see `commandKey`), because the
  * rest can hold a secret.
  */
@@ -16,7 +17,7 @@ interface Collected {
   ports: string[];
 }
 
-/** At most this many line numbers are listed in a message. */
+/** At most this many line numbers are written by `linesText`. */
 const MAX_LINES_LISTED = 8;
 
 export class Report {
@@ -66,7 +67,7 @@ export class Report {
       let where = '';
       if (entry.ports.length === 1) where = ` on ${entry.ports[0]}`;
       else if (entry.ports.length > 1) where = ` on ${entry.ports.length} ports, the first is ${entry.ports[0]}`;
-      this.add(entry.severity, entry.code, `${entry.text}${where} (${listLines(entry.lines)})`, entry.lines);
+      this.add(entry.severity, entry.code, `${entry.text}${where}`, entry.lines);
     }
     this.collected.clear();
   }
@@ -84,10 +85,11 @@ export class Report {
   }
 }
 
-function listLines(lines: number[]): string {
-  const shown = lines.slice(0, MAX_LINES_LISTED).join(', ');
+/** The lines of a diagnostic as text: "12", "12, 15", "1, 2, 3, 4, 5, 6, 7, 8 and 12 more". '' without lines. */
+export function linesText(lines: number[] | undefined): string {
+  if (!lines || lines.length === 0) return '';
   const more = lines.length > MAX_LINES_LISTED ? ` and ${lines.length - MAX_LINES_LISTED} more` : '';
-  return `${lines.length === 1 ? 'line' : 'lines'} ${shown}${more}`;
+  return `${lines.slice(0, MAX_LINES_LISTED).join(', ')}${more}`;
 }
 
 /**
