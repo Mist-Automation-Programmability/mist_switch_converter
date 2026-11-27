@@ -5,14 +5,14 @@
       "format": "Juniper",
       "success_vlan": true,
       "success_config": true,
-      "error_message": "Unknown error"
+      "error_message": ""
     },
     {
       "name": "sw-idf-1.txt",
       "format": "Cisco",
-      "success_vlan": false,
+      "success_vlan": true,
       "success_config": true,
-      "error_message": "Unable to parse the VLAN database"
+      "error_message": ""
     }
   ],
   "ports": [
@@ -27,8 +27,7 @@
     "sw-idf-1 TenGigabitEthernet1/1/1 = uplink"
   ],
   "problems": [
-    "warning: No VLAN database found in the file",
-    "error: Error when reading VLANs list from sw-idf-1.txt"
+    "warning: Port usage \"uplink\" has the name of a port usage that Mist defines itself: check it, or rename it, before importing the template"
   ],
   "errors": [],
   "template": {

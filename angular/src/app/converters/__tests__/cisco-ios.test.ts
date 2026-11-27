@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configuredPorts, convert, endpoints, ios, knownDefect, logsOf, portConfig, switchRule, usageFor, usageOfPort, vlanIds } from './support/harness';
+import { configuredPorts, convert, endpoints, ios, logsOf, missingNetworks, portConfig, switchRule, usageFor, usageOfPort, vlanIds } from './support/harness';
 
 const VLANS = { 1: 'default', 10: 'USERS', 20: 'VOICE', 30: 'PRINTERS', 99: 'MGMT' };
 
@@ -45,7 +45,7 @@ describe('Cisco IOS: reading a file', () => {
     expect(windows.template).toEqual(unix.template);
   });
 
-  knownDefect('A10', 'a file with a VLAN table is not flagged "No VLAN database found"', async () => {
+  it('a file with a VLAN table is not flagged "No VLAN database found" (A10)', async () => {
     const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport access vlan 10\n!', { vlans: VLANS }));
 
     expect(vlanIds(result)).toMatchObject({ users: 10 }); // the table was found and read...
@@ -62,7 +62,7 @@ describe('Cisco IOS: VLANs', () => {
   });
 
   it('writes network names in lower case with "_" in place of "-"', async () => {
-    const result = await convert(ios('interface GigabitEthernet1/0/1\n!', { vlans: { 40: 'Guest-WiFi' } }));
+    const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport access vlan 40\n!', { vlans: { 40: 'Guest-WiFi' } }));
 
     expect(vlanIds(result)).toEqual({ guest_wifi: 40 });
   });
@@ -87,7 +87,7 @@ describe('Cisco IOS: VLANs', () => {
     expect(result.template.networks['printers']).toEqual({ vlan_id: '30', subnet: null });
   });
 
-  it('keeps the first subnet of an SVI with a secondary address and warns about it', async () => {
+  it('keeps the primary subnet of an SVI with a secondary address and warns about it', async () => {
     const result = await convert(
       ios(
         `
@@ -100,8 +100,9 @@ describe('Cisco IOS: VLANs', () => {
       ),
     );
 
-    expect(result.template.networks['users'].subnet).toBe('10.2.10.0/24');
-    expect(logsOf(result, 'warning').join('\n')).toContain('VLAN 10 has multiple subnets');
+    // A running configuration prints the secondary addresses first.
+    expect(result.template.networks['users'].subnet).toBe('10.1.10.0/24');
+    expect(logsOf(result, 'warning').join('\n')).toContain('VLAN 10 has multiple subnets (10.1.10.0/24, 10.2.10.0/24)');
   });
 
   it('names a VLAN "vlan<id>" when only a port or an SVI mentions it', async () => {
@@ -151,7 +152,7 @@ describe('Cisco IOS: VLANs', () => {
     expect(result.template.networks).toEqual({ users_gateway: { vlan_id: '10', subnet: '10.1.10.0/24' } });
   });
 
-  knownDefect('A1', 'reads the VLANs that follow a port list wrapped over several lines', async () => {
+  it('reads the VLANs that follow a port list wrapped over several lines (A1)', async () => {
     const result = await convert(
       [
         'sw1#show vlan brief',
@@ -328,7 +329,22 @@ describe('Cisco IOS: VLANs', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('cameras');
   });
 
-  it.todo('removes the decoration of an SVI description ("*** Users ***") from the network name, which is "_users_" today');
+  it('removes the decoration of an SVI description ("*** Users ***") from the network name', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         switchport access vlan 60
+         switchport mode access
+        !
+        interface Vlan60
+         description *** Users / floor 2 ***
+         ip address 10.1.60.1 255.255.255.0
+        !
+      `),
+    );
+
+    expect(vlanIds(result)).toEqual({ users_floor_2: 60 });
+  });
 });
 
 describe('Cisco IOS: access ports', () => {
@@ -361,7 +377,7 @@ describe('Cisco IOS: access ports', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ mode: 'access', port_network: 'default' });
   });
 
-  knownDefect('A11', 'a port in VLAN 1 has a network even when the file has no VLAN table', async () => {
+  it('a port in VLAN 1 has a network even when the file has no VLAN table (A11)', async () => {
     const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport mode access\n!'));
 
     expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBeDefined();
@@ -565,12 +581,96 @@ describe('Cisco IOS: access ports', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1').voip_network).toBeUndefined();
   });
 
-  it.todo('converts "switchport port-security maximum <n>" into mac_limit');
+  it('converts port security into mac_limit: the given maximum, or 1 as on the switch', async () => {
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+         switchport mode access
+         switchport port-security maximum 3
+         switchport port-security
+        !
+        interface GigabitEthernet1/0/2
+         switchport access vlan 10
+         switchport mode access
+         switchport port-security
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').mac_limit).toBe(3);
+    expect(usageFor(result, 'GigabitEthernet1/0/2').mac_limit).toBe(1);
+  });
+
+  it('a maximum without "switchport port-security" limits nothing, as on the switch', async () => {
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+         switchport mode access
+         switchport port-security maximum 3
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').mac_limit).toBe(0);
+  });
+
   it.todo('converts "storm-control <type> level <n>" into storm_control');
-  it.todo('converts "authentication host-mode multi-auth" into allow_multiple_supplicants');
-  it.todo('converts "authentication timer reauthenticate <seconds>" into reauth_interval');
-  it.todo('converts "authentication event fail action authorize vlan <id>" into server_reject_network');
-  it.todo('converts "authentication event server dead action authorize vlan <id>" into server_fail_network');
+});
+
+describe('Cisco IOS: 802.1X options of a port', () => {
+  const DOT1X_VLANS = { 10: 'USERS', 40: 'QUARANTINE', 50: 'CRITICAL' };
+  const port = (...settings: string[]): string =>
+    ['interface GigabitEthernet1/0/1', ' switchport access vlan 10', ' switchport mode access', ' authentication port-control auto', ' dot1x pae authenticator', ...settings.map((setting) => ` ${setting}`), '!'].join('\n');
+
+  it('adds none of the optional settings to a port usage that does not need them', async () => {
+    const result = await convert(ios(port(), { vlans: DOT1X_VLANS }));
+
+    const usage = usageFor(result, 'GigabitEthernet1/0/1');
+    expect(usage.port_auth).toBe('dot1x');
+    expect(Object.keys(usage)).not.toEqual(expect.arrayContaining(['allow_multiple_supplicants']));
+    expect(usage).not.toHaveProperty('reauth_interval');
+    expect(usage).not.toHaveProperty('server_fail_network');
+    expect(usage).not.toHaveProperty('server_reject_network');
+  });
+
+  it('converts "authentication host-mode multi-auth" into allow_multiple_supplicants', async () => {
+    const result = await convert(ios(port('authentication host-mode multi-auth'), { vlans: DOT1X_VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').allow_multiple_supplicants).toBe(true);
+  });
+
+  it('converts "authentication timer reauthenticate <seconds>" into reauth_interval', async () => {
+    const result = await convert(ios(port('authentication periodic', 'authentication timer reauthenticate 7200'), { vlans: DOT1X_VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').reauth_interval).toBe(7200);
+  });
+
+  it('converts "authentication event fail action authorize vlan <id>" into server_reject_network', async () => {
+    const result = await convert(ios(port('authentication event fail action authorize vlan 40'), { vlans: DOT1X_VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').server_reject_network).toBe('quarantine');
+  });
+
+  it('converts "authentication event server dead action authorize vlan <id>" into server_fail_network', async () => {
+    const result = await convert(ios(port('authentication event server dead action authorize vlan 50'), { vlans: DOT1X_VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').server_fail_network).toBe('critical');
+  });
+
+  it('creates the network of a fail or server-dead VLAN that the VLAN list does not have', async () => {
+    const result = await convert(ios(port('authentication event fail action authorize vlan 41', 'authentication event server dead action authorize vlan 51'), { vlans: DOT1X_VLANS }));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ server_reject_network: 'vlan41', server_fail_network: 'vlan51' });
+    expect(missingNetworks(result)).toEqual([]);
+  });
 });
 
 describe('Cisco IOS: trunk ports', () => {
@@ -609,7 +709,7 @@ describe('Cisco IOS: trunk ports', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ mode: 'trunk', all_networks: true, networks: [] });
   });
 
-  knownDefect('A2', '"switchport trunk allowed vlan add" extends the list of allowed VLANs', async () => {
+  it('"switchport trunk allowed vlan add" extends the list of allowed VLANs (A2)', async () => {
     const result = await convert(
       ios(
         `
@@ -627,7 +727,7 @@ describe('Cisco IOS: trunk ports', () => {
     expect(vlanIds(result)).toEqual({ default: 1, users: 10, voice: 20, printers: 30, mgmt: 99 });
   });
 
-  knownDefect('A2', '"switchport trunk allowed vlan none" allows no VLAN and creates no network', async () => {
+  it('"switchport trunk allowed vlan none" allows no VLAN and creates no network (A2)', async () => {
     const result = await convert(
       ios(
         `
@@ -644,7 +744,7 @@ describe('Cisco IOS: trunk ports', () => {
     expect(Object.keys(result.template.networks)).not.toContain('vlannone');
   });
 
-  knownDefect('A8', 'a port in "switchport mode dynamic auto" gets a mode that Mist knows', async () => {
+  it('a port in "switchport mode dynamic auto" gets a mode that Mist knows (A8)', async () => {
     const result = await convert(ios('interface GigabitEthernet1/0/1\n switchport mode dynamic auto\n!'));
 
     expect(['access', 'trunk']).toContain(usageFor(result, 'GigabitEthernet1/0/1').mode);
@@ -708,6 +808,9 @@ describe('Cisco IOS: trunk ports', () => {
          switchport trunk allowed vlan 2-4094
          switchport mode trunk
         !
+        interface TenGigabitEthernet1/1/1
+         channel-group 1 mode active
+        !
         interface GigabitEthernet1/0/1
          switchport access vlan 20
          switchport mode access
@@ -740,7 +843,29 @@ describe('Cisco IOS: trunk ports', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1', 'sw2').networks).toEqual(['users', 'lab']);
   });
 
-  it.todo('reports routed ports ("no switchport") instead of converting them to access ports');
+  it('reports a routed port ("no switchport") and does not convert it', async () => {
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         description Link to the router
+         no switchport
+         ip address 10.0.0.1 255.255.255.252
+        !
+        interface GigabitEthernet1/0/2
+         switchport access vlan 10
+         switchport mode access
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(configuredPorts(result)).toEqual(['ge-0/0/1']);
+    expect(logsOf(result, 'warning')).toEqual(['Interface GigabitEthernet1/0/1: routed port ("no switchport"), not converted']);
+    // The subnet of a routed port is not the subnet of a VLAN.
+    expect(Object.values(result.template.networks).map((network) => network.subnet)).not.toContain('10.0.0.0/30');
+  });
 });
 
 describe('Cisco IOS: switch rule and port names', () => {
@@ -805,7 +930,7 @@ describe('Cisco IOS: switch rule and port names', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
   });
 
-  knownDefect('A7', 'the management port GigabitEthernet0/0 is not turned into port "ge-0/0/-1"', async () => {
+  it('the management port GigabitEthernet0/0 is not turned into port "ge-0/0/-1" (A7)', async () => {
     const result = await convert(
       ios(`
         interface GigabitEthernet0/0
@@ -820,7 +945,7 @@ describe('Cisco IOS: switch rule and port names', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
   });
 
-  knownDefect('A7', 'multigigabit and 100G port names are translated', async () => {
+  it('multigigabit and 100G port names are translated (A7)', async () => {
     const result = await convert(
       ios(`
         interface TwoGigabitEthernet1/0/1
@@ -835,7 +960,7 @@ describe('Cisco IOS: switch rule and port names', () => {
     expect(configuredPorts(result)).toEqual(['et-0/1/0', 'mge-0/0/0', 'mge-0/0/36']);
   });
 
-  knownDefect('A12', 'loopback interfaces are not turned into switch ports', async () => {
+  it('loopback interfaces are not turned into switch ports (A12)', async () => {
     const result = await convert(
       ios(`
         interface Loopback0
@@ -849,7 +974,7 @@ describe('Cisco IOS: switch rule and port names', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
   });
 
-  knownDefect('A9', 'interfaces that are not separated by "!" are converted one by one', async () => {
+  it('interfaces that are not separated by "!" are converted one by one (A9)', async () => {
     const result = await convert(
       ios(
         `
@@ -902,7 +1027,7 @@ describe('Cisco IOS: switch rule and port names', () => {
  * configured twice, blocks closed by "exit", abbreviated commands.
  */
 describe('Cisco IOS: configuration scripts', () => {
-  knownDefect('A18', '"interface range" configures every port of the range', async () => {
+  it('"interface range" configures every port of the range (A18)', async () => {
     const result = await convert(
       ios(
         `
@@ -918,7 +1043,7 @@ describe('Cisco IOS: configuration scripts', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/4', 'ge-0/0/5', 'ge-0/0/6', 'ge-0/0/7']);
   });
 
-  knownDefect('A19', 'an interface configured in two blocks keeps the settings of both blocks', async () => {
+  it('an interface configured in two blocks keeps the settings of both blocks (A19)', async () => {
     const result = await convert(
       ios(
         `
@@ -942,8 +1067,40 @@ describe('Cisco IOS: configuration scripts', () => {
     expect(usageOfPort(result, 'ge-0/0/0')).toMatchObject({ port_network: 'printers', poe_disabled: true });
   });
 
-  it.todo('reads abbreviated commands ("int gi1/0/1", "shut"): today such an interface is skipped without a warning');
-  it.todo('recognises a script that has no "!" line as a Cisco configuration');
+  it('reads abbreviated commands ("int gi1/0/1", "sw acc vl 10", "shut")', async () => {
+    const result = await convert(
+      ios(
+        `
+        int gi1/0/1
+         desc User port
+         sw acc vl 10
+         sw mo acc
+         shut
+        !
+        int te1/1/1
+         switchp mode trunk
+         switchp trunk allowed vlan 10,20
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(result.ports.map((port) => port.source)).toEqual(['GigabitEthernet1/0/1', 'TenGigabitEthernet1/1/1']);
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ mode: 'access', port_network: 'users', disabled: true });
+    expect(usageFor(result, 'TenGigabitEthernet1/1/1')).toMatchObject({ mode: 'trunk', networks: ['users', 'voice'] });
+    expect(portConfig(result, 'ge-0/0/0')).toMatchObject({ description: 'User port' });
+    expect(logsOf(result, 'warning', 'error')).toEqual([]);
+  });
+
+  it('recognises a script that has no "!" line as a Cisco configuration', async () => {
+    const script = ['hostname sw9', 'vlan 10', ' name USERS', 'interface GigabitEthernet1/0/1', ' switchport access vlan 10', ' switchport mode access', ''].join('\n');
+    const result = await convert({ name: 'script.txt', text: script });
+
+    expect(result.files[0]).toMatchObject({ format: 'Cisco', success_config: true, success_vlan: true });
+    expect(switchRule(result).name).toBe('sw9');
+    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('users');
+  });
 });
 
 describe('Cisco IOS: link aggregation', () => {
@@ -1019,13 +1176,13 @@ describe('Cisco IOS: system settings', () => {
     expect(result.template.ntp_servers).toEqual(['10.0.0.123', '10.0.1.123']);
   });
 
-  knownDefect('A5', 'reads every address of "ip name-server" when several are on one line', async () => {
+  it('reads every address of "ip name-server" when several are on one line (A5)', async () => {
     const result = await convert(ios('ip name-server 10.0.0.53 10.0.1.53'));
 
     expect(result.template.dns_servers).toEqual(['10.0.0.53', '10.0.1.53']);
   });
 
-  knownDefect('A6', 'reads the address of a DNS or NTP server reached through a VRF', async () => {
+  it('reads the address of a DNS or NTP server reached through a VRF (A6)', async () => {
     const result = await convert(
       ios(`
         ip name-server vrf Mgmt-vrf 10.0.0.53
@@ -1067,7 +1224,7 @@ describe('Cisco IOS: system settings', () => {
     expect(result.template.radius_config.auth_servers[0]).toMatchObject({ host: '10.0.0.80', secret: 'to_be_replaced' });
   });
 
-  knownDefect('A13', 'keeps a RADIUS server that uses the default ports', async () => {
+  it('keeps a RADIUS server that uses the default ports (A13)', async () => {
     const result = await convert(
       ios(`
         radius server ISE1
@@ -1106,7 +1263,7 @@ describe('Cisco IOS: system settings', () => {
     expect(result.template.dhcp_snooping).toEqual({ enabled: true, networks: ['users', 'voice', 'printers'] });
   });
 
-  knownDefect('A4', 'converts the "banner motd" text', async () => {
+  it('converts the "banner motd" text (A4)', async () => {
     const result = await convert(
       ios(`
         banner motd ^C
@@ -1134,7 +1291,48 @@ describe('Cisco IOS: system settings', () => {
     expect(JSON.stringify(result.template)).not.toContain('REDACTED');
   });
 
-  it.todo('reads "ip domain-name" (older syntax of "ip domain name")');
-  it.todo('reads "logging <address>" (older syntax of "logging host <address>")');
-  it.todo('reads "radius-server host" and "tacacs-server host" (older syntax)');
+  it('reads "ip domain-name" (older syntax of "ip domain name")', async () => {
+    const result = await convert(ios('ip domain-name example.net'));
+
+    expect(result.template.dns_suffix).toEqual(['example.net']);
+  });
+
+  it('reads "logging <address>" (older syntax of "logging host <address>") and no other "logging" command', async () => {
+    const result = await convert(
+      ios(`
+        logging buffered 16384
+        logging trap informational
+        logging 10.0.0.60
+        logging 10.0.0.61
+      `),
+    );
+
+    expect(endpoints(result.template.remote_syslog.servers)).toEqual(['10.0.0.60:514', '10.0.0.61:514']);
+  });
+
+  it('reads "radius-server host" (older syntax), whose ports are 1645 and 1646 unless it gives others', async () => {
+    const result = await convert(
+      ios(`
+        radius-server host 10.0.0.80 auth-port 1812 acct-port 1813 key 7 REDACTED
+        radius-server host 10.0.0.81
+      `),
+    );
+
+    expect(endpoints(result.template.radius_config.auth_servers)).toEqual(['10.0.0.80:1812', '10.0.0.81:1645']);
+    expect(endpoints(result.template.radius_config.acct_servers)).toEqual(['10.0.0.80:1813', '10.0.0.81:1646']);
+    expect(JSON.stringify(result.template)).not.toContain('REDACTED');
+  });
+
+  it('reads "tacacs-server host" (older syntax)', async () => {
+    const result = await convert(
+      ios(`
+        tacacs-server host 10.0.0.70 key 7 REDACTED
+        tacacs-server host 10.0.0.71 port 4949
+      `),
+    );
+
+    expect(result.template.switch_mgmt.tacacs.enabled).toBe(true);
+    expect(endpoints(result.template.switch_mgmt.tacacs.tacplus_servers)).toEqual(['10.0.0.70:49', '10.0.0.71:4949']);
+    expect(JSON.stringify(result.template)).not.toContain('REDACTED');
+  });
 });

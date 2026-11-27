@@ -5,7 +5,7 @@
       "format": "Juniper",
       "success_vlan": true,
       "success_config": true,
-      "error_message": "Unknown error"
+      "error_message": ""
     }
   ],
   "ports": [
@@ -14,11 +14,10 @@
     "ex2200-floor3 ge-0/0/2 = printer_3rd_floor",
     "ex2200-floor3 ge-0/0/3 = profile",
     "ex2200-floor3 ge-0/0/22 = ap_floor_3",
-    "ex2200-floor3 ge-0/1/0 = uplink_to_core",
-    "ex2200-floor3 vlan = profile"
+    "ex2200-floor3 ge-0/1/0 = uplink_to_core"
   ],
   "problems": [
-    "warning: Mutliple entries found profile 00010000-0000-4000-8000-000000000000: Desk 3.01,Desk 3.02"
+    "warning: Port usage \"desk\" is shared by ports with different descriptions and is named after the words they have in common: Desk 3.01,Desk 3.02"
   ],
   "errors": [],
   "template": {
@@ -29,8 +28,14 @@
     "dns_servers": [
       "10.0.0.53"
     ],
-    "dns_suffix": [],
+    "dns_suffix": [
+      "corp.example.com"
+    ],
     "networks": {
+      "default": {
+        "vlan_id": "1",
+        "subnet": null
+      },
       "mgmt": {
         "vlan_id": "199",
         "subnet": "10.3.199.0/24"
@@ -63,6 +68,7 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": true,
+        "voip_network": "floor3_voice",
         "port_network": "floor3_data",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -71,8 +77,8 @@
         "all_networks": false,
         "disable_autoneg": true,
         "disabled": false,
-        "duplex": "auto",
-        "speed": "auto",
+        "duplex": "full",
+        "speed": "100m",
         "enable_mac_auth": false,
         "enable_qos": false,
         "mac_auth_only": false,
@@ -99,6 +105,7 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": false,
+        "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -112,11 +119,14 @@
         "enable_qos": false,
         "mac_auth_only": false,
         "mac_limit": 0,
-        "mode": "access",
-        "networks": [],
+        "mode": "trunk",
+        "networks": [
+          "floor3_data",
+          "guest"
+        ],
         "poe_disabled": false,
         "stp_edge": false,
-        "port_network": "floor3_data",
+        "port_network": "mgmt",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -130,7 +140,7 @@
         "enable_qos": false,
         "mac_auth_only": false,
         "mac_limit": 0,
-        "mode": "access",
+        "mode": "trunk",
         "networks": [],
         "poe_disabled": false,
         "stp_edge": false,
@@ -157,8 +167,10 @@
     },
     "additional_config_cmds": [],
     "dhcp_snooping": {
-      "enabled": false,
-      "networks": []
+      "enabled": true,
+      "networks": [
+        "floor3_data"
+      ]
     },
     "remote_syslog": {
       "enabled": true,

@@ -6,7 +6,6 @@ export default defineConfig(({ mode }) => ({
   test: {
     environment: 'node',
     include: ['src/app/converters/**/*.test.ts'],
-    setupFiles: ['src/app/converters/__tests__/support/setup.ts'],
     // `vitest run --mode defects` (npm run test:defects) runs the known defects as
     // normal tests, so that each one fails with its real message.
     env: mode === 'defects' ? { SHOW_DEFECTS: '1' } : {},

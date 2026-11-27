@@ -5,25 +5,25 @@
       "format": "Juniper",
       "success_vlan": true,
       "success_config": true,
-      "error_message": "Unknown error"
+      "error_message": ""
     },
     {
       "name": "ex-bldg-b.txt",
       "format": "Juniper",
       "success_vlan": true,
       "success_config": true,
-      "error_message": "Unknown error"
+      "error_message": ""
     }
   ],
   "ports": [
     "ex-bldg-a ge-0/0/0 = user_port",
     "ex-bldg-a ge-0/0/1 = server",
-    "ex-bldg-b ge-0/0/0 = user_port-0003",
-    "ex-bldg-b ge-0/0/1 = server"
+    "ex-bldg-b ge-0/0/0 = user_port",
+    "ex-bldg-b ge-0/0/1 = server-0003"
   ],
   "problems": [
-    "warning: VLAN 10 has multiple names. Using the first one: \"users\"",
-    "warning: VLAN 10 has multiple subnets (10.10.10.0/24,10.20.10.0/24). Using the first one: \"10.10.10.0/24\""
+    "warning: VLAN 10 has multiple names (USERS, STAFF). Using the first one: \"users\"",
+    "warning: VLAN 10 has multiple subnets (10.10.10.0/24, 10.20.10.0/24). Using the first one: \"10.10.10.0/24\""
   ],
   "errors": [],
   "template": {
@@ -37,6 +37,10 @@
         "subnet": "10.10.10.0/24"
       },
       "servers": {
+        "vlan_id": "50",
+        "subnet": null
+      },
+      "servers-vl60": {
         "vlan_id": "60",
         "subnet": null
       }
@@ -78,7 +82,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "user_port-0003": {
+      "server-0003": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -92,7 +96,7 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": false,
-        "port_network": "staff",
+        "port_network": "servers-vl60",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       }
@@ -144,11 +148,11 @@
           "port_config": {
             "ge-0/0/0": {
               "description": "User port",
-              "usage": "user_port-0003"
+              "usage": "user_port"
             },
             "ge-0/0/1": {
               "description": "Server",
-              "usage": "server"
+              "usage": "server-0003"
             }
           },
           "match_name[0:9]": "ex-bldg-b"

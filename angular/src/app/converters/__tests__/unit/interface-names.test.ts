@@ -5,14 +5,16 @@ import { expandMember, expandMemberRange, readJunosInterface, wildcardMember } f
 describe('Cisco interface names', () => {
   it.each([
     ['GigabitEthernet1/0/1', 'GigabitEthernet1/0/1', 'ge-0/0/0'],
-    ['GigabitEthernet2/0/48', 'GigabitEthernet2/0/48', 'ge-1/0/47'],
+    ['GigabitEthernet1/0/48', 'GigabitEthernet1/0/48', 'ge-0/0/47'],
+    ['GigabitEthernet3/0/12', 'GigabitEthernet3/0/12', 'ge-2/0/11'],
     ['GigabitEthernet1/1/4', 'GigabitEthernet1/1/4', 'ge-0/1/3'],
     ['GigabitEthernet0/1', 'GigabitEthernet0/1', 'ge-0/0/0'],
+    ['FastEthernet0/1', 'FastEthernet0/1', 'fe-0/0/0'],
     ['FastEthernet0/24', 'FastEthernet0/24', 'fe-0/0/23'],
     ['TenGigabitEthernet1/1/1', 'TenGigabitEthernet1/1/1', 'mge-0/1/0'],
     ['TwoGigabitEthernet1/0/5', 'TwoGigabitEthernet1/0/5', 'mge-0/0/4'],
     ['TwentyFiveGigE1/1/1', 'TwentyFiveGigE1/1/1', 'et-0/1/0'],
-    ['FortyGigabitEthernet1/1/1', 'FortyGigabitEthernet1/1/1', 'et-0/1/0'],
+    ['FortyGigabitEthernet1/1/2', 'FortyGigabitEthernet1/1/2', 'et-0/1/1'],
     ['HundredGigE1/0/49', 'HundredGigE1/0/49', 'et-0/0/48'],
   ])('%s is a port, %s, at %s', (text, name, junosName) => {
     expect(readCiscoInterface(text)).toEqual({ name, kind: 'physical', junosName });

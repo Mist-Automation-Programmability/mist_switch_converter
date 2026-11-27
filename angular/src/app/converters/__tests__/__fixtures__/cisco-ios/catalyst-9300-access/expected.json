@@ -3,36 +3,32 @@
     {
       "name": "sw-access-01.txt",
       "format": "Cisco",
-      "success_vlan": false,
+      "success_vlan": true,
       "success_config": true,
-      "error_message": "Unable to parse the VLAN database"
+      "error_message": ""
     }
   ],
   "ports": [
     "sw-access-01 Port-channel1 = uplink_core",
-    "sw-access-01 GigabitEthernet0/0 = profile",
-    "sw-access-01 GigabitEthernet1/0/1 = user+phone_meeting_room",
-    "sw-access-01 GigabitEthernet1/0/2 = user+phone_meeting_room",
-    "sw-access-01 GigabitEthernet1/0/3 = user+phone_meeting_room",
-    "sw-access-01 GigabitEthernet1/0/4 = user+phone_meeting_room",
+    "sw-access-01 TenGigabitEthernet1/1/1 = uplink_core",
+    "sw-access-01 TenGigabitEthernet1/1/2 = uplink_core",
+    "sw-access-01 GigabitEthernet1/0/1 = user_phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/2 = user_phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/3 = user_phone_meeting_room",
+    "sw-access-01 GigabitEthernet1/0/4 = user_phone_meeting_room",
     "sw-access-01 GigabitEthernet1/0/5 = printer",
     "sw-access-01 GigabitEthernet1/0/6 = ap_floor1",
     "sw-access-01 GigabitEthernet1/0/7 = ap_floor2",
     "sw-access-01 GigabitEthernet1/0/8 = unused",
-    "sw-access-01 GigabitEthernet1/0/9 = profile-0008",
-    "sw-access-01 GigabitEthernet1/0/10 = profile-0008",
-    "sw-access-01 GigabitEthernet1/0/11 = profile-0009",
-    "sw-access-01 GigabitEthernet1/0/12 = profile-0008",
-    "sw-access-01 TenGigabitEthernet1/1/1 = uplink_core",
-    "sw-access-01 TenGigabitEthernet1/1/2 = uplink_core",
-    "sw-access-01 TenGigabitEthernet1/1/3 = profile-0008",
-    "sw-access-01 TenGigabitEthernet1/1/4 = profile-0008"
+    "sw-access-01 GigabitEthernet1/0/9 = profile",
+    "sw-access-01 GigabitEthernet1/0/10 = profile",
+    "sw-access-01 GigabitEthernet1/0/11 = profile-0008",
+    "sw-access-01 GigabitEthernet1/0/12 = profile",
+    "sw-access-01 TenGigabitEthernet1/1/3 = profile",
+    "sw-access-01 TenGigabitEthernet1/1/4 = profile"
   ],
   "problems": [
-    "warning: No VLAN database found in the file",
-    "error: Error when reading VLANs list from sw-access-01.txt",
-    "warning: Mutliple entries found profile 00010000-0000-4000-8000-000000000000: UPLINK-CORE,UPLINK-CORE-1,UPLINK-CORE-2",
-    "warning: Mutliple entries found profile 00030000-0000-4000-8000-000000000000: USER+PHONE,MEETING-ROOM"
+    "warning: Port usage \"user_phone_meeting_room\" is shared by ports with different descriptions and is named after the words they have in common: USER+PHONE,MEETING-ROOM"
   ],
   "errors": [],
   "template": {
@@ -42,7 +38,8 @@
       "10.0.1.123"
     ],
     "dns_servers": [
-      "10.0.0.53"
+      "10.0.0.53",
+      "10.0.1.53"
     ],
     "dns_suffix": [
       "corp.example.com"
@@ -52,25 +49,69 @@
         "vlan_id": "1",
         "subnet": null
       },
-      "vlan10": {
+      "users": {
         "vlan_id": "10",
         "subnet": null
       },
-      "vlan20": {
+      "voice": {
         "vlan_id": "20",
         "subnet": null
       },
-      "vlan30": {
+      "printers": {
         "vlan_id": "30",
         "subnet": null
       },
-      "vlan40": {
+      "guest_wifi": {
         "vlan_id": "40",
+        "subnet": null
+      },
+      "vlan50": {
+        "vlan_id": "50",
+        "subnet": null
+      },
+      "vlan60": {
+        "vlan_id": "60",
+        "subnet": null
+      },
+      "vlan70": {
+        "vlan_id": "70",
+        "subnet": null
+      },
+      "vlan80": {
+        "vlan_id": "80",
+        "subnet": null
+      },
+      "vlan90": {
+        "vlan_id": "90",
         "subnet": null
       },
       "mgmt": {
         "vlan_id": "99",
         "subnet": "10.99.0.0/24"
+      },
+      "vlan100": {
+        "vlan_id": "100",
+        "subnet": null
+      },
+      "vlan110": {
+        "vlan_id": "110",
+        "subnet": null
+      },
+      "vlan120": {
+        "vlan_id": "120",
+        "subnet": null
+      },
+      "vlan130": {
+        "vlan_id": "130",
+        "subnet": null
+      },
+      "vlan140": {
+        "vlan_id": "140",
+        "subnet": null
+      },
+      "vlan150": {
+        "vlan_id": "150",
+        "subnet": null
       },
       "vlan160": {
         "vlan_id": "160",
@@ -80,12 +121,8 @@
         "vlan_id": "170",
         "subnet": null
       },
-      "vlan999": {
+      "parking": {
         "vlan_id": "999",
-        "subnet": null
-      },
-      "vlanadd 150": {
-        "vlan_id": "add 150",
         "subnet": null
       }
     },
@@ -102,10 +139,10 @@
         "mac_limit": 0,
         "mode": "trunk",
         "networks": [
-          "vlan10",
-          "vlan20",
-          "vlan30",
-          "vlan40",
+          "users",
+          "voice",
+          "printers",
+          "guest_wifi",
           "mgmt"
         ],
         "poe_disabled": false,
@@ -113,25 +150,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile": {
-        "all_networks": false,
-        "disable_autoneg": false,
-        "disabled": true,
-        "duplex": "auto",
-        "speed": "auto",
-        "enable_mac_auth": false,
-        "enable_qos": false,
-        "mac_auth_only": false,
-        "mac_limit": 0,
-        "mode": "access",
-        "networks": [],
-        "poe_disabled": false,
-        "stp_edge": false,
-        "port_network": "default",
-        "persist_mac": false,
-        "bypass_auth_when_server_down": false
-      },
-      "user+phone_meeting_room": {
+      "user_phone_meeting_room": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -146,8 +165,8 @@
         "poe_disabled": false,
         "port_auth": "dot1x",
         "stp_edge": true,
-        "voip_network": "vlan20",
-        "port_network": "vlan10",
+        "voip_network": "voice",
+        "port_network": "users",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -165,7 +184,7 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": true,
-        "port_network": "vlan30",
+        "port_network": "printers",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -181,9 +200,9 @@
         "mac_limit": 0,
         "mode": "trunk",
         "networks": [
-          "vlan10",
-          "vlan20",
-          "vlan40",
+          "users",
+          "voice",
+          "guest_wifi",
           "mgmt"
         ],
         "poe_disabled": false,
@@ -204,7 +223,21 @@
         "mac_limit": 0,
         "mode": "trunk",
         "networks": [
-          "vlanadd 150",
+          "users",
+          "voice",
+          "printers",
+          "guest_wifi",
+          "vlan50",
+          "vlan60",
+          "vlan70",
+          "vlan80",
+          "vlan90",
+          "vlan100",
+          "vlan110",
+          "vlan120",
+          "vlan130",
+          "vlan140",
+          "vlan150",
           "vlan160",
           "vlan170"
         ],
@@ -228,11 +261,11 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": false,
-        "port_network": "vlan999",
+        "port_network": "parking",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile-0008": {
+      "profile": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -250,7 +283,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile-0009": {
+      "profile-0008": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -305,6 +338,7 @@
       "coa_port": 3799
     },
     "switch_mgmt": {
+      "cli_banner": "Authorized access only",
       "tacacs": {
         "enabled": true,
         "tacplus_servers": [
@@ -329,9 +363,9 @@
     "dhcp_snooping": {
       "enabled": true,
       "networks": [
-        "vlan10",
-        "vlan20",
-        "vlan30"
+        "users",
+        "voice",
+        "printers"
       ]
     },
     "remote_syslog": {
@@ -373,24 +407,21 @@
               "description": "UPLINK-CORE",
               "usage": "uplink_core"
             },
-            "ge-0/0/-1": {
-              "usage": "profile"
-            },
             "ge-0/0/0": {
               "description": "USER+PHONE",
-              "usage": "user+phone_meeting_room"
+              "usage": "user_phone_meeting_room"
             },
             "ge-0/0/1": {
               "description": "USER+PHONE",
-              "usage": "user+phone_meeting_room"
+              "usage": "user_phone_meeting_room"
             },
             "ge-0/0/2": {
               "description": "USER+PHONE",
-              "usage": "user+phone_meeting_room"
+              "usage": "user_phone_meeting_room"
             },
             "ge-0/0/3": {
               "description": "MEETING-ROOM",
-              "usage": "user+phone_meeting_room"
+              "usage": "user_phone_meeting_room"
             },
             "ge-0/0/4": {
               "description": "PRINTER",
@@ -409,22 +440,22 @@
               "usage": "unused"
             },
             "ge-0/0/8": {
-              "usage": "profile-0008"
+              "usage": "profile"
             },
             "ge-0/0/9": {
-              "usage": "profile-0008"
+              "usage": "profile"
             },
             "ge-0/0/10": {
-              "usage": "profile-0009"
+              "usage": "profile-0008"
             },
             "ge-0/0/11": {
-              "usage": "profile-0008"
+              "usage": "profile"
             },
             "mge-0/1/2": {
-              "usage": "profile-0008"
+              "usage": "profile"
             },
             "mge-0/1/3": {
-              "usage": "profile-0008"
+              "usage": "profile"
             }
           },
           "match_name[0:12]": "sw-access-01"

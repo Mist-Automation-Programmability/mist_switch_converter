@@ -105,8 +105,9 @@ export type LocalGolden = Golden & { broken_rules: Record<string, string[]> };
 /** Fields of a port usage. A field that is not listed is counted as "other". */
 const PORT_USAGE_FIELDS = [
   'all_networks', 'disable_autoneg', 'disabled', 'duplex', 'speed', 'enable_mac_auth', 'enable_qos', 'mac_auth_only', 'mac_limit',
-  'guest_network', 'mode', 'mtu', 'poe_disabled', 'port_auth', 'stp_edge', 'networks', 'rejected_network', 'port_network',
-  'voip_network', 'persist_mac', 'bypass_auth_when_server_down',
+  'guest_network', 'mode', 'mtu', 'poe_disabled', 'port_auth', 'stp_edge', 'networks', 'port_network',
+  'voip_network', 'persist_mac', 'bypass_auth_when_server_down', 'allow_multiple_supplicants', 'reauth_interval',
+  'server_fail_network', 'server_reject_network', 'bypass_auth_when_server_down_for_unkown_client',
 ];
 
 /** Parts of the template that hold settings and no name taken from the configurations. */
@@ -175,13 +176,6 @@ export function describeChanges(before: LocalGolden, after: LocalGolden): Counts
   return counts;
 }
 
-/** Where in the converter an exception was raised, without its message: "TypeError at parser_juniper.ts:412". */
-function exceptionOrigin(error: unknown): string {
-  const name = error instanceof Error ? error.name : typeof error;
-  const frame = error instanceof Error ? error.stack?.match(/converters\/(\w+\.ts):(\d+)/) : null;
-  return frame ? `${name} at ${frame[1]}:${frame[2]}` : name;
-}
-
 function tally(values: string[]): Counts {
   const counts: Counts = {};
   for (const value of values) count(counts, value);
@@ -233,11 +227,12 @@ export function summarize(index: number, localCase: LocalCase, result: Conversio
       radius_acct: template.radius_config.acct_servers.length,
       tacacs: template.switch_mgmt.tacacs.tacplus_servers.length,
       syslog: template.remote_syslog.servers.length,
-      ntp: (template.ntp_servers as unknown[]).length,
+      ntp: template.ntp_servers.length,
       dns: template.dns_servers.length,
     },
     log_entries: tally(result.logs.map((entry) => entry.level)),
-    exceptions: tally(result.errors.map(exceptionOrigin)),
+    // The message of a failure names its file, so only the number of failures is kept.
+    exceptions: tally(result.errors.map(() => 'failure of the converter')),
     broken_rules: Object.fromEntries(Object.entries(golden.broken_rules).map(([rule, violations]) => [rule, violations.length])),
   };
 }
