@@ -1,0 +1,166 @@
+/**
+ * The part of a Mist switch template (network template) that the converter writes.
+ * Field names are those of the Mist API.
+ */
+
+export interface MistTemplate {
+  name: string;
+  ntp_servers: string[];
+  dns_servers: string[];
+  dns_suffix: string[];
+  /** Networks (VLANs) by name. */
+  networks: Record<string, MistNetwork>;
+  /** Port usages (port profiles) by name. */
+  port_usages: Record<string, MistPortUsage>;
+  radius_config: {
+    acct_interim_interval: number;
+    acct_servers: MistRadiusServer[];
+    auth_servers: MistRadiusServer[];
+    auth_servers_retries: number;
+    auth_servers_timeout: number;
+    coa_enabled: boolean;
+    coa_port: number;
+  };
+  switch_mgmt: {
+    cli_banner?: string;
+    tacacs: {
+      enabled: boolean;
+      tacplus_servers: MistTacacsServer[];
+      acct_servers: MistTacacsServer[];
+    };
+  };
+  additional_config_cmds: string[];
+  dhcp_snooping: {
+    enabled: boolean;
+    networks: string[];
+  };
+  remote_syslog: {
+    enabled: boolean;
+    servers: MistSyslogServer[];
+  };
+  switch_matching: {
+    enabled: boolean;
+    rules: MistSwitchRule[];
+  };
+}
+
+export interface MistNetwork {
+  vlan_id: string;
+  subnet: string | null;
+}
+
+export interface MistPortUsage {
+  all_networks: boolean;
+  disable_autoneg: boolean;
+  disabled: boolean;
+  duplex: string;
+  speed: string;
+  enable_mac_auth: boolean;
+  enable_qos: boolean;
+  mac_auth_only: boolean;
+  mac_limit: number;
+  mode: 'access' | 'trunk';
+  mtu?: number;
+  /** Tagged networks of a trunk, by name. */
+  networks: string[];
+  poe_disabled: boolean;
+  port_auth?: 'dot1x';
+  stp_edge: boolean;
+  voip_network?: string;
+  /** Untagged network, by name. */
+  port_network?: string;
+  persist_mac: boolean;
+  guest_network?: string;
+  bypass_auth_when_server_down: boolean;
+  allow_multiple_supplicants?: boolean;
+  /** Seconds. */
+  reauth_interval?: number;
+  server_fail_network?: string;
+  server_reject_network?: string;
+  /** The Mist API spells it this way. */
+  bypass_auth_when_server_down_for_unkown_client?: boolean;
+}
+
+export interface MistRadiusServer {
+  port: string;
+  host: string;
+  secret: string;
+  timeout: number;
+}
+
+export interface MistTacacsServer {
+  host: string;
+  port: string;
+  secret: string;
+  timeout: number;
+}
+
+export interface MistSyslogServer {
+  host: string;
+  protocol: string;
+  port: string;
+  contents: Array<{ facility: string; severity: string }>;
+}
+
+export interface MistPortConfig {
+  /** On a link aggregation without LACP. */
+  ae_disable_lacp?: boolean;
+  ae_idx?: number;
+  aggregated?: boolean;
+  description?: string;
+  /** Name of a port usage. */
+  usage: string;
+}
+
+/**
+ * A rule gives its port configuration to the switches whose name starts with the
+ * hostname of the source device: `"match_name[0:5]": "sw-01"`.
+ */
+export type MistSwitchRule = {
+  name: string;
+  /** Ports by Junos name. A link aggregation is under the names of its ports, joined by a comma. */
+  port_config: Record<string, MistPortConfig>;
+} & { [match: `match_name[${string}]`]: string };
+
+/** Secrets are never copied from the source files. This is what the template has in their place. */
+export const SECRET_PLACEHOLDER = 'to_be_replaced';
+
+export function emptyTemplate(): MistTemplate {
+  return {
+    name: 'template_name',
+    ntp_servers: [],
+    dns_servers: [],
+    dns_suffix: [],
+    networks: {},
+    port_usages: {},
+    radius_config: {
+      acct_interim_interval: 0,
+      acct_servers: [],
+      auth_servers: [],
+      auth_servers_retries: 3,
+      auth_servers_timeout: 5,
+      coa_enabled: false,
+      coa_port: 3799,
+    },
+    switch_mgmt: {
+      tacacs: {
+        enabled: false,
+        tacplus_servers: [],
+        acct_servers: [],
+      },
+    },
+    additional_config_cmds: [],
+    dhcp_snooping: {
+      enabled: false,
+      networks: [],
+    },
+    remote_syslog: {
+      enabled: false,
+      servers: [],
+    },
+    switch_matching: {
+      enabled: false,
+      rules: [],
+    },
+  };
+}
