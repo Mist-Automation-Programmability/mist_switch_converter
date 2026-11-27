@@ -170,7 +170,7 @@ describe('Cisco IOS: VLANs', () => {
     expect(vlanIds(result)).toEqual({ default: 1, users: 10, voice: 20 });
   });
 
-  knownDefect('A14', 'reads the VLAN names of the running configuration ("vlan 10" followed by " name users")', async () => {
+  it('reads the VLAN names of the running configuration: "vlan 10" followed by " name users" (A14)', async () => {
     // A capture that only holds "show running-config" has no VLAN table: the names are in these blocks.
     const result = await convert(
       ios(`
@@ -190,8 +190,98 @@ describe('Cisco IOS: VLANs', () => {
       `),
     );
 
-    expect(vlanIds(result)).toMatchObject({ users: 10, voice: 20 });
+    expect(vlanIds(result)).toEqual({ users: 10, voice: 20, vlan30: 30, vlan40: 40, vlan41: 41 });
     expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ port_network: 'users', voip_network: 'voice' });
+    expect(result.files[0].success_vlan).toBe(true);
+  });
+
+  it('reads the other commands of a VLAN block without losing its name (A14)', async () => {
+    const result = await convert(
+      ios(`
+        vlan 10
+         name USERS
+         private-vlan primary
+        vlan 20
+         state active
+         name VOICE
+        vlan 1002
+         name legacy
+        !
+        vlan internal allocation policy ascending
+        !
+      `),
+    );
+
+    expect(vlanIds(result)).toEqual({ users: 10, voice: 20 });
+  });
+
+  it('gives one network to a VLAN that is in the VLAN table and in the running configuration (A14)', async () => {
+    const result = await convert(
+      ios(
+        `
+        vlan 10
+         name USERS
+        !
+        vlan 20
+         name Phones
+        !
+        `,
+        { vlans: { 10: 'USERS', 20: 'VOICE' } },
+      ),
+    );
+
+    // The table comes first in the capture, so its name is the one that is used.
+    expect(vlanIds(result)).toEqual({ users: 10, voice: 20 });
+  });
+
+  it('names a VLAN that is declared without name after the description of its SVI (A14)', async () => {
+    const result = await convert(
+      ios(`
+        vlan 10,20
+        !
+        interface Vlan10
+         description Users gateway
+         ip address 10.1.10.1 255.255.255.0
+        !
+      `),
+    );
+
+    expect(result.template.networks).toEqual({
+      users_gateway: { vlan_id: '10', subnet: '10.1.10.0/24' },
+      vlan20: { vlan_id: '20', subnet: null },
+    });
+  });
+
+  it('keeps a VLAN that is declared without name on the ports that use it (A14)', async () => {
+    const result = await convert(
+      ios(`
+        vlan 30
+        !
+        interface GigabitEthernet1/0/1
+         switchport access vlan 30
+         switchport mode access
+        !
+      `),
+    );
+
+    expect(vlanIds(result)).toEqual({ vlan30: 30 });
+    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('vlan30');
+  });
+
+  it('uses the name that another file gives to a VLAN declared without name (A14)', async () => {
+    const result = await convert(
+      { name: 'sw1.txt', text: ios('vlan 30\n!\ninterface GigabitEthernet1/0/1\n switchport access vlan 30\n!', { hostname: 'sw1' }) },
+      { name: 'sw2.txt', text: ios('vlan 30\n name PRINTERS\n!', { hostname: 'sw2' }) },
+    );
+
+    expect(vlanIds(result)).toEqual({ printers: 30 });
+    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('printers');
+  });
+
+  it('reads the VLAN names of a configuration script, where the commands are not indented (A14)', async () => {
+    const result = await convert(['configure terminal', '!', 'hostname sw1', 'vlan 10', 'name USERS', 'vlan 20', 'name VOICE', 'exit', '!', 'end', ''].join('\n'));
+
+    expect(vlanIds(result)).toEqual({ users: 10, voice: 20 });
   });
 
   it('keeps a VLAN that is only known from an SVI without description on the ports that use it (A15)', async () => {

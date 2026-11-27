@@ -29,9 +29,31 @@ export class IosParser {
             var current_line: string = "";
             var interface_vlan_id: string = "";
             var current: string | undefined = undefined;
+            // "vlan 10" or "vlan 30,40-41" in the running configuration, followed by " name <text>"
+            const re_vlan_block: RegExp = /^vlan (\d[\d,-]*)$/;
+            var vlan_block_ids: string[] = [];
+            var unnamed_vlan_ids: string[] = [];
             config_file.config.forEach((line: string) => {
 
                 current_line = line.replace(/^ +/g, "").replace("\r", "");
+
+                if (current == "vlan_block") {
+                    if (current_line.startsWith("name ")) {
+                        // a name belongs to a block that declares one VLAN
+                        if (vlan_block_ids.length == 1) {
+                            if (!this.config_data.vlans.hasOwnProperty(vlan_block_ids[0])) new_vlan_count += 1;
+                            this.add_vlan_name(current_line.replace("name ", "").trim(), vlan_block_ids[0], config_file.name);
+                            vlan_block_ids = [];
+                        }
+                        return;
+                    }
+                    // the other commands of the block are indented in a running configuration
+                    if (line.startsWith(" ")) return;
+                    // anything else ends the block, and may start something else below
+                    unnamed_vlan_ids = unnamed_vlan_ids.concat(vlan_block_ids);
+                    vlan_block_ids = [];
+                    current = undefined;
+                }
 
                 if (current == "vlan") {
                     if (current_line.match(/^\d/)) {
@@ -63,8 +85,20 @@ export class IosParser {
                     } else {
                         interface_vlan_id = "";
                     }
+                } else if (!line.startsWith(" ") && re_vlan_block.test(current_line)) {
+                    vlan_block_ids = this.expand_vlan_list(current_line.replace("vlan ", "")).filter((vlan_id: string) => !this.vlan_ids_to_exclude.includes(vlan_id));
+                    current = "vlan_block";
                 }
 
+            })
+            // A VLAN that is declared without a name exists on the switch. It is recorded without
+            // a name, so that a name found later (an SVI description, another file) is used.
+            unnamed_vlan_ids.concat(vlan_block_ids).forEach((vlan_id: string) => {
+                if (!this.config_data.vlans.hasOwnProperty(vlan_id)) {
+                    this._ios_logger.info("New VLANs " + vlan_id + " detected without name", config_file.name);
+                    this.config_data.vlans[vlan_id] = { "names": [], "subnets": [] };
+                    new_vlan_count += 1;
+                }
             })
             if (new_vlan_count > 0) {
                 this._ios_logger.info(new_vlan_count + " VLANs extracted from " + config_file.name, config_file.name);
@@ -74,6 +108,20 @@ export class IosParser {
                 resolve(false);
             }
         })
+    }
+
+    // "10,20,30-32" gives ["10", "20", "30", "31", "32"]
+    private expand_vlan_list(vlan_list: string): string[] {
+        var vlan_ids: string[] = [];
+        vlan_list.split(",").forEach((entry: string) => {
+            if (entry.match(/^\d+$/)) vlan_ids.push(entry);
+            else if (entry.match(/^\d+-\d+$/)) {
+                const start: number = Number(entry.split("-")[0]);
+                const end: number = Number(entry.split("-")[1]);
+                for (var vlan_id: number = start; vlan_id <= end && vlan_id <= 4094; vlan_id++) vlan_ids.push(vlan_id.toString());
+            }
+        })
+        return vlan_ids;
     }
 
     private parse_vlan_interface_subnet(interface_vlan_id: string, interface_line: string, filename: string): boolean {

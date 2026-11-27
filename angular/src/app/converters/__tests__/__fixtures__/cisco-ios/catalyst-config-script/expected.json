@@ -15,9 +15,7 @@
     "sw-floor1 Port-channel1 = uplink",
     "sw-floor1 Port-channel1 = profile"
   ],
-  "problems": [
-    "warning: VLAN 99 has doesn't have name. Generating one: \"vlan99\""
-  ],
+  "problems": [],
   "errors": [],
   "template": {
     "name": "template_name",
@@ -29,15 +27,19 @@
     ],
     "dns_suffix": [],
     "networks": {
-      "vlan10": {
+      "users": {
         "vlan_id": "10",
         "subnet": null
       },
-      "vlan30": {
+      "voice": {
+        "vlan_id": "20",
+        "subnet": null
+      },
+      "printers": {
         "vlan_id": "30",
         "subnet": null
       },
-      "vlan99": {
+      "mgmt": {
         "vlan_id": "99",
         "subnet": "10.0.99.0/24"
       }
@@ -57,7 +59,8 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": true,
-        "port_network": "vlan10",
+        "voip_network": "voice",
+        "port_network": "users",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -75,7 +78,7 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": false,
-        "port_network": "vlan30",
+        "port_network": "printers",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
