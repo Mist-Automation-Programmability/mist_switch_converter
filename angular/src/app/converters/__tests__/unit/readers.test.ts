@@ -174,6 +174,18 @@ describe('Reader: Junos set lines', () => {
     ).toEqual([['system', 'name-server', '10.0.0.53'], ['system', 'host-name', 'ex1']]);
   });
 
+  it('reads a list between brackets as one statement per value', () => {
+    expect(words(['set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members [ USERS VOICE ]', 'set apply-groups [ A B ]', 'set groups A system name-server 10.0.0.53'].join('\n'))).toEqual([
+      ['system', 'name-server', '10.0.0.53'],
+      ['interfaces', 'ge-0/0/1', 'unit', '0', 'family', 'ethernet-switching', 'vlan', 'members', 'USERS'],
+      ['interfaces', 'ge-0/0/1', 'unit', '0', 'family', 'ethernet-switching', 'vlan', 'members', 'VOICE'],
+    ]);
+  });
+
+  it('keeps brackets that are part of a quoted text', () => {
+    expect(words('set interfaces ge-0/0/1 description "[ uplink ]"')).toEqual([['interfaces', 'ge-0/0/1', 'description', '[ uplink ]']]);
+  });
+
   it('leaves a group statement with a wildcard as it is, for the extractor to report', () => {
     expect(words(['set groups PORTS interfaces <ge-*> mtu 9216', 'set apply-groups PORTS'].join('\n'))).toEqual([['groups', 'PORTS', 'interfaces', '<ge-*>', 'mtu', '9216']]);
   });

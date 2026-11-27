@@ -407,6 +407,9 @@ const globalRules = new RuleTable<Context>([
   rule('switch-options interface <port> persistent-learning', (context, m, statement) => {
     for (const draft of portsOf(context, m.port, statement)) draft.port.persistMac = true;
   }),
+  rule('ethernet-switching-options secure-access-port interface <port> persistent-learning', (context, m, statement) => {
+    for (const draft of portsOf(context, m.port, statement)) draft.port.persistMac = true;
+  }),
   rule('switch-options voip interface <port> vlan <vlan>', (context, m, statement) => {
     for (const draft of portsOf(context, m.port, statement)) draft.voiceVlan = m.vlan;
   }),
