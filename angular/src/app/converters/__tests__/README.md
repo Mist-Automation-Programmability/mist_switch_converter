@@ -93,7 +93,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | A11 | Cisco: a port in VLAN 1 has no network when the file has no VLAN table. |
 | A12 | Cisco: `Loopback0` becomes a switch port. |
 | A13 | Cisco: a `radius server` without explicit ports is dropped. |
-| A17 | Cisco: `AppGigabitEthernet1/0/1` (internal port of the Catalyst 9000) becomes port `ge-0/0/0` and replaces the configuration of `GigabitEthernet1/0/1`. |
 | A18 | Cisco: `interface range ...` (configuration script) creates one port named `range GigabitEthernet1/0/5 - 8`. |
 | A19 | Cisco: an interface configured in two blocks (configuration script) keeps the settings of the last block only. |
 | B1 | Junos: the ports of an interface range that have no statement of their own are not created. |
@@ -129,6 +128,7 @@ Their tests are normal tests now and keep the id in their name.
 | A14 | Cisco: the VLAN names of the running configuration (`vlan 10` followed by ` name users`) were not read. A file without `show vlan brief` got networks named `vlan10`. | The names are read, also in a configuration script. A VLAN declared without a name (`vlan 30,40-41`) becomes a network too, named after its SVI description when it has one, `vlan30` otherwise. |
 | A15 | Cisco: a VLAN that was only known from an `interface Vlan` with an address and no description was removed from the access and trunk ports that use it. | The ports keep it, under the name of its network (`vlan60`, or the description of the SVI). |
 | A16 | Cisco: a range in `switchport trunk allowed vlan` created one network per id, also for VLANs that the switch does not have. `1-4094` created 4094 networks. | `1-4094` is a trunk that allows all networks. A range wider than 100 ids keeps the VLANs that the file is known to have in it (VLAN table, `vlan` blocks, SVIs, VLANs that the ports name one by one). A shorter range still gives one network per id. |
+| A17 | Cisco: `AppGigabitEthernet1/0/1` (internal port of the Catalyst 9000) became port `ge-0/0/0` and replaced the configuration of `GigabitEthernet1/0/1`. | The application port is left out and named in the log. |
 | A20 | Cisco: the voice VLAN of a port was dropped when the file had no VLAN table. | The voice VLAN gets a network like the access VLAN does (`vlan20` when nothing names it). `dot1p`, `none` and `untagged` create no network. |
 | B3 | Junos: `disable` was not read, because the parser looked for the word `disabled`. | `set interfaces <port> disable` gives a disabled port, also when it is set on an interface range. |
 | C1 | RADIUS accounting servers were added to `auth_servers`, and `acct_servers` was always empty. | Accounting servers go to `acct_servers`, authentication servers to `auth_servers`. |

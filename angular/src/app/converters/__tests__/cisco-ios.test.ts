@@ -871,7 +871,7 @@ describe('Cisco IOS: switch rule and port names', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/2')).toMatchObject({ mode: 'trunk', all_networks: true });
   });
 
-  knownDefect('A17', 'the application port AppGigabitEthernet1/0/1 does not take the place of GigabitEthernet1/0/1', async () => {
+  it('leaves the application port AppGigabitEthernet1/0/1 out: it does not take the place of GigabitEthernet1/0/1 (A17)', async () => {
     // Catalyst 9000 switches list this internal port after the front panel ports.
     const result = await convert(
       ios(
@@ -890,6 +890,9 @@ describe('Cisco IOS: switch rule and port names', () => {
 
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
     expect(usageOfPort(result, 'ge-0/0/0')).toMatchObject({ port_network: 'printers' });
+    expect(result.ports.map((port) => port.source)).toEqual(['GigabitEthernet1/0/1']);
+    expect(Object.keys(result.template.port_usages)).toHaveLength(1);
+    expect(logsOf(result, 'info').join('\n')).toContain('AppGigabitEthernet1/0/1: internal application port, not converted');
   });
 });
 

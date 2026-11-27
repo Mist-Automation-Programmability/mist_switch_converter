@@ -470,7 +470,11 @@ export class IosParser {
                 }
             }
         })
-        if (interface_name != "undefined" && !interface_name.toLowerCase().startsWith("vlan") && !interface_name.toLowerCase().startsWith("gid") && !interface_name.toLowerCase().startsWith("bluetooth")) {
+        // AppGigabitEthernet is the internal port of a Catalyst 9000 towards its hosted applications.
+        // It has no connector, and its number (1/0/1) is also the number of the first front panel port.
+        if (interface_name.toLowerCase().startsWith("appgigabitethernet")) {
+            this._ios_logger.info("Interface " + interface_name + ": internal application port, not converted", this.filename);
+        } else if (interface_name != "undefined" && !interface_name.toLowerCase().startsWith("vlan") && !interface_name.toLowerCase().startsWith("gid") && !interface_name.toLowerCase().startsWith("bluetooth")) {
             if (speed != "auto" && duplex != "auto") {
                 disable_autoneg = true;
                 this._ios_logger.info("Interface " + interface_name + ": \"speed\" and/or \"duplex\". Disabling auto_neg", this.filename);

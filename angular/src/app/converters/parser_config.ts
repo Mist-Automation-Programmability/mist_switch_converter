@@ -356,8 +356,6 @@ export class ConfigData {
                 junos_interface_array.push('et-' + this.cisco_split(iname.replace("TwentyFiveGigE", "")));
             } else if (iname.startsWith("FortyGigabitEthernet")) {
                 junos_interface_array.push('et-' + this.cisco_split(iname.replace("FortyGigabitEthernet", "")));
-            } else if (iname.startsWith("AppGigabitEthernet")) {
-                junos_interface_array.push('ge-' + this.cisco_split(iname.replace("AppGigabitEthernet", "")));
             } else {
                 junos_interface_array.push(iname);
             }
