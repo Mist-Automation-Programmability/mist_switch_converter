@@ -94,7 +94,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | A12 | Cisco: `Loopback0` becomes a switch port. |
 | A13 | Cisco: a `radius server` without explicit ports is dropped. |
 | A14 | Cisco: the VLAN names of the running configuration (`vlan 10` followed by ` name users`) are not read. A file without `show vlan brief` gets networks named `vlan10`. |
-| A15 | Cisco: a VLAN that is only known from an `interface Vlan` with an address and no description is removed from the access and trunk ports that use it. |
 | A16 | Cisco: a range in `switchport trunk allowed vlan` creates one network per id, also for VLANs that the switch does not have. `1-4094` creates 4094 networks. |
 | A17 | Cisco: `AppGigabitEthernet1/0/1` (internal port of the Catalyst 9000) becomes port `ge-0/0/0` and replaces the configuration of `GigabitEthernet1/0/1`. |
 | A18 | Cisco: `interface range ...` (configuration script) creates one port named `range GigabitEthernet1/0/5 - 8`. |
@@ -130,6 +129,7 @@ Their tests are normal tests now and keep the id in their name.
 | Id | What was wrong | What the converter does now |
 | --- | --- | --- |
 | A3 | Cisco: every port was an STP edge port, with or without `spanning-tree portfast`. | A port is an edge port when it has `spanning-tree portfast` (also `edge`, `trunk`, `edge trunk`) or `spanning-tree bpduguard enable`. With the global `spanning-tree portfast [edge] default`, access ports are edge ports unless they have `spanning-tree portfast disable`. |
+| A15 | Cisco: a VLAN that was only known from an `interface Vlan` with an address and no description was removed from the access and trunk ports that use it. | The ports keep it, under the name of its network (`vlan60`, or the description of the SVI). |
 | B3 | Junos: `disable` was not read, because the parser looked for the word `disabled`. | `set interfaces <port> disable` gives a disabled port, also when it is set on an interface range. |
 | C1 | RADIUS accounting servers were added to `auth_servers`, and `acct_servers` was always empty. | Accounting servers go to `acct_servers`, authentication servers to `auth_servers`. |
 | C2 | RADIUS change of authorization was read from Junos (`dynamic-request-port`) but never written to the template. | `radius_config.coa_enabled` and `coa_port` follow the source. Reading it from Cisco is still a todo. |

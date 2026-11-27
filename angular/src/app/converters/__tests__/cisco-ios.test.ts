@@ -194,7 +194,7 @@ describe('Cisco IOS: VLANs', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ port_network: 'users', voip_network: 'voice' });
   });
 
-  knownDefect('A15', 'a VLAN that is only known from an SVI without description is kept on the ports that use it', async () => {
+  it('keeps a VLAN that is only known from an SVI without description on the ports that use it (A15)', async () => {
     const result = await convert(
       ios(
         `
@@ -218,6 +218,24 @@ describe('Cisco IOS: VLANs', () => {
     expect(vlanIds(result)).toEqual({ users: 10, vlan60: 60 });
     expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('vlan60');
     expect(usageFor(result, 'GigabitEthernet1/0/2')).toMatchObject({ port_network: 'vlan60', networks: ['users', 'vlan60'] });
+  });
+
+  it('uses the description of the SVI on the ports when the description comes after the address (A15)', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         switchport access vlan 60
+         switchport mode access
+        !
+        interface Vlan60
+         ip address 10.1.60.1 255.255.255.0
+         description Cameras
+        !
+      `),
+    );
+
+    expect(vlanIds(result)).toEqual({ cameras: 60 });
+    expect(usageFor(result, 'GigabitEthernet1/0/1').port_network).toBe('cameras');
   });
 
   it.todo('removes the decoration of an SVI description ("*** Users ***") from the network name, which is "_users_" today');
