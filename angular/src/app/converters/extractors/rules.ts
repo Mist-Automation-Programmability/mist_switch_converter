@@ -76,6 +76,34 @@ export interface RuleOptions<T> {
 
 export type Outcome = 'converted' | 'ignored' | 'unknown';
 
+/**
+ * Receives the outcome of every statement that a rule table reads, while `recordOutcomes`
+ * runs. The conversion uses it to tell, for each line of a file, whether it was converted.
+ */
+export type OutcomeRecorder = (line: number, outcome: Outcome) => void;
+
+let recorder: OutcomeRecorder | undefined;
+
+/**
+ * Runs `work` and gives `record` the outcome of every statement that a rule table reads
+ * meanwhile. The conversion is synchronous, so the recorder only sees the statements of `work`.
+ */
+export function recordOutcomes<R>(record: OutcomeRecorder, work: () => R): R {
+  const previous = recorder;
+  recorder = record;
+  try {
+    return work();
+  } finally {
+    recorder = previous;
+  }
+}
+
+/** A pattern of a table, and whether its commands are converted or ignored on purpose. */
+export interface RulePattern {
+  pattern: string;
+  converted: boolean;
+}
+
 export class RuleTable<T> {
   private readonly rules: Array<Rule<T>>;
   private readonly otherwise: Array<Rule<T>>;
@@ -95,6 +123,17 @@ export class RuleTable<T> {
 
   /** Runs the first rule that accepts the statement on `target`. */
   apply(target: T, statement: Statement): Outcome {
+    const outcome = this.run(target, statement);
+    recorder?.(statement.line, outcome);
+    return outcome;
+  }
+
+  /** The patterns of the table, "otherwise" rules last: what the help page lists as supported. */
+  patterns(): RulePattern[] {
+    return [...this.rules, ...this.otherwise].map((candidate) => ({ pattern: candidate.pattern, converted: candidate.handler !== undefined }));
+  }
+
+  private run(target: T, statement: Statement): Outcome {
     for (const { rule: candidate, captures } of this.candidates(statement.words)) {
       if (!candidate.handler) return 'ignored';
       if (candidate.handler(target, captures, statement) !== false) return 'converted';

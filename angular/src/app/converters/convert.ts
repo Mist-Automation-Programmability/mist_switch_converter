@@ -16,14 +16,21 @@ import { detectFormat } from './detect';
 import { extractArubaCx } from './extractors/aruba_cx';
 import { extractCiscoIos } from './extractors/cisco_ios';
 import { extractJunos } from './extractors/junos';
+import { recordOutcomes } from './extractors/rules';
 import { Device, Diagnostic, SourceFile, Vendor } from './model';
+import { numberedLines } from './readers/statement';
 import { Report } from './report';
+import { settingSections } from './sections';
 import { buildTemplate, ConvertedPort } from './template/build';
 import { MistTemplate } from './template/mist';
+import { Origin } from './template/origin';
+import { LineOutcome } from './trace';
 
 export type { ConvertedPort } from './template/build';
 export type { Diagnostic, Severity, SourceFile } from './model';
 export type { MistTemplate } from './template/mist';
+export type { Origin, OriginSource } from './template/origin';
+export type { LineOutcome } from './trace';
 
 export type FileFormat = 'Cisco' | 'Juniper' | 'Aruba' | 'Unknown';
 
@@ -39,6 +46,16 @@ export interface FileReport {
   hasVlans: boolean;
   /** Why the file is not converted, or what is missing from it. */
   message?: string;
+  /**
+   * What happened to each line of the file, the first line at index 0: converted, not
+   * needed in a Mist template, not converted, or nothing to read (blank, comment).
+   * Every line is 'none' in a file that is not converted.
+   */
+  outcomes: LineOutcome[];
+  /** How many lines have each outcome. */
+  counts: Record<LineOutcome, number>;
+  /** How many interfaces of the file are in the template. */
+  ports: number;
 }
 
 export interface Conversion {
@@ -49,6 +66,28 @@ export interface Conversion {
   ports: ConvertedPort[];
   /** What the user should know about the conversion: what was left out, what was guessed. */
   diagnostics: Diagnostic[];
+  /**
+   * Where each part of the template comes from (files, lines, ports) and, for the parts the
+   * converter names, why it has its name. One entry per network, port usage, switch rule,
+   * and per list of settings (`ntp_servers`, `radius_config`, `snmp_config`...).
+   */
+  origins: Origin[];
+}
+
+/** What a message is, for the user: the kinds by which the page sorts the log. */
+export type MessageKind =
+  | 'not-read' // a file that is not converted at all
+  | 'not-converted' // a command or a port that is not in the template
+  | 'check' // something to check before importing the template
+  | 'decision'; // what the converter chose, for information
+
+const NOT_READ = new Set(['unknown-format', 'internal-error']);
+const NOT_CONVERTED = new Set(['not-converted', 'port-setting-not-converted', 'routed-port', 'port-name', 'lag-without-member', 'port-twice']);
+
+export function messageKind(diagnostic: Diagnostic): MessageKind {
+  if (NOT_READ.has(diagnostic.code)) return 'not-read';
+  if (NOT_CONVERTED.has(diagnostic.code)) return 'not-converted';
+  return diagnostic.severity === 'info' ? 'decision' : 'check';
 }
 
 export interface ConvertOptions {
@@ -69,10 +108,21 @@ const NO_VLAN: Record<Vendor, string> = {
   'aruba-cx': 'Unable to retrieve the VLAN list',
 };
 
+function countOf(outcomes: LineOutcome[]): Record<LineOutcome, number> {
+  const counts: Record<LineOutcome, number> = { converted: 0, ignored: 0, 'not-converted': 0, none: 0 };
+  for (const outcome of outcomes) counts[outcome] += 1;
+  return counts;
+}
+
+function unread(text: string): LineOutcome[] {
+  return numberedLines(text).map((): LineOutcome => 'none');
+}
+
 export function convert(files: SourceFile[], options: ConvertOptions = {}): Conversion {
   const report = new Report();
   const reports: FileReport[] = [];
   const devices: Device[] = [];
+  const vendors = new Map<string, Vendor>();
 
   for (const file of files) {
     const fileReport = report.forFile(file.name);
@@ -80,14 +130,18 @@ export function convert(files: SourceFile[], options: ConvertOptions = {}): Conv
     if (detection.vendor === undefined) {
       const message = `${detection.reason ?? 'Unable to determine the type of file'}. Please check the format of the file ${file.name}`;
       fileReport.error('unknown-format', message);
-      reports.push({ name: file.name, format: 'Unknown', converted: false, hasVlans: false, message });
+      const outcomes = unread(file.text);
+      reports.push({ name: file.name, format: 'Unknown', converted: false, hasVlans: false, message, outcomes, counts: countOf(outcomes), ports: 0 });
       continue;
     }
-    const entry: FileReport = { name: file.name, format: FORMATS[detection.vendor], converted: false, hasVlans: false };
+    const entry: FileReport = { name: file.name, format: FORMATS[detection.vendor], converted: false, hasVlans: false, outcomes: [], counts: countOf([]), ports: 0 };
     reports.push(entry);
     try {
-      const device = EXTRACTORS[detection.vendor](file, fileReport);
+      const trace = fileReport.trace();
+      const extract = EXTRACTORS[detection.vendor];
+      const device = recordOutcomes((line, outcome) => trace.rule(line, outcome), () => extract(file, fileReport));
       devices.push(device);
+      vendors.set(file.name, detection.vendor);
       entry.converted = true;
       entry.hostname = device.hostname;
       const declared = device.vlans.filter((vlan) => vlan.declared).map((vlan) => vlan.id);
@@ -104,6 +158,37 @@ export function convert(files: SourceFile[], options: ConvertOptions = {}): Conv
     }
   }
 
-  const { template, ports } = buildTemplate(devices, report, options.copyClearTextSecrets === true);
-  return { template, files: reports, ports, diagnostics: report.diagnostics };
+  const { template, ports, origins } = buildTemplate(devices, report, options.copyClearTextSecrets === true);
+
+  // What happened to each line, once the template builder has said which ports it left out
+  files.forEach((file, index) => {
+    const entry = reports[index];
+    if (!entry.converted) {
+      entry.outcomes = unread(file.text);
+    } else {
+      entry.outcomes = report.forFile(file.name).trace().outcomes(file.text);
+      entry.ports = ports.filter((port) => port.file === file.name).length;
+    }
+    entry.counts = countOf(entry.outcomes);
+  });
+
+  // The lines of the settings of the switch, found by their keywords (see sections.ts)
+  for (const origin of origins) {
+    if (origin.sources.every((source) => source.lines.length > 0)) continue;
+    for (const source of origin.sources) {
+      if (source.lines.length > 0) continue;
+      const vendor = vendors.get(source.file);
+      const index = files.findIndex((file) => file.name === source.file);
+      if (vendor === undefined || index < 0) continue;
+      const sections = settingSections(vendor, files[index].text, reports[index].outcomes);
+      source.lines = [...sections.entries()].filter(([, path]) => path === origin.path).map(([line]) => line);
+    }
+  }
+
+  // Messages about SNMP are about its part of the template
+  for (const diagnostic of report.diagnostics) {
+    if (diagnostic.subject === undefined && (diagnostic.code.startsWith('snmp') || diagnostic.code === 'secrets-copied')) diagnostic.subject = 'snmp_config';
+  }
+
+  return { template, files: reports, ports, diagnostics: report.diagnostics, origins };
 }

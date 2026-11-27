@@ -115,7 +115,7 @@ describe('Cisco IOS extractor', () => {
 
   it('reads the device, its VLANs by id, and its servers', () => {
     expect(device).toMatchObject({ file: 'sw1.txt', vendor: 'cisco-ios', hostname: 'sw1' });
-    expect(device.vlans).toEqual([
+    expect(device.vlans.map(({ lines: _lines, ...vlan }) => vlan)).toEqual([
       { id: 10, name: 'USERS', alias: 'Users of the first floor', subnets: ['10.1.10.0/24', '10.1.11.0/24'], declared: true, dhcpSnooping: true },
       { id: 20, name: 'VOICE', subnets: [], declared: true, dhcpSnooping: true },
       { id: 30, name: 'PRINTERS', subnets: [], declared: true, dhcpSnooping: false },
@@ -172,7 +172,7 @@ describe('Junos extractor', () => {
 
   it('reads the device, its VLANs by id, and its servers', () => {
     expect(device).toMatchObject({ file: 'ex1.txt', vendor: 'junos', hostname: 'ex1' });
-    expect(device.vlans).toEqual([
+    expect(device.vlans.map(({ lines: _lines, ...vlan }) => vlan)).toEqual([
       { id: 10, name: 'USERS', subnets: ['10.1.10.0/24'], declared: true, dhcpSnooping: true },
       { id: 20, name: 'VOICE', subnets: [], declared: true, dhcpSnooping: false },
       { id: 30, name: 'PRINTERS', subnets: [], declared: true, dhcpSnooping: false },
@@ -288,7 +288,7 @@ describe('Aruba AOS-CX extractor', () => {
 
   it('reads the device, its VLANs by id, and its servers', () => {
     expect(device).toMatchObject({ file: 'cx1.txt', vendor: 'aruba-cx', hostname: 'cx1' });
-    expect(device.vlans).toEqual([
+    expect(device.vlans.map(({ lines: _lines, ...vlan }) => vlan)).toEqual([
       { id: 10, name: 'USERS', subnets: [], declared: true, dhcpSnooping: false },
       { id: 20, name: 'VOICE', subnets: [], declared: true, dhcpSnooping: false },
       { id: 30, name: 'PRINTERS', subnets: ['10.1.30.0/24'], declared: true, dhcpSnooping: false },

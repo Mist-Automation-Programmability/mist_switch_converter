@@ -111,3 +111,16 @@ describe('Command rules', () => {
     expect(() => rule('ip ... address', () => undefined)).toThrow('"..." can only end a pattern');
   });
 });
+
+describe('supported commands', () => {
+  it('lists, per platform, the commands that the rule tables convert', async () => {
+    const { supportedCommands } = await import('../../supported');
+    const platforms = supportedCommands();
+
+    expect(platforms.map((platform) => platform.name)).toEqual(['Cisco IOS and IOS-XE', 'Juniper Junos', 'Aruba AOS-CX']);
+    const cisco = platforms[0].places.find((place) => place.place === 'interface');
+    expect(cisco?.converted).toContain('switchport access vlan <id>');
+    expect(cisco?.ignored).toBeGreaterThan(0);
+    for (const platform of platforms) for (const place of platform.places) expect(place.converted.length + place.ignored).toBeGreaterThan(0);
+  });
+});

@@ -78,6 +78,8 @@ interface Entry {
   /** How many ports have this usage, and how many of them have a description. */
   ports: number;
   described: number;
+  /** Why the port usage has its name, for the user. */
+  naming: string;
 }
 
 /** A name with the characters that Mist accepts: lower case letters, digits and "_". */
@@ -199,6 +201,19 @@ function tellApart(names: string[], usages: MistPortUsage[]): string[] {
   });
 }
 
+/** Why a port usage has its name, in a sentence or two. */
+function namingOf(entry: Entry, given: boolean, toldApart: boolean, numbered: boolean): string {
+  const sentences: string[] = [];
+  if (!given) sentences.push(`Named after its settings: ${settingsWords(entry.usage).join(', ')}.`);
+  else if (entry.groups.length > 0) sentences.push(`Named after the interface range${entry.groups.length > 1 ? 's' : ''} of its ports: ${entry.groups.join(', ')}.`);
+  else if (entry.descriptions.length === 1) sentences.push(`Named after the description of its ports: "${entry.descriptions[0]}".`);
+  else sentences.push(`Named after the words that most descriptions of its ports share: "${commonWords(entry.descriptions)}".`);
+  if (given && entry.groups.length === 0 && entry.described < entry.ports) sentences.push(`${entry.described} of its ${entry.ports} ports have a description.`);
+  if (toldApart) sentences.push('Other port usages would have the same name: words for the settings that differ were added.');
+  if (numbered) sentences.push('Another port usage has the same name: a number was added.');
+  return sentences.join(' ');
+}
+
 /** The port usages of a template, in the order in which the ports need them. */
 export class PortUsages {
   private readonly entries = new Map<string, Entry>();
@@ -208,7 +223,7 @@ export class PortUsages {
     const key = JSON.stringify(usage);
     let entry = this.entries.get(key);
     if (!entry) {
-      entry = { key, usage, name: '', groups: [], descriptions: [], ports: 0, described: 0 };
+      entry = { key, usage, name: '', groups: [], descriptions: [], ports: 0, described: 0, naming: '' };
       this.entries.set(key, entry);
     }
     for (const group of port.groups) if (!entry.groups.includes(group)) entry.groups.push(group);
@@ -221,8 +236,9 @@ export class PortUsages {
   assignNames(report: Report): void {
     const entries = [...this.entries.values()];
     // The name that the interface ranges or the descriptions give, when they give one
+    const first = entries.map((entry) => (entry.groups.length > 0 ? usageName(entry.groups.join('_')) : nameFromDescriptions(entry)));
     const given = tellApart(
-      entries.map((entry) => (entry.groups.length > 0 ? usageName(entry.groups.join('_')) : nameFromDescriptions(entry))),
+      first,
       entries.map((entry) => entry.usage),
     );
     // The others are named after their settings
@@ -237,16 +253,23 @@ export class PortUsages {
       for (let number = index + 1; used.has(name); number++) name = `${wanted.substring(0, MAX_NAME - 4)}-${number.toString(16).padStart(4, '0')}`;
       used.add(name);
       entry.name = name;
+      entry.naming = namingOf(entry, given[index] !== '', given[index] !== first[index], name !== wanted);
+      const subject = `port_usages.${name}`;
 
       if (entry.groups.length === 0 && given[index] !== '' && entry.descriptions.length > 1) {
         const listed = entry.descriptions.slice(0, MAX_DESCRIPTIONS_LISTED).join(',');
         const more = entry.descriptions.length > MAX_DESCRIPTIONS_LISTED ? ` and ${entry.descriptions.length - MAX_DESCRIPTIONS_LISTED} more` : '';
-        report.warning('usage-name', `Port usage "${name}" is shared by ports with different descriptions and is named after the words they have in common: ${listed}${more}`);
+        report.warning('usage-name', `Port usage "${name}" is shared by ports with different descriptions and is named after the words they have in common: ${listed}${more}`, undefined, subject);
       }
       if (MIST_PORT_USAGES.includes(name)) {
-        report.warning('usage-name-reserved', `Port usage "${name}" has the name of a port usage that Mist defines itself: check it, or rename it, before importing the template`);
+        report.warning('usage-name-reserved', `Port usage "${name}" has the name of a port usage that Mist defines itself: check it, or rename it, before importing the template`, undefined, subject);
       }
     });
+  }
+
+  /** Why each port usage has its name, by name. Filled by `assignNames`. */
+  namings(): Map<string, string> {
+    return new Map([...this.entries.values()].map((entry) => [entry.name, entry.naming]));
   }
 
   /** The port usages by name. */

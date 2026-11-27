@@ -43,3 +43,8 @@ export function textAfter(statement: Statement, count: number): string {
 export function sourceLines(statement: Statement, depth = 0): string[] {
   return [' '.repeat(depth) + statement.text, ...statement.children.flatMap((child) => sourceLines(child, depth + 1))];
 }
+
+/** The line numbers of a statement and of the statements nested under it. */
+export function sourceLineNumbers(statement: Statement): number[] {
+  return [statement.line, ...statement.children.flatMap(sourceLineNumbers)];
+}

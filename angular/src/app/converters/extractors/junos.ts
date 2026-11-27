@@ -15,14 +15,14 @@
  * The statements the extractor understands are in the rule tables below. A statement
  * without a rule is reported as not converted.
  */
-import { addOnce, Device, newDevice, newPort, newSnmp, Port, SourceFile, Speed, StormControl, SyslogServer, TacacsServer, Vlan } from '../model';
+import { addOnce, Device, newDevice, newPort, newSnmp, Port, SourceFile, Speed, StormControl, SyslogServer, TacacsServer, Vlan, noteVlanLine } from '../model';
 import { Report } from '../report';
 import { readSetLines } from '../readers/set_lines';
 import { Statement } from '../readers/statement';
 import { addMissingLags, NOT_A_SWITCH_PORT, referencedVlans } from './common';
 import { expandMember, expandMemberRange, readJunosInterface, wildcardMember } from './junos_interfaces';
 import { junosSnmpRules } from './junos_snmp';
-import { ignore, rule, RuleTable } from './rules';
+import { ignore, rule, RulePattern, RuleTable } from './rules';
 import { expandVlanRanges, isVlanId, parseVlanList, subnetOf } from './values';
 
 const SPEEDS: Speed[] = ['auto', '10m', '100m', '1g', '2.5g', '5g', '10g', '25g', '40g', '100g'];
@@ -713,6 +713,7 @@ function finishPort(context: Context, draft: PortDraft): void {
   const port = draft.port;
   // In the order of the file
   port.lines = [...draft.source.entries()].sort(([a], [b]) => a - b).map(([, text]) => text);
+  port.lineNumbers = [...draft.source.keys()].sort((a, b) => a - b);
   const declared = [...context.vlans.values()].filter((vlan) => vlan.declared).map((vlan) => vlan.id);
   const resolve = (reference: string | undefined): number | undefined => {
     if (reference === undefined) return undefined;
@@ -804,6 +805,11 @@ export function extractJunos(file: SourceFile, report: Report): Device {
     vlan.name ??= words[1];
     context.vlanIds.set(words[1], vlan.id);
   }
+  // Every "set vlans <name> ..." line is about the VLAN of that name.
+  for (const { words, line } of statements) {
+    const id = words[0] === 'vlans' ? context.vlanIds.get(words[1]) : undefined;
+    if (id !== undefined) noteVlanLine(vlanOf(context, id), line);
+  }
 
   // Pass 2: the interfaces
   readInterfaces(context, statements.filter((statement) => statement.words[0] === 'interfaces'));
@@ -830,10 +836,12 @@ export function extractJunos(file: SourceFile, report: Report): Device {
     const reason = NOT_A_SWITCH_PORT[port.kind];
     if (reason !== undefined) {
       report.info('interface-skipped', `Interface ${port.name}: ${reason}, not converted`, [draft.line]);
+      report.linesAre([...draft.source.keys()], 'ignored');
       continue;
     }
     if (draft.routed && !draft.switching) {
       report.warning('routed-port', `Interface ${port.name}: routed port (it has an address or tagged units of its own), not converted`, [draft.line]);
+      report.linesAre([...draft.source.keys()], 'not-converted');
       continue;
     }
     finishPort(context, draft);
@@ -851,3 +859,11 @@ export function extractJunos(file: SourceFile, report: Report): Device {
   report.flush();
   return device;
 }
+
+/** The rule tables of this extractor, by the place of the configuration they read: for the help page. */
+export const JUNOS_RULES: ReadonlyArray<{ place: string; table: { patterns(): RulePattern[] } }> = [
+  { place: 'Global statements', table: globalRules },
+  { place: 'interfaces <port>', table: interfaceRules },
+  { place: 'protocols dot1x authenticator interface <port>', table: dot1xRules },
+  { place: 'snmp', table: junosSnmpRules },
+];

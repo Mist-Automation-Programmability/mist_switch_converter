@@ -13,7 +13,27 @@ result.template;     // the Mist template
 result.files;        // what happened to each file
 result.ports;        // every converted port, its port usage and its source lines
 result.diagnostics;  // what was left out or guessed, with file and line numbers
+result.origins;      // where each part of the template comes from, and why it has its name
 ```
+
+What the page shows of a conversion comes from these fields only:
+
+- `files[i].outcomes` says what happened to each line of a file: `converted`,
+  `ignored` (read, and not needed in a Mist template), `not-converted`, or `none` (blank
+  lines and comments). Rule tables give the outcome of each statement they read
+  (`recordOutcomes` in `extractors/rules.ts`, collected by `trace.ts`). An extractor or the
+  template builder overrules it with `report.linesAre(lines, outcome)` when what the
+  rules read did not reach the template, such as the lines of a routed port.
+- `origins` has one entry per network, port usage, switch rule, and per list of settings
+  (`ntp_servers`, `radius_config`, `snmp_config`...): its files, lines and ports, and for
+  the parts the converter names, a sentence that says why. Ports and VLANs know their
+  lines (`Port.lineNumbers`, `Vlan.lines`); the lines of the settings of the switch are
+  found by their first keywords in `sections.ts`.
+- `diagnostics[i].subject` is the part of the template a message is about, when there
+  is one, and `messageKind()` sorts messages for the user: file not read, not converted,
+  to check, decision.
+- `supportedCommands()` in `supported.ts` lists the patterns of the rule tables, for the
+  help page.
 
 ## Three stages
 

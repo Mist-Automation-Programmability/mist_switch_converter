@@ -5,15 +5,15 @@
  * The commands the extractor understands are in the rule tables below, one line per
  * command. A command without a rule is reported as not converted.
  */
-import { Device, Duplex, newDevice, newPort, newSnmp, Port, SourceFile, Speed, Vlan, addOnce } from '../model';
+import { Device, Duplex, newDevice, newPort, newSnmp, Port, SourceFile, Speed, Vlan, addOnce, noteVlanLine } from '../model';
 import { commandKey, Report } from '../report';
 import { readIndentedBlocks } from '../readers/indented_blocks';
 import { abbreviates, readIosCapture } from '../readers/ios_capture';
-import { sourceLines, Statement, textAfter } from '../readers/statement';
+import { sourceLineNumbers, sourceLines, Statement, textAfter } from '../readers/statement';
 import { expandCiscoInterfaceRange, readCiscoInterface } from './cisco_interfaces';
 import { CiscoSnmp, ciscoSnmpRules, finishCiscoSnmp, isStandardAccessList, newCiscoSnmp, readAccessListBlock, readAccessListEntry } from './cisco_snmp';
 import { addMissingLags, NOT_A_SWITCH_PORT, referencedVlans, stormControlOf, StormTraffic } from './common';
-import { ignore, rule, RuleTable } from './rules';
+import { ignore, rule, RulePattern, RuleTable } from './rules';
 import { expandVlanRanges, isIpAddress, isIpv4, isVlanId, parseVlanList, subnetOf, VlanRange } from './values';
 
 /** FDDI and Token Ring VLANs that every Catalyst has and that no port uses. */
@@ -374,12 +374,14 @@ const sviRules = new RuleTable<SviBlock>(
       const vlan = vlanOf(svi.context, svi.id);
       vlan.alias = textAfter(statement, 1);
       vlan.declared = true;
+      noteVlanLine(vlan, statement.line);
     }),
-    rule('ip address <address> <mask> ...', (svi, m) => {
+    rule('ip address <address> <mask> ...', (svi, m, statement) => {
       const subnet = subnetOf(`${m.address} ${m.mask}`);
       if (subnet === null) return false;
       const vlan = vlanOf(svi.context, svi.id);
       vlan.declared = true;
+      noteVlanLine(vlan, statement.line);
       // A running configuration lists the secondary addresses before the primary one.
       if (m.rest.toLowerCase().startsWith('secondary')) addOnce(vlan.subnets, subnet);
       else if (!vlan.subnets.includes(subnet)) vlan.subnets.unshift(subnet);
@@ -478,11 +480,14 @@ function readInterface(context: Context, name: string, statement: Statement): vo
     if (read.number === undefined || LEGACY_VLANS.includes(read.number) || !isVlanId(String(read.number))) return;
     addOnce(context.sviVlans, read.number);
     readBlock(context, sviRules, { id: read.number, context }, statement);
+    const vlan = context.vlans.get(read.number);
+    if (vlan?.lines) noteVlanLine(vlan, statement.line);
     return;
   }
   const draft = draftOf(context, name, statement);
   if (!draft) return;
   draft.port.lines.push(...sourceLines(statement));
+  draft.port.lineNumbers.push(...sourceLineNumbers(statement));
   // The commands of an interface that is not a switch port have no place in a port usage.
   if (read.kind !== 'physical' && read.kind !== 'lag') return;
   for (const child of statement.children) {
@@ -562,6 +567,9 @@ const globalRules = new RuleTable<Context>(
       if (!ranges) return false;
       const ids = ranges.flatMap((range) => Array.from({ length: range.to - range.from + 1 }, (_unused, index) => range.from + index)).filter((id) => !LEGACY_VLANS.includes(id));
       ids.forEach((id) => (vlanOf(context, id).declared = true));
+      // The lines of a block that declares one VLAN are about that VLAN.
+      const lines = ids.length === 1 ? sourceLineNumbers(statement) : [statement.line];
+      ids.forEach((id) => lines.forEach((line) => noteVlanLine(vlanOf(context, id), line)));
       readBlock(context, vlanBlockRules, { ids, context }, statement);
       return undefined;
     }),
@@ -840,6 +848,8 @@ export function extractCiscoIos(file: SourceFile, report: Report): Device {
     const vlan = vlanOf(context, row.id);
     vlan.declared = true;
     vlan.name ??= row.name;
+    noteVlanLine(vlan, row.line);
+    report.linesAre([row.line], 'converted');
   }
 
   for (const statement of foldScriptBlocks(readIndentedBlocks(capture.config))) {
@@ -864,15 +874,18 @@ export function extractCiscoIos(file: SourceFile, report: Report): Device {
     const reason = NOT_A_SWITCH_PORT[port.kind];
     if (reason !== undefined) {
       report.info('interface-skipped', `Interface ${port.name}: ${reason}, not converted`, [draft.line]);
+      report.linesAre(port.lineNumbers, 'ignored');
       continue;
     }
     finishPort(context, draft, known);
     if (port.mode === 'routed') {
       report.warning('routed-port', `Interface ${port.name}: routed port ("no switchport"), not converted`, [draft.line]);
+      report.linesAre(port.lineNumbers, 'not-converted');
       continue;
     }
     if (port.kind === 'physical' && port.junosName === undefined) {
       report.warning('port-name', `Interface ${port.name}: the position of the port cannot be translated, not converted`, [draft.line]);
+      report.linesAre(port.lineNumbers, 'not-converted');
       continue;
     }
     ports.push(port);
@@ -909,3 +922,15 @@ export function extractCiscoIos(file: SourceFile, report: Report): Device {
   report.flush();
   return device;
 }
+
+/** The rule tables of this extractor, by the place of the configuration they read: for the help page. */
+export const CISCO_IOS_RULES: ReadonlyArray<{ place: string; table: { patterns(): RulePattern[] } }> = [
+  { place: 'Global commands', table: globalRules },
+  { place: 'interface', table: portRules },
+  { place: 'vlan', table: vlanBlockRules },
+  { place: 'interface Vlan', table: sviRules },
+  { place: 'radius server', table: radiusServerRules },
+  { place: 'tacacs server', table: tacacsServerRules },
+  { place: 'aaa server radius dynamic-author', table: dynamicAuthorRules },
+  { place: 'snmp-server', table: ciscoSnmpRules },
+];

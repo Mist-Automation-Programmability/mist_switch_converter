@@ -10,6 +10,7 @@ import { Report } from '../report';
 import { emptyTemplate, MistPortConfig, MistSwitchRule, MistTemplate, SECRET_PLACEHOLDER } from './mist';
 import { buildSnmp } from './snmp';
 import { buildNetworks, Networks } from './networks';
+import { Origin, OriginSource } from './origin';
 import { PortUsages, portUsageOf } from './port_usages';
 
 /** A port of a source file and what the template gives it. */
@@ -26,11 +27,18 @@ export interface ConvertedPort {
   description: string;
   /** The lines of the source file that configure the port. */
   lines: string[];
+  /** The numbers of those lines (1-based). */
+  lineNumbers: number[];
 }
 
 export interface BuiltTemplate {
   template: MistTemplate;
   ports: ConvertedPort[];
+  /**
+   * Where the parts of the template come from. The parts that are lists of settings
+   * (servers, SNMP) only name their files here: their lines are found by the conversion.
+   */
+  origins: Origin[];
 }
 
 /** The name of a file without its directory and its extension. */
@@ -45,8 +53,10 @@ interface Rule {
   taken: Map<string, string>;
 }
 
-function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsages, report: Report): { rules: MistSwitchRule[]; ports: ConvertedPort[] } {
+function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsages, report: Report): { rules: MistSwitchRule[]; ports: ConvertedPort[]; origins: Origin[] } {
   const rules = new Map<string, Rule>();
+  /** Why each switch rule has its name, and the files it comes from. */
+  const ruleOrigins = new Map<string, Origin>();
   const ports: ConvertedPort[] = [];
   /** Ports whose usage gets its name once every port is known. */
   const pending: Array<{ usage: { readonly name: string }; apply: (name: string) => void }> = [];
@@ -56,11 +66,19 @@ function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsa
     let hostname = device.hostname;
     if (!hostname) {
       hostname = baseName(device.file);
-      fileReport.warning('no-hostname', `No hostname in the file: its switch rule is named after the file, "${hostname}"`);
+      fileReport.warning('no-hostname', `No hostname in the file: its switch rule is named after the file, "${hostname}"`, undefined, `switch_matching.rules.${hostname}`);
     }
+    let origin = ruleOrigins.get(hostname);
+    if (!origin) {
+      origin = { path: `switch_matching.rules.${hostname}`, sources: [], naming: device.hostname ? `Named after the hostname of ${device.file}. The rule applies to the switches whose name starts with "${hostname}".` : `${device.file} has no hostname: named after the file. The rule applies to the switches whose name starts with "${hostname}".` };
+      ruleOrigins.set(hostname, origin);
+    }
+    const ruleSource: OriginSource = { file: device.file, lines: [], ports: [] };
+    origin.sources.push(ruleSource);
     let entry = rules.get(hostname);
     if (entry) {
-      fileReport.warning('same-hostname', `Another file has the hostname "${hostname}": the ports of both files are in one switch rule, and a port that both files configure keeps the settings of the first file`);
+      fileReport.warning('same-hostname', `Another file has the hostname "${hostname}": the ports of both files are in one switch rule, and a port that both files configure keeps the settings of the first file`, undefined, `switch_matching.rules.${hostname}`);
+      origin.naming = `${origin.naming} Several files have this hostname: their ports are in this one rule.`;
     } else {
       entry = { rule: { name: hostname, port_config: {}, [`match_name[0:${hostname.length}]`]: hostname } as MistSwitchRule, taken: new Map() };
       rules.set(hostname, entry);
@@ -68,8 +86,10 @@ function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsa
     const { rule, taken } = entry;
 
     const record = (port: Port, usage: { readonly name: string }): void => {
-      const converted: ConvertedPort = { file: device.file, hostname: rule.name, name: port.name, junosName: port.junosName, usage: '', description: port.description ?? '', lines: port.lines };
+      const converted: ConvertedPort = { file: device.file, hostname: rule.name, name: port.name, junosName: port.junosName, usage: '', description: port.description ?? '', lines: port.lines, lineNumbers: port.lineNumbers };
       ports.push(converted);
+      ruleSource.ports?.push(port.name);
+      ruleSource.lines.push(...port.lineNumbers);
       pending.push({ usage, apply: (name) => (converted.usage = name) });
     };
     /** True when the rule can still configure these ports. */
@@ -77,6 +97,7 @@ function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsa
       const clash = names.find((name) => taken.has(name));
       if (clash === undefined) return true;
       fileReport.warning('port-twice', `Interface ${port.name}: the port ${clash} already has the settings of ${taken.get(clash)}, left out`);
+      fileReport.linesAre(port.lineNumbers, 'not-converted');
       return false;
     };
 
@@ -85,7 +106,10 @@ function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsa
       const members = port.kind === 'lag' ? device.ports.filter((member) => member.lag?.name === port.name && member.junosName !== undefined) : [];
       const names = port.kind === 'lag' ? members.map((member) => member.junosName as string) : port.junosName === undefined ? [] : [port.junosName];
       if (names.length === 0) {
-        if (port.kind === 'lag') fileReport.warning('lag-without-member', `${port.name} has no member port in the file: not converted`);
+        if (port.kind === 'lag') {
+          fileReport.warning('lag-without-member', `${port.name} has no member port in the file: not converted`);
+          fileReport.linesAre(port.lineNumbers, 'not-converted');
+        }
         continue;
       }
       if (!free(port, names)) continue;
@@ -108,8 +132,40 @@ function buildSwitchRules(devices: Device[], networks: Networks, usages: PortUsa
 
   usages.assignNames(report);
   pending.forEach(({ usage, apply }) => apply(usage.name));
-  return { rules: [...rules.values()].map((entry) => entry.rule), ports };
+
+  // The ports of each port usage, file by file
+  const namings = usages.namings();
+  const usageOrigins = new Map<string, Origin>();
+  for (const port of ports) {
+    let origin = usageOrigins.get(port.usage);
+    if (!origin) {
+      origin = { path: `port_usages.${port.usage}`, sources: [], naming: namings.get(port.usage) };
+      usageOrigins.set(port.usage, origin);
+    }
+    let source = origin.sources.find((candidate) => candidate.file === port.file);
+    if (!source) {
+      source = { file: port.file, lines: [], ports: [] };
+      origin.sources.push(source);
+    }
+    source.ports?.push(port.name);
+    source.lines.push(...port.lineNumbers);
+  }
+  const origins = [...usageOrigins.values(), ...ruleOrigins.values()];
+  for (const origin of origins) for (const source of origin.sources) source.lines = [...new Set(source.lines)].sort((a, b) => a - b);
+  return { rules: [...rules.values()].map((entry) => entry.rule), ports, origins };
 }
+
+/** The parts of the template that are lists of settings, and the devices that give them something. */
+const SYSTEM_PARTS: Array<{ path: string; gives: (device: Device) => boolean }> = [
+  { path: 'ntp_servers', gives: (device) => device.system.ntpServers.length > 0 },
+  { path: 'dns_servers', gives: (device) => device.system.dnsServers.length > 0 },
+  { path: 'dns_suffix', gives: (device) => device.system.dnsSuffixes.length > 0 },
+  { path: 'radius_config', gives: (device) => device.system.radius.auth.length + device.system.radius.acct.length > 0 || device.system.radius.coaPort !== undefined },
+  { path: 'switch_mgmt', gives: (device) => device.system.tacacs.auth.length + device.system.tacacs.acct.length > 0 || device.system.banner !== undefined },
+  { path: 'remote_syslog', gives: (device) => device.system.syslogServers.length > 0 },
+  { path: 'snmp_config', gives: (device) => device.system.snmp !== undefined },
+  { path: 'dhcp_snooping', gives: (device) => device.vlans.some((vlan) => vlan.dhcpSnooping) },
+];
 
 /** Adds the servers of a device to a list of the template, each server once. */
 function addServers<S, T>(target: T[], servers: S[], keyOf: (server: S) => string, seen: Set<string>, convert: (server: S) => T): void {
@@ -127,7 +183,7 @@ export function buildTemplate(devices: Device[], report: Report, copyClearTextSe
   template.networks = networks.byName;
 
   const usages = new PortUsages();
-  const { rules, ports } = buildSwitchRules(devices, networks, usages, report);
+  const { rules, ports, origins: portOrigins } = buildSwitchRules(devices, networks, usages, report);
   template.port_usages = usages.byName();
   template.switch_matching = { enabled: rules.length > 0, rules };
 
@@ -164,7 +220,7 @@ export function buildTemplate(devices: Device[], report: Report, copyClearTextSe
   if (banners.length > 0) {
     template.switch_mgmt = { cli_banner: banners[0].banner, tacacs: template.switch_mgmt.tacacs };
     if (banners.some((entry) => entry.banner !== banners[0].banner)) {
-      report.info('banners', `The files have different login banners: the template has the banner of ${banners[0].file}`);
+      report.info('banners', `The files have different login banners: the template has the banner of ${banners[0].file}`, undefined, 'switch_mgmt');
     }
   }
 
@@ -175,6 +231,8 @@ export function buildTemplate(devices: Device[], report: Report, copyClearTextSe
   const snooped = new Set(devices.flatMap((device) => device.vlans.filter((vlan) => vlan.dhcpSnooping).map((vlan) => vlan.id)));
   template.dhcp_snooping = { enabled: snooped.size > 0, networks: [...snooped].sort((a, b) => a - b).map(networks.nameOf) };
 
+  const systemOrigins: Origin[] = SYSTEM_PARTS.map(({ path, gives }) => ({ path, sources: devices.filter(gives).map((device) => ({ file: device.file, lines: [] })) })).filter((origin) => origin.sources.length > 0);
+
   report.flush();
-  return { template, ports };
+  return { template, ports, origins: [...networks.origins, ...portOrigins, ...systemOrigins] };
 }
