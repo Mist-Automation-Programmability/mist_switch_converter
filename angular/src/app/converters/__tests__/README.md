@@ -65,10 +65,11 @@ Profile ids are random in the app. In the tests `uuid` is replaced by a counter
 
 ## Known defects
 
-A test written with `knownDefect('A3', ...)` describes the **correct** behaviour for a
+A test written with `knownDefect('A5', ...)` describes the **correct** behaviour for a
 defect that is not fixed yet. It is reported as passed while the defect is there, so the
 suite stays green and the defect stays documented. It turns red when the defect is
-fixed: replace `knownDefect('A3', ...)` by `it(...)` and the test keeps guarding the fix.
+fixed: replace `knownDefect('A5', ...)` by `it(...)`, move its line to the list of fixed
+defects below, and the test keeps guarding the fix.
 It also turns red if the body crashes instead of failing an expectation.
 
 `it.todo(...)` marks syntax that the converter does not read yet.
@@ -82,7 +83,6 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | --- | --- |
 | A1 | Cisco: a port list wrapped over several lines in `show vlan brief` ends the VLAN table. The VLANs after it lose their name (`vlan10` instead of `users`). |
 | A2 | Cisco: `switchport trunk allowed vlan add ...` replaces the list and creates a network named `vlanadd 150`. `none` creates `vlannone`. |
-| A3 | Cisco: every port is an STP edge port, with or without `spanning-tree portfast`. |
 | A4 | Cisco: `banner motd` is never converted, and the banner block never closes. |
 | A5 | Cisco: `ip name-server a b` keeps the first address only. |
 | A6 | Cisco: with `vrf <name>` in `ip name-server` or `ntp server`, the server is the word `vrf`. |
@@ -125,6 +125,14 @@ configuration mode; `__fixtures__/cisco-ios/catalyst-config-script` is such a fi
 | C7 | A file without hostname creates a switch rule with an empty name. |
 | C8 | The member ports of a link aggregation leave an unused port usage in the template. |
 | C9 | Log lines about the VLANs of a Cisco file do not name that file. |
+
+### Fixed defects
+
+Their tests are normal tests now and keep the id in their name.
+
+| Id | What was wrong | What the converter does now |
+| --- | --- | --- |
+| A3 | Cisco: every port was an STP edge port, with or without `spanning-tree portfast`. | A port is an edge port when it has `spanning-tree portfast` (also `edge`, `trunk`, `edge trunk`) or `spanning-tree bpduguard enable`. With the global `spanning-tree portfast [edge] default`, access ports are edge ports unless they have `spanning-tree portfast disable`. |
 
 ## Golden files
 

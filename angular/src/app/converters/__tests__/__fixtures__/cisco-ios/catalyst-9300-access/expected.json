@@ -109,7 +109,7 @@
           "mgmt"
         ],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -126,7 +126,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -187,7 +187,7 @@
           "mgmt"
         ],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -209,7 +209,7 @@
           "vlan170"
         ],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -227,7 +227,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "vlan999",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -245,7 +245,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -263,7 +263,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": true,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false

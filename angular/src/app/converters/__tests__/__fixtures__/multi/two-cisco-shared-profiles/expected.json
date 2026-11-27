@@ -98,7 +98,7 @@
           "mgmt"
         ],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -116,7 +116,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "users",
         "persist_mac": false,
         "bypass_auth_when_server_down": false

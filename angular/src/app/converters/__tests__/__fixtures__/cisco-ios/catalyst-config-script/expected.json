@@ -74,7 +74,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "vlan30",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
@@ -92,7 +92,7 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
@@ -109,7 +109,7 @@
         "mode": "trunk",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       }

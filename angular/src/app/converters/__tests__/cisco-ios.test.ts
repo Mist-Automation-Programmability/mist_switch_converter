@@ -321,17 +321,102 @@ describe('Cisco IOS: access ports', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1').stp_edge).toBe(true);
   });
 
-  knownDefect('A3', 'a port without "spanning-tree portfast" is not an STP edge port', async () => {
+  it('does not mark a port without "spanning-tree portfast" as an STP edge port (A3)', async () => {
     const result = await convert(
       ios(`
         interface GigabitEthernet1/0/1
          description Uplink
          switchport mode trunk
         !
+        interface GigabitEthernet1/0/2
+         description User
+         switchport access vlan 10
+         switchport mode access
+        !
       `),
     );
 
     expect(usageFor(result, 'GigabitEthernet1/0/1').stp_edge).toBe(false);
+    expect(usageFor(result, 'GigabitEthernet1/0/2').stp_edge).toBe(false);
+  });
+
+  it('reads the variants of "spanning-tree portfast" on a port', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         spanning-tree portfast edge
+        !
+        interface GigabitEthernet1/0/2
+         switchport mode trunk
+         spanning-tree portfast edge trunk
+        !
+        interface GigabitEthernet1/0/3
+         switchport mode trunk
+         spanning-tree portfast trunk
+        !
+        interface GigabitEthernet1/0/4
+         spanning-tree portfast disable
+        !
+        interface GigabitEthernet1/0/5
+         switchport mode trunk
+         spanning-tree portfast network
+        !
+      `),
+    );
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').stp_edge).toBe(true);
+    expect(usageFor(result, 'GigabitEthernet1/0/2').stp_edge).toBe(true);
+    expect(usageFor(result, 'GigabitEthernet1/0/3').stp_edge).toBe(true);
+    expect(usageFor(result, 'GigabitEthernet1/0/4').stp_edge).toBe(false);
+    expect(usageFor(result, 'GigabitEthernet1/0/5').stp_edge).toBe(false);
+  });
+
+  it('marks a port with "spanning-tree bpduguard enable" as an STP edge port', async () => {
+    const result = await convert(ios('interface GigabitEthernet1/0/1\n spanning-tree bpduguard enable\n!'));
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1').stp_edge).toBe(true);
+  });
+
+  it.each(['spanning-tree portfast default', 'spanning-tree portfast edge default'])(
+    'applies the global "%s" to access ports only',
+    async (globalCommand) => {
+      const result = await convert(
+        ios(`
+          ${globalCommand}
+          spanning-tree portfast edge bpduguard default
+          !
+          interface GigabitEthernet1/0/1
+           description User
+           switchport access vlan 10
+           switchport mode access
+          !
+          interface GigabitEthernet1/0/2
+           description Unmanaged switch
+           switchport access vlan 10
+           switchport mode access
+           spanning-tree portfast disable
+          !
+          interface GigabitEthernet1/0/3
+           description Uplink
+           switchport mode trunk
+          !
+        `),
+      );
+
+      expect(usageFor(result, 'GigabitEthernet1/0/1').stp_edge).toBe(true);
+      expect(usageFor(result, 'GigabitEthernet1/0/2').stp_edge).toBe(false);
+      expect(usageFor(result, 'GigabitEthernet1/0/3').stp_edge).toBe(false);
+    },
+  );
+
+  it('does not carry the global "spanning-tree portfast default" of one file over to the next file', async () => {
+    const result = await convert(
+      ios('spanning-tree portfast default\n!\ninterface GigabitEthernet1/0/1\n description User\n!', { hostname: 'sw1' }),
+      ios('interface GigabitEthernet1/0/1\n description Camera\n!', { hostname: 'sw2' }),
+    );
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1', 'sw1').stp_edge).toBe(true);
+    expect(usageFor(result, 'GigabitEthernet1/0/1', 'sw2').stp_edge).toBe(false);
   });
 
   knownDefect('A20', 'keeps the voice VLAN of a port when the file has no VLAN table', async () => {
