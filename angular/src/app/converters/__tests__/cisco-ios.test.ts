@@ -527,8 +527,8 @@ describe('Cisco IOS: access ports', () => {
     expect(usageFor(result, 'GigabitEthernet1/0/1', 'sw2').stp_edge).toBe(false);
   });
 
-  knownDefect('A20', 'keeps the voice VLAN of a port when the file has no VLAN table', async () => {
-    // The access VLAN gets a network named "vlan10" in that case. The voice VLAN gets nothing.
+  it('keeps the voice VLAN of a port when the file has no VLAN table (A20)', async () => {
+    // Like the access VLAN, the voice VLAN gets a network named after its id.
     const result = await convert(
       ios(`
         interface GigabitEthernet1/0/1
@@ -541,6 +541,28 @@ describe('Cisco IOS: access ports', () => {
 
     expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ port_network: 'vlan10', voip_network: 'vlan20' });
     expect(vlanIds(result)).toEqual({ vlan10: 10, vlan20: 20 });
+  });
+
+  it('creates no network for "switchport voice vlan dot1p", "none" or "untagged" (A20)', async () => {
+    const result = await convert(
+      ios(`
+        interface GigabitEthernet1/0/1
+         switchport access vlan 10
+         switchport voice vlan dot1p
+        !
+        interface GigabitEthernet1/0/2
+         switchport access vlan 10
+         switchport voice vlan none
+        !
+        interface GigabitEthernet1/0/3
+         switchport access vlan 10
+         switchport voice vlan untagged
+        !
+      `),
+    );
+
+    expect(vlanIds(result)).toEqual({ vlan10: 10 });
+    expect(usageFor(result, 'GigabitEthernet1/0/1').voip_network).toBeUndefined();
   });
 
   it.todo('converts "switchport port-security maximum <n>" into mac_limit');

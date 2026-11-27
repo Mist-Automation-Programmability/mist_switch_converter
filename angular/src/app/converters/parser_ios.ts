@@ -455,6 +455,8 @@ export class IosParser {
             if (mode == "access") {
                 if (vlan_access != undefined) this.config_data.add_vlan(vlan_access);
                 else vlan_access = "1";
+                // "switchport voice vlan" also accepts dot1p, none and untagged, which are not VLANs
+                if (vlan_voip_network != undefined && /^\d+$/.test(vlan_voip_network)) this.config_data.add_vlan(vlan_voip_network);
                 var port_network = this.config_data.get_vlan(vlan_access, this.filename);
                 var voip_network = this.config_data.get_vlan(vlan_voip_network, this.filename);
                 profile_configuration.mode = "access";
