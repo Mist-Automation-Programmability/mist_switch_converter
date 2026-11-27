@@ -11,6 +11,12 @@ export class IosParser {
     hostname: string = "";
     // true when the file enables PortFast on every access port ("spanning-tree portfast [edge] default")
     stp_edge_default: boolean = false;
+    // The VLANs that each file is known to have: its VLAN table, its "vlan" blocks, its SVIs
+    // and the VLANs that its ports name one by one. Key is the file name.
+    private file_vlans: { [key: string]: string[] } = {};
+    // A range of allowed VLANs wider than this stands for "the VLANs of the switch in that
+    // range", not for one network per id. Same limit as in the Junos parser.
+    private readonly wide_vlan_range: number = 100;
 
     constructor(
         private _ios_logger: Logger,
@@ -33,6 +39,7 @@ export class IosParser {
             const re_vlan_block: RegExp = /^vlan (\d[\d,-]*)$/;
             var vlan_block_ids: string[] = [];
             var unnamed_vlan_ids: string[] = [];
+            this.file_vlans[config_file.name] = [];
             config_file.config.forEach((line: string) => {
 
                 current_line = line.replace(/^ +/g, "").replace("\r", "");
@@ -57,6 +64,7 @@ export class IosParser {
 
                 if (current == "vlan") {
                     if (current_line.match(/^\d/)) {
+                        this.add_file_vlan(config_file.name, current_line.split(/\s+/)[0]);
                         var new_vlan: boolean = this.parse_vlan(current_line, this.filename);
                         if (new_vlan) new_vlan_count += 1;
                     }
@@ -81,12 +89,14 @@ export class IosParser {
                 } else if (current_line.startsWith("interface Vlan")) {
                     interface_vlan_id = current_line.replace("interface Vlan", "");
                     if (!this.vlan_ids_to_exclude.includes(interface_vlan_id)) {
+                        this.add_file_vlan(config_file.name, interface_vlan_id);
                         current = "vlan_interface";
                     } else {
                         interface_vlan_id = "";
                     }
                 } else if (!line.startsWith(" ") && re_vlan_block.test(current_line)) {
                     vlan_block_ids = this.expand_vlan_list(current_line.replace("vlan ", "")).filter((vlan_id: string) => !this.vlan_ids_to_exclude.includes(vlan_id));
+                    vlan_block_ids.forEach((vlan_id: string) => this.add_file_vlan(config_file.name, vlan_id));
                     current = "vlan_block";
                 }
 
@@ -108,6 +118,16 @@ export class IosParser {
                 resolve(false);
             }
         })
+    }
+
+    private add_file_vlan(filename: string, vlan_id: string): void {
+        if (!this.file_vlans[filename]) this.file_vlans[filename] = [];
+        if (/^\d+$/.test(vlan_id) && !this.vlan_ids_to_exclude.includes(vlan_id) && !this.file_vlans[filename].includes(vlan_id)) this.file_vlans[filename].push(vlan_id);
+    }
+
+    private is_wide_vlan_range(entry: string): boolean {
+        if (!entry.match(/^\d+-\d+$/)) return false;
+        return Number(entry.split("-")[1]) - Number(entry.split("-")[0]) > this.wide_vlan_range;
     }
 
     // "10,20,30-32" gives ["10", "20", "30", "31", "32"]
@@ -218,6 +238,16 @@ export class IosParser {
             var config_type: string | undefined = undefined;
             // the global command can be anywhere in the file, so look for it before reading the interfaces
             this.stp_edge_default = config.some((line: string) => /^spanning-tree portfast (edge )?default\s*$/.test(line));
+            // The VLANs that the ports name one by one are known before the interfaces are read, so
+            // that a wide range of allowed VLANs can be limited to the VLANs of the file.
+            config.forEach((line: string) => {
+                const port_vlan = /^\s*switchport (?:access|voice|trunk native) vlan (\d+)\s*$/.exec(line);
+                const allowed_vlans = /^\s*switchport trunk allowed vlan ([\d,-]+)\s*$/.exec(line);
+                if (port_vlan) this.add_file_vlan(this.filename, port_vlan[1]);
+                else if (allowed_vlans) allowed_vlans[1].split(",").forEach((entry: string) => {
+                    if (!this.is_wide_vlan_range(entry)) this.expand_vlan_list(entry).forEach((vlan_id: string) => this.add_file_vlan(this.filename, vlan_id));
+                })
+            })
             config.forEach((line: string) => {
                 if (config_type == "banner" && (!/^\^C/.test(line))) {
                     config_block.push(line);
@@ -465,16 +495,31 @@ export class IosParser {
             }
             else {
                 var corrected_vlan_trunk_allowed: string[] = [];
+                const has_allowed_list: boolean = vlan_trunk_allowed.length > 0;
+                var allows_every_vlan: boolean = false;
                 vlan_trunk_allowed.forEach((vlan_id: string) => {
                     if (vlan_id.includes("-")) {
                         const start: number = Number(vlan_id.split("-")[0]);
                         const end: number = Number(vlan_id.split("-")[1]);
-                        for (var vlan: number = start; vlan <= end; vlan++) {
-                            corrected_vlan_trunk_allowed.push(vlan.toString())
+                        if (start <= 1 && end >= 4094) {
+                            // "1-4094" is every VLAN: the same as a trunk without a list
+                            allows_every_vlan = true;
+                        } else if (this.is_wide_vlan_range(vlan_id)) {
+                            // a wide range keeps the VLANs of the file that are in it
+                            (this.file_vlans[this.filename] || [])
+                                .filter((known_vlan_id: string) => Number(known_vlan_id) >= start && Number(known_vlan_id) <= end)
+                                .sort((a: string, b: string) => Number(a) - Number(b))
+                                .forEach((known_vlan_id: string) => corrected_vlan_trunk_allowed.push(known_vlan_id));
+                        } else {
+                            for (var vlan: number = start; vlan <= end; vlan++) {
+                                corrected_vlan_trunk_allowed.push(vlan.toString())
+                            }
                         }
                     } else corrected_vlan_trunk_allowed.push(vlan_id);
                 })
-                vlan_trunk_allowed = corrected_vlan_trunk_allowed;
+                if (allows_every_vlan) corrected_vlan_trunk_allowed = [];
+                // a VLAN can be in a wide range and in the list on its own
+                vlan_trunk_allowed = corrected_vlan_trunk_allowed.filter((vlan_id: string, index: number) => corrected_vlan_trunk_allowed.indexOf(vlan_id) == index);
                 this.config_data.add_vlan(vlan_trunk_native, vlan_trunk_allowed);
                 var all_networks = false;
                 var port_network = this.config_data.get_vlan(vlan_trunk_native, this.filename);
@@ -485,7 +530,7 @@ export class IosParser {
                     if (network) networks.push(network);
                 })
 
-                if (vlan_trunk_allowed.length == 0) all_networks = true;
+                if (!has_allowed_list || allows_every_vlan) all_networks = true;
 
                 profile_configuration.mode = "trunk";
                 profile_configuration.port_network = port_network;
@@ -494,7 +539,7 @@ export class IosParser {
 
                 var message = "Interface " + interface_name + ": \"switchport mode trunk\" with";
                 if (vlan_trunk_native) message += " \"switchport trunk native vlan " + vlan_trunk_native + "\" and";
-                if (vlan_trunk_allowed.length == 0) message += " ALL networks allowed";
+                if (all_networks) message += " ALL networks allowed";
                 else message += " \"switchport trunk allowed vlan " + vlan_trunk_allowed + "\"";
                 this._ios_logger.info(message, this.filename);
 

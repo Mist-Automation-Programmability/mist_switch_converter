@@ -650,9 +650,7 @@ describe('Cisco IOS: trunk ports', () => {
     expect(['access', 'trunk']).toContain(usageFor(result, 'GigabitEthernet1/0/1').mode);
   });
 
-  knownDefect('A16', 'a trunk that allows every VLAN id ("1-4094") does not create one network per id', async () => {
-    // What to do with a short range of VLANs that the switch does not have is a design
-    // choice (see the first test of this block). Creating 4094 networks is not.
+  it('allows all networks on a trunk whose list is every VLAN id, "1-4094", and creates no network for it (A16)', async () => {
     const result = await convert(
       ios(
         `
@@ -665,7 +663,81 @@ describe('Cisco IOS: trunk ports', () => {
       ),
     );
 
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ mode: 'trunk', all_networks: true, networks: [] });
     expect(vlanIds(result)).toEqual({ default: 1, users: 10, voice: 20, printers: 30, mgmt: 99 });
+  });
+
+  it('turns a wide range of allowed VLANs into the VLANs of the switch that are in it (A16)', async () => {
+    // A range of 100 ids or less still gives one network per id: see the first test of this block.
+    const result = await convert(
+      ios(
+        `
+        interface GigabitEthernet1/0/1
+         switchport trunk allowed vlan 2-4094
+         switchport mode trunk
+        !
+        interface GigabitEthernet1/0/2
+         switchport trunk allowed vlan 30,90-1000
+         switchport mode trunk
+        !
+        interface GigabitEthernet1/0/3
+         switchport trunk allowed vlan 2000-3000
+         switchport mode trunk
+        !
+        `,
+        { vlans: VLANS },
+      ),
+    );
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1')).toMatchObject({ all_networks: false, networks: ['users', 'voice', 'printers', 'mgmt'] });
+    expect(usageFor(result, 'GigabitEthernet1/0/2')).toMatchObject({ all_networks: false, networks: ['printers', 'mgmt'] });
+    // The switch has no VLAN between 2000 and 3000: the trunk carries nothing, it is not opened to every network.
+    expect(usageFor(result, 'GigabitEthernet1/0/3')).toMatchObject({ all_networks: false, networks: [] });
+    expect(vlanIds(result)).toEqual({ default: 1, users: 10, voice: 20, printers: 30, mgmt: 99 });
+  });
+
+  it('finds the VLANs of a wide range in a file without VLAN table: "vlan" blocks, SVIs and the VLANs of the ports (A16)', async () => {
+    const result = await convert(
+      ios(`
+        vlan 10
+         name USERS
+        !
+        vlan 300
+        !
+        interface Port-channel1
+         switchport trunk allowed vlan 2-4094
+         switchport mode trunk
+        !
+        interface GigabitEthernet1/0/1
+         switchport access vlan 20
+         switchport mode access
+         switchport voice vlan 40
+        !
+        interface GigabitEthernet1/0/2
+         switchport trunk native vlan 50
+         switchport trunk allowed vlan 60,70-71
+         switchport mode trunk
+        !
+        interface Vlan99
+         ip address 10.1.99.1 255.255.255.0
+        !
+      `),
+    );
+
+    // The port-channel comes first in the file and still gets the VLANs that the ports after it use.
+    expect(usageFor(result, 'Port-channel1').networks).toEqual(['users', 'vlan20', 'vlan40', 'vlan50', 'vlan60', 'vlan70', 'vlan71', 'vlan99', 'vlan300']);
+    expect(Object.keys(result.template.networks)).toHaveLength(9);
+  });
+
+  it('does not put the VLANs of another file in a wide range (A16)', async () => {
+    const trunk = 'interface GigabitEthernet1/0/1\n switchport trunk allowed vlan 2-4094\n switchport mode trunk\n!';
+    const result = await convert(
+      { name: 'sw1.txt', text: ios(trunk, { hostname: 'sw1', vlans: { 10: 'USERS' } }) },
+      { name: 'sw2.txt', text: ios(trunk, { hostname: 'sw2', vlans: { 10: 'USERS', 50: 'LAB' } }) },
+    );
+
+    expect(usageFor(result, 'GigabitEthernet1/0/1', 'sw1').networks).toEqual(['users']);
+    expect(usageFor(result, 'GigabitEthernet1/0/1', 'sw2').networks).toEqual(['users', 'lab']);
   });
 
   it.todo('reports routed ports ("no switchport") instead of converting them to access ports');
