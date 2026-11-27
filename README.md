@@ -12,7 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ## Features
-This app can be used to convert Cisco IOS configuration file(s) into a single Mist switch template. All the configuration elements are not migrated, but this app takes care of the main configuration parts:
+This app can be used to convert Cisco IOS, Junos and Aruba AOS-CX configuration file(s) into a single Mist switch template. All the configuration elements are not migrated, but this app takes care of the main configuration parts:
 - NTP Servers
 - DNS Server
 - DNS Domain
@@ -21,7 +21,7 @@ This app can be used to convert Cisco IOS configuration file(s) into a single Mi
 - Syslog Servers
 - VLANs
 - DHCP Snooping
-- Port profiles based on the Cisco switch ports configuration
+- Port profiles based on the switch ports configuration
 - CLI Banner
 
 
@@ -33,7 +33,7 @@ This app can be used to convert Cisco IOS configuration file(s) into a single Mi
 * This application is not sending any information to a server, all the process is directly done into the web browser
 * This application is parsing one or multiple configuration files to retrieve the configuration elements, convert them into Mist language, and create a Mist switch template. This template can be downloaded, then uploaded in the Mist Organization.
 * This application is not able to retrieve the passwords or the secrets (RADIUS, TACACS+, ...). These parameters MUST be reconfigured from the Mist dashboard.
-* The port profile names re generated from the interface description in the Cisco configuration. If the same configuration is detected multiple times but with different descriptions, the app will generate a new name based on the most recurrent words in the Cisco descriptions.
+* The port profile names re generated from the interface description in the configuration. If the same configuration is detected multiple times but with different descriptions, the app will generate a new name based on the most recurrent words in the descriptions.
 
 ## Tests
 

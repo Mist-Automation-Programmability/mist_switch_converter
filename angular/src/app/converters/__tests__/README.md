@@ -1,6 +1,6 @@
 # Converter tests
 
-These tests cover the code that turns Cisco IOS and Junos configurations into a Mist
+These tests cover the code that turns Cisco IOS, Junos and Aruba AOS-CX configurations into a Mist
 switch template (`angular/src/app/converters`). They run in Node with
 [Vitest](https://vitest.dev): no browser, no Angular build, about one second.
 
@@ -19,7 +19,7 @@ npm run test:local    # only the real configurations of test_configs/ (local, ne
 
 | File | What it checks |
 | --- | --- |
-| `cisco-ios.test.ts`, `junos.test.ts` | One feature at a time: a few lines of configuration, the part of the template they must produce. |
+| `cisco-ios.test.ts`, `junos.test.ts`, `aruba-cx.test.ts` | One feature at a time: a few lines of configuration, the part of the template they must produce. |
 | `shared.test.ts` | What does not depend on the vendor: file detection, port usage names, RADIUS, several files in one template. |
 | `golden.test.ts` | Whole configurations from `__fixtures__`, compared with the `expected.json` stored next to them. |
 | `invariants.test.ts` | Rules every template must respect (every network exists, port names are valid...), on every fixture. |
@@ -56,6 +56,7 @@ it('converts the access VLAN and the voice VLAN', async () => {
 
 - `ios(body, { vlans, hostname })` wraps the body in a realistic capture (`show vlan brief` and `show running-config`).
 - `junos(body)` is for `display set` output.
+- `cx(body, { hostname })` is for the `show running-config` of Aruba AOS-CX, with its blocks indented by four spaces.
 - `usageFor(result, 'ge-0/0/1')` returns the port usage given to an interface of the source.
 - `portConfig(result, 'ge-0/0/0')` returns the entry of the switch rule for a port, by its Mist name.
 - `usageOfPort(result, 'ge-0/0/0')` returns the port usage that the switch rule gives to that port.
@@ -75,8 +76,8 @@ It also turns red if the body crashes instead of failing an expectation.
 
 `it.todo(...)` marks syntax that the converter does not read yet.
 
-**No defect is open at the moment.** The next free ids are A21 (Cisco), B17 (Junos) and
-C10 (shared).
+**No defect is open at the moment.** The next free ids are A21 (Cisco), B17 (Junos),
+C10 (shared) and D1 (Aruba).
 
 A14 to A20, B15 and B16 were found by converting real configurations (see the end of
 this file) and are reproduced here with synthetic lines. A9, A18 and A19 mostly show
@@ -136,7 +137,7 @@ builder.
 | C3 | Two files that named the same VLAN id differently left a port usage pointing to a network that did not exist. | A VLAN id has one network, named by the first file that names it. The other names are listed in a warning. |
 | C4 | Two files that used the same VLAN name for different ids kept one of the two VLANs only. | Both are kept. The second one gets the id in its name (`users-vl20`). |
 | C5 | Port usage names kept characters such as `+`, `/`, `.`, `(`. | Names only have lower case letters, digits and `_`, plus `-` before a number that tells two usages apart. |
-| C6 | An Aruba AOS-CX configuration was detected as Cisco and converted to nothing. | It is recognised and refused with a message, as NX-OS and Junos with braces are. |
+| C6 | An Aruba AOS-CX configuration was detected as Cisco and converted to nothing. | It is recognised, and converted by its own extractor (`extractors/aruba_cx.ts`). |
 | C7 | A file without hostname created a switch rule with an empty name. | The rule is named after the file, with a warning. |
 | C8 | The member ports of a link aggregation left an unused port usage in the template. | Members get the port usage of their link aggregation and create none. |
 | C9 | Log lines about the VLANs of a Cisco file did not name that file. | Every message about a file carries its name, and its line numbers when it has some. |
