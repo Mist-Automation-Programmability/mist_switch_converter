@@ -1,0 +1,71 @@
+sw-idf-1#show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Gi1/0/4
+10   USERS                            active    Gi1/0/1, Gi1/0/2
+20   VOICE                            active    Gi1/0/1, Gi1/0/2
+30   PRINTERS                         active    Gi1/0/3
+1002 fddi-default                     act/unsup
+1003 token-ring-default               act/unsup
+1004 fddinet-default                  act/unsup
+1005 trnet-default                    act/unsup
+
+sw-idf-1#show running-config
+Building configuration...
+
+Current configuration : 2311 bytes
+!
+version 15.2
+!
+hostname sw-idf-1
+!
+aaa new-model
+!
+dot1x system-auth-control
+!
+interface Port-channel1
+ description Uplink to cx-idf-2
+ switchport trunk allowed vlan 10,20,30,50
+ switchport mode trunk
+!
+interface GigabitEthernet1/0/1
+ description Desk 11
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ authentication port-control auto
+ dot1x pae authenticator
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/2
+ description Desk 12
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ authentication port-control auto
+ dot1x pae authenticator
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/3
+ description Printer
+ switchport access vlan 30
+ switchport mode access
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/4
+ shutdown
+!
+interface GigabitEthernet1/0/23
+ channel-group 1 mode active
+!
+interface GigabitEthernet1/0/24
+ channel-group 1 mode active
+!
+radius server NAC
+ address ipv4 10.0.0.80 auth-port 1812 acct-port 1813
+ key 7 REDACTED
+!
+ntp server 10.0.0.123
+!
+end

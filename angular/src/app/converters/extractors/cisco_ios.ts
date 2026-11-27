@@ -5,14 +5,14 @@
  * The commands the extractor understands are in the rule tables below, one line per
  * command. A command without a rule is reported as not converted.
  */
-import { Device, Duplex, newDevice, newPort, newSnmp, Port, SourceFile, Speed, StormControl, Vlan, addOnce } from '../model';
+import { Device, Duplex, newDevice, newPort, newSnmp, Port, SourceFile, Speed, Vlan, addOnce } from '../model';
 import { commandKey, Report } from '../report';
 import { readIndentedBlocks } from '../readers/indented_blocks';
 import { abbreviates, readIosCapture } from '../readers/ios_capture';
 import { sourceLines, Statement, textAfter } from '../readers/statement';
 import { expandCiscoInterfaceRange, readCiscoInterface } from './cisco_interfaces';
 import { CiscoSnmp, ciscoSnmpRules, finishCiscoSnmp, isStandardAccessList, newCiscoSnmp, readAccessListBlock, readAccessListEntry } from './cisco_snmp';
-import { addMissingLags, NOT_A_SWITCH_PORT, referencedVlans } from './common';
+import { addMissingLags, NOT_A_SWITCH_PORT, referencedVlans, stormControlOf, StormTraffic } from './common';
 import { ignore, rule, RuleTable } from './rules';
 import { expandVlanRanges, isIpAddress, isIpv4, isVlanId, parseVlanList, subnetOf, VlanRange } from './values';
 
@@ -24,7 +24,6 @@ const GLOBAL_KEYWORDS = new Set(['aaa', 'crypto', 'ip', 'ipv6', 'logging', 'mac'
 const PORT_KEYWORDS = new Set(['access-session', 'authentication', 'auto', 'cdp', 'dot1x', 'ip', 'ipv6', 'lldp', 'logging', 'mls', 'power', 'service-policy', 'snmp', 'spanning-tree', 'storm-control', 'switchport', 'udld']);
 
 /** The kinds of traffic of "storm-control <traffic> level". Some switches say "unknown-unicast". */
-type StormTraffic = 'broadcast' | 'multicast' | 'unicast';
 const STORM_TRAFFIC: Array<[string, StormTraffic]> = [
   ['broadcast', 'broadcast'],
   ['multicast', 'multicast'],
@@ -806,30 +805,7 @@ function finishPort(context: Context, draft: PortDraft, knownVlans: number[]): v
   port.auth.macAuthOnly = draft.mab && !draft.dot1x;
   if (draft.periodicReauthentication) port.auth.reauthInterval = draft.reauthenticationTimer;
   if (draft.portSecurity) port.macLimit = draft.portSecurityMaximum ?? 1;
-  port.stormControl = stormControlOf(context, draft);
-}
-
-/**
- * A Cisco switch has one level per kind of traffic. Mist has one level for the port and says
- * which kinds of traffic it applies to: the highest level is kept, so that nothing that
- * passed before is dropped.
- */
-function stormControlOf(context: Context, draft: PortDraft): StormControl | undefined {
-  const note = (code: string, text: string): void => context.report.portNote('warning', code, text, draft.line, draft.port.name);
-  const levels = [...draft.storm.entries()].filter((entry): entry is [StormTraffic, number] => entry[1] !== undefined);
-  if (levels.length < draft.storm.size) note('storm-control-unit', 'Storm control with a level in bits or packets per second has no equivalent, Mist takes a percentage: left out');
-  if (levels.length === 0) return undefined;
-  const percentages = levels.map(([, level]) => Math.min(100, Math.max(Math.round(level), level > 0 ? 1 : 0)));
-  if (new Set(percentages).size > 1) note('storm-control-levels', 'Storm control has one level per kind of traffic and Mist has one for the port: the highest one is kept');
-  const limited = (traffic: StormTraffic): boolean => levels.some(([kind]) => kind === traffic);
-  return {
-    percentage: Math.max(...percentages),
-    broadcast: limited('broadcast'),
-    multicast: limited('multicast'),
-    registeredMulticast: limited('multicast'),
-    unknownUnicast: limited('unicast'),
-    shutdown: draft.stormShutdown,
-  };
+  port.stormControl = stormControlOf(draft.storm, draft.stormShutdown, (code, text) => context.report.portNote('warning', code, text, draft.line, port.name));
 }
 
 /** The VLANs that a port names one by one: they exist on the switch even when nothing else in the file says so. */

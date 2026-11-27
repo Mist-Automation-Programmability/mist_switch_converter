@@ -13,6 +13,7 @@
  *   3. the template builder (`template/`) turns the devices into one template.
  */
 import { detectFormat } from './detect';
+import { extractArubaCx } from './extractors/aruba_cx';
 import { extractCiscoIos } from './extractors/cisco_ios';
 import { extractJunos } from './extractors/junos';
 import { Device, Diagnostic, SourceFile, Vendor } from './model';
@@ -24,7 +25,7 @@ export type { ConvertedPort } from './template/build';
 export type { Diagnostic, Severity, SourceFile } from './model';
 export type { MistTemplate } from './template/mist';
 
-export type FileFormat = 'Cisco' | 'Juniper' | 'Unknown';
+export type FileFormat = 'Cisco' | 'Juniper' | 'Aruba' | 'Unknown';
 
 /** What happened to one file. */
 export interface FileReport {
@@ -60,11 +61,12 @@ export interface ConvertOptions {
   copyClearTextSecrets?: boolean;
 }
 
-const FORMATS: Record<Vendor, FileFormat> = { 'cisco-ios': 'Cisco', junos: 'Juniper' };
-const EXTRACTORS: Record<Vendor, (file: SourceFile, report: Report) => Device> = { 'cisco-ios': extractCiscoIos, junos: extractJunos };
+const FORMATS: Record<Vendor, FileFormat> = { 'cisco-ios': 'Cisco', junos: 'Juniper', 'aruba-cx': 'Aruba' };
+const EXTRACTORS: Record<Vendor, (file: SourceFile, report: Report) => Device> = { 'cisco-ios': extractCiscoIos, junos: extractJunos, 'aruba-cx': extractArubaCx };
 const NO_VLAN: Record<Vendor, string> = {
   'cisco-ios': 'Unable to retrieve the VLAN list. Add the output of "show vlan brief" to the file to get the names of the VLANs',
   junos: 'Unable to retrieve the VLAN list',
+  'aruba-cx': 'Unable to retrieve the VLAN list',
 };
 
 export function convert(files: SourceFile[], options: ConvertOptions = {}): Conversion {

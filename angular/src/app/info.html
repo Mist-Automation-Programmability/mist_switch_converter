@@ -4,7 +4,7 @@
         <!-- LIST -->
         <mat-tab label="General">
             <div class="general-container">
-                <div>The purpose of this site is to convert Cisco IOS and Junos configuration files to Juniper Mist Switch Templates.
+                <div>The purpose of this site is to convert Cisco IOS, Junos and Aruba AOS-CX configuration files to Juniper Mist Switch Templates.
                 </div>
                 <div>Your configuration files are <b>not</b> sent to the server. All the processing is directly done inside your web browser.</div>
                 <mat-divider></mat-divider>
@@ -116,6 +116,39 @@ Current configuration : 39742 bytes
 !
 version 17.3
 service timestamps debug datetime msec localtime
+[...]
+            </samp></pre>
+        </mat-tab>
+
+        <mat-tab label="Aruba">
+            <div class="text">
+                <div>To get a good result, each Aruba file must contain the configuration from a single switch, or from a single stack, with the result of the <samp>show running-config</samp> command.</div>
+                <div>Aruba AOS-CX is supported. AOS-Switch (ProVision) is not.</div>
+                <div>A port is converted by its position: <samp>1/1/1</samp> becomes <samp>ge-0/0/0</samp>, and <samp>2/1/24</samp> becomes <samp>ge-1/0/23</samp>. The links between the members of a stack (VSF) and the routed ports are left out.</div>
+                <div>A trunk with a native VLAN and one VLAN marked <samp>voice</samp> is converted as an access port with a voice VLAN.</div>
+                <div>The port-access roles are not converted: Mist gets the VLAN of a client from its RADIUS server. The VLAN of the <samp>critical-role</samp> and of the <samp>reject-role</samp> of a port are converted.</div>
+                <div>A port profile is named after the description that most of its ports have, or after its settings (<samp>access_users_voip</samp>, <samp>trunk_all</samp>).</div>
+                <div>What is not converted (routed ports, unknown settings...) is listed in the "Logs" tab of the details, with the file and the line numbers.</div>
+                <div>SNMP communities are replaced with <samp>to_be_replaced_1</samp>, <samp>to_be_replaced_2</samp>... unless "Copy the SNMP secrets that are in clear text" is checked. A configuration only has the keys of the SNMPv3 users: their passwords are to be typed in the template.</div>
+                <div><b>TIPS:</b> you can use the <samp>no page</samp> command to allow the displayed output to scroll without pause </div>
+            </div>
+            <pre>
+            <samp>
+aruba-sw# no page
+aruba-sw# show running-config
+Current configuration:
+!
+!Version ArubaOS-CX FL.10.13.1000
+!export-password: default
+hostname aruba-sw
+[...]
+vlan 10
+    name USERS
+[...]
+interface 1/1/1
+    no shutdown
+    no routing
+    vlan access 10
 [...]
             </samp></pre>
         </mat-tab>

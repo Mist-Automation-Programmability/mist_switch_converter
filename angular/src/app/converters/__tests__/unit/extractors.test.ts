@@ -1,9 +1,10 @@
 /**
  * What the extractors give to the template builder: a vendor-neutral `Device`.
- * The behaviour of each command is tested from end to end in cisco-ios.test.ts and
- * junos.test.ts; these tests show the model that the two vendors share.
+ * The behaviour of each command is tested from end to end in cisco-ios.test.ts,
+ * junos.test.ts and aruba-cx.test.ts; these tests show the model that the vendors share.
  */
 import { describe, expect, it } from 'vitest';
+import { extractArubaCx } from '../../extractors/aruba_cx';
 import { extractCiscoIos } from '../../extractors/cisco_ios';
 import { extractJunos } from '../../extractors/junos';
 import type { Device, Port } from '../../model';
@@ -239,5 +240,93 @@ describe('Junos extractor', () => {
 
   it('keeps the SNMP community for the template builder, which replaces it unless the user asks for a copy', () => {
     expect(device.system.snmp?.communities).toEqual([{ community: 'REDACTED', authorization: 'read-only', line: 22 }]);
+  });
+});
+
+const ARUBA = `!Version ArubaOS-CX FL.10.13.1000
+hostname cx1
+radius-server host 10.0.0.80 key ciphertext REDACTED
+ntp server 10.0.0.123 iburst
+vlan 10
+    name USERS
+vlan 20
+    name VOICE
+    voice
+vlan 30
+    name PRINTERS
+interface mgmt
+    no shutdown
+    ip static 192.168.1.1/24
+interface lag 1
+    description Uplink
+    no shutdown
+    no routing
+    vlan trunk native 30
+    vlan trunk allowed 10,20
+    lacp mode active
+interface 1/1/1
+    description Desk 12
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    aaa authentication port-access dot1x authenticator
+        enable
+interface 1/1/49
+    no shutdown
+    lag 1
+    lldp dot3 macphy
+interface vlan 30
+    ip address 10.1.30.1/24
+snmp-server community REDACTED
+ip route 0.0.0.0/0 192.168.1.254
+`;
+
+describe('Aruba AOS-CX extractor', () => {
+  const report = new Report('cx1.txt');
+  const device = extractArubaCx({ name: 'cx1.txt', text: ARUBA }, report);
+
+  it('reads the device, its VLANs by id, and its servers', () => {
+    expect(device).toMatchObject({ file: 'cx1.txt', vendor: 'aruba-cx', hostname: 'cx1' });
+    expect(device.vlans).toEqual([
+      { id: 10, name: 'USERS', subnets: [], declared: true, dhcpSnooping: false },
+      { id: 20, name: 'VOICE', subnets: [], declared: true, dhcpSnooping: false },
+      { id: 30, name: 'PRINTERS', subnets: ['10.1.30.0/24'], declared: true, dhcpSnooping: false },
+    ]);
+    expect(device.system.ntpServers).toEqual(['10.0.0.123']);
+    expect(device.system.radius.auth).toEqual([{ host: '10.0.0.80', port: 1812, timeout: 5 }]);
+    expect(device.system.radius.acct).toEqual([{ host: '10.0.0.80', port: 1813, timeout: 5 }]);
+  });
+
+  it('keeps the switch ports, with the position of each on a Juniper switch', () => {
+    expect(device.ports.map((candidate) => `${candidate.name} ${candidate.kind} ${candidate.junosName ?? '-'}`)).toEqual(['lag1 lag -', '1/1/1 physical ge-0/0/0', '1/1/49 physical ge-0/0/48']);
+  });
+
+  it('reads a port for a phone and a computer as an access port with a voice VLAN', () => {
+    const port = device.ports.find((candidate) => candidate.name === '1/1/1') as Port;
+
+    expect(port).toMatchObject({ mode: 'access', accessVlan: 10, voiceVlan: 20, allowedVlans: [], description: 'Desk 12', disabled: false });
+    expect(port.auth).toMatchObject({ dot1x: true, macAuth: false });
+    expect(port.lines[0]).toBe('interface 1/1/1');
+    // The lines of a nested block keep their place under the line that opens it.
+    expect(port.lines.slice(-2)).toEqual([' aaa authentication port-access dot1x authenticator', '  enable']);
+  });
+
+  it('reads a link aggregation and its member', () => {
+    expect(device.ports.find((candidate) => candidate.name === 'lag1')).toMatchObject({ kind: 'lag', mode: 'trunk', nativeVlan: 30, allowedVlans: [10, 20], lacp: true, aeIndex: 0 });
+    expect(device.ports.find((candidate) => candidate.name === '1/1/49')?.lag).toEqual({ name: 'lag1', lacp: true });
+  });
+
+  it('reports what it leaves out, without the text of the commands', () => {
+    expect(report.diagnostics.map((entry) => `${entry.severity} ${entry.message}`)).toEqual([
+      'info Interface mgmt: management port, not converted',
+      'info Not converted: "ip route"',
+      'info A trunk with a native VLAN and one VLAN marked "voice" is a port for a phone and a computer: converted as an access port with a voice VLAN on 1/1/1',
+    ]);
+    expect(JSON.stringify([{ ...device.system, snmp: undefined }, device.vlans, report.diagnostics])).not.toContain('REDACTED');
+  });
+
+  it('keeps the SNMP community for the template builder, which replaces it unless the user asks for a copy', () => {
+    expect(device.system.snmp?.communities).toEqual([{ community: 'REDACTED', authorization: 'read-only', line: 36 }]);
   });
 });

@@ -148,6 +148,19 @@ export function junos(body: string): string {
   return body.split('\n').map((line) => line.trim()).filter((line) => line.length > 0).join('\n') + '\n';
 }
 
+/**
+ * The output of `show running-config` on an Aruba AOS-CX switch. `body` is the part of
+ * the configuration under test; write it as the switch prints it, with the lines of a
+ * block indented by four spaces.
+ */
+export function cx(body: string, options: { /** `null` leaves the `hostname` command out. Default: `cx1`. */ hostname?: string | null } = {}): string {
+  const hostname = options.hostname === undefined ? 'cx1' : options.hostname;
+  const lines = ['Current configuration:', '!', '!Version ArubaOS-CX FL.10.13.1000', '!export-password: default'];
+  if (hostname) lines.push(`hostname ${hostname}`);
+  lines.push(...dedent(body).split('\n'), '');
+  return lines.join('\n');
+}
+
 /* --------------------------------------------------------- result helpers */
 
 function describePorts(conversion: Conversion): string {

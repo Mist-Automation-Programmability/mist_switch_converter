@@ -24,9 +24,11 @@ result.diagnostics;  // what was left out or guessed, with file and line numbers
 
 1. **Readers** (`readers/`) know how a family of configuration languages is laid out
    and nothing about what the commands mean.
-   - `indented_blocks.ts`: commands nested by indentation, as in Cisco IOS.
+   - `indented_blocks.ts`: commands nested by indentation, as in Cisco IOS and in
+     Aruba AOS-CX, where a block can hold another one.
    - `ios_capture.ts`: what people save from a Cisco terminal (prompts, `show vlan`,
-     `show running-config`, commands typed in configuration mode).
+     `show running-config`, commands typed in configuration mode). An AOS-CX terminal
+     has the same prompts and the same header.
    - `set_lines.ts`: Junos `display set` lines, with `deactivate` and applied groups.
 2. **Extractors** (`extractors/`, one per vendor) say what each command means, in rule
    tables, and fill a vendor-neutral `Device` (`model.ts`): VLANs by id, ports, servers.
@@ -60,11 +62,13 @@ differ on a setting that has no short word. A name has at most 31 characters.
   maps directly; without a level it is 80 %. A Cisco switch has one level per kind of
   traffic: the highest one is kept, with a warning when they differ, and a kind of
   traffic without a level is turned off in Mist. A level in bits or packets per
-  second is left out with a warning.
+  second is left out with a warning. Aruba AOS-CX is read like Cisco (`rate-limit
+  <traffic> <rate> percent`), and its limit of multicast also limits the broadcast.
 - **DHCP snooping trust.** `allow_dhcpd` is written only when the source says
   something. Junos and Mist agree on the rest: a trunk is trusted, an access port is
   not. A Cisco switch trusts no port by default, so with DHCP snooping a Cisco trunk
   without `ip dhcp snooping trust` becomes `allow_dhcpd: false`, with a warning.
+  The same goes for an Aruba trunk without `dhcpv4-snooping trust`.
 
 - **SNMP.** A Mist template describes SNMP as Junos does (`snmp_config`), so Junos
   statements are copied field by field (`extractors/junos_snmp.ts`). Cisco says some
@@ -78,6 +82,40 @@ differ on a setting that has no short word. A name has at most 31 characters.
   files define under the same name comes from the first one, and location, contact
   and description are written only when the files agree. What belongs to one switch
   (`snmp name`, a local engine id, the source of the traps) is not converted.
+  Aruba AOS-CX (`extractors/aruba_cx_snmp.ts`) has hosts like Cisco, with the kinds
+  of notifications on the host line. It has no views and no groups: its version 3
+  users are put in the group `snmpv3_ro`, which reads the view `all`. The access
+  list of a community is not converted, and a warning says that every station can
+  use the community.
+
+### Aruba AOS-CX
+
+`extractors/aruba_cx.ts` reads the output of `show running-config`. What it has to
+work out, because the configuration does not say it:
+
+- **What a port is when its block says nothing.** A running configuration only shows
+  what differs from the defaults of the switch, and the defaults depend on its model.
+  A file with a `no routing` line is the file of a switch whose ports are routed
+  unless they say so: there, a port without VLAN and without `no routing` is a routed
+  port, and is left out. A file with a `no shutdown` line is the file of a switch
+  whose ports are shut down unless they say so: there, a port without `no shutdown`
+  is disabled. A port with a VLAN, or in a link aggregation, is always a switch port.
+- **The position of a port.** `member/slot/port` becomes `ge-<member-1>/<slot-1>/<port-1>`.
+  The name does not say the speed of the port, so every port is `ge`.
+- **Voice.** AOS-CX has no voice VLAN on a port. A trunk with a native VLAN and
+  exactly one other VLAN, marked `voice` in its VLAN block, is converted as an access
+  port with a voice VLAN.
+- **Ranges of VLANs.** A trunk can only allow VLANs that the switch has, and the file
+  lists them: `vlan trunk allowed 20-30` gives the VLANs of the file between 20 and 30.
+  In a file without any VLAN, a range is taken as written.
+- **Roles.** `port-access role` blocks are not converted. They are read for the VLAN
+  of the `critical-role` (`server_fail_network`; without a VLAN, the clients are let
+  in on the VLAN of the port) and of the `reject-role` (`server_reject_network`) of a port.
+- **Links of a stack.** The ports of `vsf member <n>` / `link` are left out.
+
+The lines of a block that is nested in an interface (`aaa authentication port-access
+dot1x authenticator`, `mac-auth`, `port-access port-security`) have their own rule
+tables: `authMethodRules`, `portSecurityRules`.
 
 ### Secrets
 
@@ -89,13 +127,14 @@ SNMP communities are passwords in clear text. By default each one becomes
 message gives its line. With `convert(files, { copyClearTextSecrets: true })` (the
 checkbox "Copy the SNMP secrets that are in clear text" of the page) the communities
 are copied, and so are the passwords of SNMP version 3 users that a file has in clear
-text (a configuration script; a running configuration only has keys). A warning says
+text (a configuration script, or `plaintext` on Aruba; a running configuration only has keys). A warning says
 how many secrets were copied. What a file has encrypted or hashed is never copied.
 
 ## Adding a command
 
 Find the rule table of the place where the command lives (`portRules` in
-`extractors/cisco_ios.ts`, `interfaceRules` or `globalRules` in `extractors/junos.ts`)
+`extractors/cisco_ios.ts` or `extractors/aruba_cx.ts`, `interfaceRules` or `globalRules`
+in `extractors/junos.ts`)
 and add one line, written like the command:
 
 ```ts

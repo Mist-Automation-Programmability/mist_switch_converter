@@ -36,13 +36,18 @@ describe('Detection of the type of file', () => {
     expect(detection.reason).toContain('display set');
   });
 
-  it('refuses an Aruba AOS-CX configuration, which looks like Cisco IOS', () => {
-    const detection = detectFormat(text('!', '!Version ArubaOS-CX FL.10.10.1020', 'hostname cx1', 'vlan 10', 'interface 1/1/1', '    no shutdown', '    no routing', '    vlan access 10'));
-
-    expect(detection.vendor).toBeUndefined();
-    expect(detection.reason).toContain('Aruba AOS-CX');
+  it('recognises an Aruba AOS-CX configuration, which looks like Cisco IOS', () => {
+    expect(detectFormat(text('!', '!Version ArubaOS-CX FL.10.10.1020', 'hostname cx1', 'vlan 10', 'interface 1/1/1', '    no shutdown', '    no routing', '    vlan access 10'))).toEqual({ vendor: 'aruba-cx' });
+    // The header of the releases that are named AOS-CX, on a switch that has nothing but its header.
+    expect(detectFormat(text('Current configuration:', '!', '!Version AOS-CX PL.10.06.0001', '!export-password: default', 'ntp enable'))).toEqual({ vendor: 'aruba-cx' });
     // Without its header line, too.
-    expect(detectFormat(text('hostname cx1', 'interface 1/1/1', '    no routing', '    vlan access 10')).reason).toContain('Aruba AOS-CX');
+    expect(detectFormat(text('hostname cx1', 'interface 1/1/1', '    no routing', '    vlan access 10'))).toEqual({ vendor: 'aruba-cx' });
+    expect(detectFormat('hostname cx1\r\ninterface 1/1/1\r\n    vlan trunk native 1\r\n')).toEqual({ vendor: 'aruba-cx' });
+  });
+
+  it('does not take a Cisco configuration for an Aruba one', () => {
+    // A Cisco port is never named by its numbers alone.
+    expect(detectFormat(text('hostname sw1', 'interface GigabitEthernet1/0/1', ' switchport mode access', 'interface Vlan10', ' no routing'))).toEqual({ vendor: 'cisco-ios' });
   });
 
   it('refuses a Cisco NX-OS configuration', () => {

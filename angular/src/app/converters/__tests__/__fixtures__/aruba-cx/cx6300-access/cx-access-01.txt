@@ -1,0 +1,402 @@
+cx-access-01# show running-config
+Current configuration:
+!
+!Version ArubaOS-CX FL.10.13.1000
+!export-password: default
+hostname cx-access-01
+banner motd !
+Authorized access only.
+Disconnect now if you are not an authorized user.
+!
+user admin group administrators password ciphertext REDACTED
+clock timezone europe/paris
+ntp server 10.0.0.123 iburst
+ntp server 10.0.1.123 iburst
+ntp enable
+ntp vrf mgmt
+cli-session
+    timeout 15
+!
+!
+!
+!
+tacacs-server host 10.0.0.49 key ciphertext REDACTED vrf mgmt
+radius-server host 10.0.0.80 key ciphertext REDACTED timeout 3 vrf mgmt
+radius-server host 10.0.1.80 key ciphertext REDACTED port 1645 acct-port 1646 vrf mgmt
+!
+aaa group server radius NAC
+    server 10.0.0.80 vrf mgmt
+    server 10.0.1.80 vrf mgmt
+!
+aaa accounting port-access start-stop interim 60 group NAC
+!
+radius dyn-authorization enable
+radius dyn-authorization client 10.0.0.80 secret-key ciphertext REDACTED vrf mgmt
+!
+logging 10.0.0.60 vrf mgmt
+logging 10.0.1.60 tcp 1514 severity warning vrf mgmt
+ip dns domain-name corp.example.com vrf mgmt
+ip dns server-address 10.0.0.53 vrf mgmt
+ip dns server-address 10.0.1.53 vrf mgmt
+!
+ssh server vrf mgmt
+vsf secondary-member 2
+vsf member 1
+    type jl661a
+    link 1 1/1/51
+    link 2 1/1/52
+vsf member 2
+    type jl661a
+    link 1 2/1/51
+    link 2 2/1/52
+dhcpv4-snooping
+vlan 1
+vlan 10
+    name USERS
+    dhcpv4-snooping
+vlan 20
+    name VOICE
+    voice
+    dhcpv4-snooping
+vlan 30
+    name PRINTERS
+    dhcpv4-snooping
+vlan 40
+    name GUEST-WIFI
+vlan 99
+    name MGMT
+vlan 666
+    name QUARANTINE
+vlan 999
+    name PARKING
+spanning-tree
+spanning-tree priority 15
+port-access role CRITICAL
+    reauth-period 600
+    vlan access 10
+port-access role REJECT
+    reauth-period 600
+    vlan access 666
+port-access role EMPLOYEE
+    reauth-period 14400
+    vlan access 10
+aaa authentication port-access dot1x authenticator
+    radius server-group NAC
+    enable
+aaa authentication port-access mac-auth
+    radius server-group NAC
+    enable
+interface mgmt
+    no shutdown
+    ip static 10.99.0.11/24
+    default-gateway 10.99.0.1
+interface lag 1
+    description UPLINK-CORE
+    no shutdown
+    no routing
+    vlan trunk native 1
+    vlan trunk allowed 10,20,30,40,99
+    lacp mode active
+    dhcpv4-snooping trust
+interface 1/1/1
+    description Desk 101
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 1/1/2
+    description Desk 102
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 1/1/3
+    description Desk 103
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 1/1/4
+    description Desk 104
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 1/1/5
+    description Printer floor 1
+    no shutdown
+    no routing
+    vlan access 30
+    spanning-tree port-type admin-edge
+    aaa authentication port-access mac-auth
+        enable
+interface 1/1/6
+    description AP floor 1
+    no shutdown
+    no routing
+    vlan trunk native 99
+    vlan trunk allowed 10,40,99
+    qos trust dscp
+interface 1/1/7
+    description Badge reader 1
+    no shutdown
+    no routing
+    vlan access 30
+    speed 100-full
+    no power-over-ethernet
+    port-access port-security
+        enable
+        client-limit 2
+        sticky-learn enable
+interface 1/1/8
+    no routing
+    vlan access 999
+interface 1/1/49
+    description UPLINK-CORE member 1
+    no shutdown
+    mtu 9198
+    lag 1
+interface 1/1/50
+    no shutdown
+interface 1/1/51
+    no shutdown
+interface 1/1/52
+    no shutdown
+interface 2/1/1
+    description Desk 201
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 2/1/2
+    description Desk 202
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 2/1/3
+    description Desk 203
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 2/1/4
+    description Desk 204
+    no shutdown
+    no routing
+    vlan trunk native 10
+    vlan trunk allowed 10,20
+    spanning-tree bpdu-guard
+    spanning-tree port-type admin-edge
+    rate-limit broadcast 5 percent
+    rate-limit unknown-unicast 5 percent
+    aaa authentication port-access client-limit 2
+    aaa authentication port-access critical-role CRITICAL
+    aaa authentication port-access reject-role REJECT
+    aaa authentication port-access dot1x authenticator
+        eapol-timeout 30
+        max-eapol-requests 1
+        max-retries 1
+        reauth
+        reauth-period 14400
+        enable
+    aaa authentication port-access mac-auth
+        cached-reauth
+        cached-reauth-period 86400
+        quiet-period 30
+        enable
+    loop-protect
+interface 2/1/5
+    description Printer floor 2
+    no shutdown
+    no routing
+    vlan access 30
+    spanning-tree port-type admin-edge
+    aaa authentication port-access mac-auth
+        enable
+interface 2/1/6
+    description AP floor 2
+    no shutdown
+    no routing
+    vlan trunk native 99
+    vlan trunk allowed 10,40,99
+    qos trust dscp
+interface 2/1/7
+    description Badge reader 2
+    no shutdown
+    no routing
+    vlan access 30
+    speed 100-full
+    no power-over-ethernet
+    port-access port-security
+        enable
+        client-limit 2
+        sticky-learn enable
+interface 2/1/8
+    no routing
+    vlan access 999
+interface 2/1/49
+    description UPLINK-CORE member 2
+    no shutdown
+    mtu 9198
+    lag 1
+interface 2/1/50
+    no shutdown
+interface 2/1/51
+    no shutdown
+interface 2/1/52
+    no shutdown
+interface vlan 99
+    description Management
+    ip address 10.99.0.11/24
+snmp-server vrf mgmt
+snmp-server system-location Building A, floor 1
+snmp-server system-contact noc@example.com
+snmp-server community REDACTED
+    access-level ro
+snmp-server host 10.0.0.70 trap version v2c community REDACTED vrf mgmt
+snmp-server host 10.0.0.71 trap version v3 user monitoring vrf mgmt
+snmpv3 user monitoring auth sha auth-pass ciphertext REDACTED priv aes priv-pass ciphertext REDACTED
+ip route 0.0.0.0/0 10.99.0.1 vrf mgmt
+https-server vrf mgmt
+cx-access-01#

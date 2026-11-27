@@ -11,6 +11,9 @@
  *
  * The reader separates the lines of configuration from the rest and reads the
  * table of "show vlan". It does not interpret the configuration.
+ *
+ * A terminal of Aruba AOS-CX has the same prompts and the same "Current configuration"
+ * header: its captures are read here too.
  */
 import { NumberedLine, numberedLines } from './statement';
 
