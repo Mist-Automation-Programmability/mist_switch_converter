@@ -56,7 +56,7 @@ export class JsonToHtml {
 
     private isString(key: string, inc: number, value: string, is_last: boolean, indent: number): string {
 
-        var html = "<div>" + this.isKey(key, inc, indent) + "<span class='string'>\"" + value.replace(/"/gi, '\\"') + "\"</span>";
+        var html = "<div>" + this.isKey(key, inc, indent) + "<span class='string'>\"" + this.escape(value.replace(/"/gi, '\\"')) + "\"</span>";
         if (!is_last) html += ","
         html += "</div>"
         return html
@@ -73,9 +73,13 @@ export class JsonToHtml {
         html += "</div>"
         return html
     }
+    /** Text of the configuration files (a description, a banner) is shown as text, never read as HTML. */
+    private escape(text: string): string {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
     private isKey(key: string, inc: number = 0, indent: number): string {
         if (key == "") return "<span class='key'>" + " ".repeat(inc * indent) + "</span>"
-        else return "<span class='key'>" + " ".repeat(inc * indent) + "\"" + key + "\"</span><span>: </span>"
+        else return "<span class='key'>" + " ".repeat(inc * indent) + "\"" + this.escape(key) + "\"</span><span>: </span>"
     }
 
     // private isEmptyObj(key: string, inc: number = 0, is_last: boolean, indent: number): string {

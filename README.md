@@ -47,6 +47,8 @@ npm test
 
 See [angular/src/app/converters/__tests__/README.md](angular/src/app/converters/__tests__/README.md) for what they cover, the list of known defects, and the rules for test data. Test data is synthetic: never add a customer configuration to this repository.
 
+The conversion code itself, and how to add a command or a vendor, is described in [angular/src/app/converters/README.md](angular/src/app/converters/README.md).
+
 ## Installation
 
 This app can be run as a standalone Node application, or can be deployed as a Docker container.
