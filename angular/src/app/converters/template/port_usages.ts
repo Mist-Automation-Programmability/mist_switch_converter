@@ -49,7 +49,7 @@ export function portUsageOf(port: Port, networkOf: (id: number) => string): Mist
     if (auth.reauthInterval !== undefined) usage.reauth_interval = auth.reauthInterval;
     if (auth.serverFailVlan !== undefined) usage.server_fail_network = networkOf(auth.serverFailVlan);
     if (auth.serverRejectVlan !== undefined) usage.server_reject_network = networkOf(auth.serverRejectVlan);
-    if (auth.permitWhenServerDown) usage.bypass_auth_when_server_down_for_unkown_client = true;
+    if (auth.permitWhenServerDown) usage.bypass_auth_when_server_down_for_unknown_client = true;
   }
   // As in the exported file, a setting without a value is absent.
   return JSON.parse(JSON.stringify(usage)) as MistPortUsage;

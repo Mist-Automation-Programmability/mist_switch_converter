@@ -77,8 +77,7 @@ export interface MistPortUsage {
   reauth_interval?: number;
   server_fail_network?: string;
   server_reject_network?: string;
-  /** The Mist API spells it this way. */
-  bypass_auth_when_server_down_for_unkown_client?: boolean;
+  bypass_auth_when_server_down_for_unknown_client?: boolean;
 }
 
 export interface MistRadiusServer {

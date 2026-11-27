@@ -490,7 +490,7 @@ describe('Junos: 802.1X', () => {
     );
 
     const usage = usageFor(result, 'ge-0/0/0');
-    expect(usage.bypass_auth_when_server_down_for_unkown_client).toBe(true);
+    expect(usage.bypass_auth_when_server_down_for_unknown_client).toBe(true);
     expect(usage.bypass_auth_when_server_down).toBe(false);
   });
 
