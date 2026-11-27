@@ -47,10 +47,13 @@ const UNIVERSAL_RULES: Record<string, Rule> = {
   'MAC address': (line) => line.match(/\b[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}\b|\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b/i)?.[0],
 };
 
+/** A statement that carries a secret; the second group is the secret. */
+const SECRET = /\b(secret|password|encrypted-password|key|community|authentication-key|pre-shared-key|key-string)\s+(?:\d\s+)?"?([^\s"]+)"?/i;
+
 /** Rules for device configurations only: they would misfire on prose and on code. */
 const CONFIGURATION_RULES: Record<string, Rule> = {
   'secret that is not the placeholder': (line) => {
-    const match = line.match(/\b(secret|password|encrypted-password|key|community|authentication-key|pre-shared-key|key-string)\s+(?:\d\s+)?"?([^\s"]+)"?/i);
+    const match = line.match(SECRET);
     return match && match[2] !== PLACEHOLDER ? match[0] : undefined;
   },
 
@@ -81,4 +84,18 @@ export function scanConfiguration(text: string): Finding[] {
 /** For the source of a test, where configuration snippets are mixed with code. */
 export function scanTestSource(text: string): Finding[] {
   return scan(text, UNIVERSAL_RULES);
+}
+
+/**
+ * The secrets written in a configuration (passwords, keys, hashes, SNMP communities),
+ * with the line they are on. Short values are left out: they are more often a key
+ * number or a keyword than a secret.
+ */
+export function secretsOf(text: string): Array<{ line: number; value: string }> {
+  const secrets: Array<{ line: number; value: string }> = [];
+  text.split('\n').forEach((line, index) => {
+    const value = line.match(SECRET)?.[2];
+    if (value !== undefined && value !== PLACEHOLDER && value.length >= 6) secrets.push({ line: index + 1, value });
+  });
+  return secrets;
 }

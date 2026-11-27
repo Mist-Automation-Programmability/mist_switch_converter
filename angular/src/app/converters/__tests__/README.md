@@ -12,6 +12,7 @@ npm run test:watch    # rerun on change
 npm run test:defects  # run the known defects as normal tests, to see how each one fails
 npm run test:types    # type-check the converter and the tests
 npm test -- -u        # record new golden files after an intended change
+npm run test:local    # only the real configurations of test_configs/ (local, never committed)
 ```
 
 ## What is in here
@@ -22,7 +23,8 @@ npm test -- -u        # record new golden files after an intended change
 | `shared.test.ts` | What does not depend on the vendor: file detection, port usage names, RADIUS, several files in one template. |
 | `golden.test.ts` | Whole configurations from `__fixtures__`, compared with the `expected.json` stored next to them. |
 | `invariants.test.ts` | Rules every template must respect (every network exists, port names are valid...), on every fixture. |
-| `fixture-privacy.test.ts` | No secret, public address or real domain in the fixtures and the tests. |
+| `fixture-privacy.test.ts` | No secret, public address or real domain in the fixtures and the tests. No file of `test_configs/` in git. |
+| `local-configs.test.ts` | Real configurations in `test_configs/`, compared with the results of the previous run. Local only, skipped when the folder does not exist. |
 | `helpers.test.ts` | The subnet calculation and the translation of Cisco port names. |
 | `support/` | The harness shared by the tests. |
 
@@ -143,3 +145,46 @@ user's computer. Test data must respect the same promise:
 `fixture-privacy.test.ts` fails on the most common leftovers (hashes, non-placeholder
 secrets, public addresses, MAC addresses, real domains, e-mail addresses). It is a
 safety net, not a sanitizer: it cannot recognise a customer name in a description.
+
+## Real configurations: local only
+
+Real configurations are the best test of a change, and they must never leave your
+computer. Put them in `test_configs/` at the root of the repository:
+
+```
+test_configs/
+  site1/            one folder per set of files that are converted together
+    core.txt
+    access-1.txt
+  site2/
+    ex-stack.txt
+  _results/         written by the test
+```
+
+`test_configs/` is in `.gitignore`. `fixture-privacy.test.ts` fails if a file of that
+folder is tracked by git or if the ignore rule is removed. To keep the files outside
+the repository altogether, set `SWITCH_CONVERTER_TEST_CONFIGS` to their folder.
+
+```sh
+npm run test:local          # convert them and compare with the recorded results
+npm run test:local -- -u    # accept the new results
+```
+
+`local-configs.test.ts` converts the files of each folder together, and each file on
+its own when a folder holds several. The first run records the results. The next runs
+fail when a result differs, which shows what a change to the converter does to real
+configurations. `npm test` runs it too, and skips it when the folder does not exist,
+as on GitHub.
+
+What it writes, all inside `test_configs/_results`:
+
+- one file per conversion, with the same content as `expected.json` plus the invariants
+  it breaks (`broken_rules`). **These files hold customer data**, like the
+  configurations. Review their diffs locally, and never share or commit them.
+- `summary.json`: numbers and rule names only. No hostname, address, description,
+  VLAN name, file name or log text. It tells how many results are new, the same or
+  changed, which fields changed and how often, and how many times each invariant is
+  broken. It is the only file that is safe to share, for example in an issue.
+
+Found a defect with a real configuration? Reproduce it with a few synthetic lines in a
+test or a fixture. Do not copy lines of the real file.

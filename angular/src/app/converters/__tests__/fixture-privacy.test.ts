@@ -3,10 +3,12 @@
  * in the browser precisely so that they never leave the user's computer.
  * These tests fail when a fixture or a test still looks like a real configuration.
  */
+import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { relative } from 'path';
 import { describe, expect, it } from 'vitest';
 import { FIXTURES_DIR, listFiles, TESTS_DIR } from './support/fixtures';
+import { REPOSITORY_DIR } from './support/local-configs';
 import { scanConfiguration, scanTestSource } from './support/privacy';
 
 const report = (findings: Array<{ line: number; rule: string; text: string }>): string[] =>
@@ -33,6 +35,28 @@ describe('Fixtures and tests hold no customer data', () => {
       expect(report(scanTestSource(readFileSync(path, 'utf8')))).toEqual([]);
     });
   }
+});
+
+describe('Real configurations stay out of git', () => {
+  /** Output of a git command run at the root of the repository, or `undefined` when git cannot answer. */
+  const git = (...args: string[]): string | undefined => {
+    try {
+      return execFileSync('git', args, { cwd: REPOSITORY_DIR, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      return undefined;
+    }
+  };
+  // Without git, or outside a checkout (a source archive), there is nothing to check.
+  const inCheckout = git('rev-parse', '--is-inside-work-tree')?.trim() === 'true';
+
+  it.skipIf(!inCheckout)('no file of test_configs is tracked by git', () => {
+    expect(git('ls-files', '--', 'test_configs')?.split('\n').filter(Boolean)).toEqual([]);
+  });
+
+  it.skipIf(!inCheckout)('test_configs is ignored by git', () => {
+    // `git check-ignore` prints the path when it is ignored, and fails when it is not.
+    expect(git('check-ignore', 'test_configs/site/switch.txt')?.trim()).toBe('test_configs/site/switch.txt');
+  });
 });
 
 describe('The privacy checks themselves', () => {

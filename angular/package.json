@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:defects": "vitest run --mode defects",
+    "test:local": "vitest run local-configs",
     "test:types": "tsc -p tsconfig.test.json"
   },
   "private": true,
