@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, provideZoneChangeDetection } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { AppComponent, InfoDialog, DetailsDialog } from './app.component';
@@ -6,7 +6,7 @@ import { DropContainerDirective } from './common/directive/dragndrop';
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogModule } from '@angular/material/dialog';
@@ -31,7 +31,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     BrowserModule,
     BrowserAnimationsModule,
     FormsModule,
-    HttpClientModule,
     MatButtonModule,
     MatCheckboxModule,
     MatDialogModule,
@@ -46,7 +45,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     MatTabsModule,
     MatTooltipModule
   ],
-  providers: [],
+  providers: [
+    // Since Angular 21 an application has no zone.js change detection unless it asks for it
+    provideZoneChangeDetection(),
+    provideHttpClient(withXhr(), withInterceptorsFromDi())
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

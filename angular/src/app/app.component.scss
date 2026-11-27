@@ -294,7 +294,7 @@
 
                 // The option that copies secrets, as a third line of the notice about passwords
                 .secrets {
-                    --mdc-checkbox-state-layer-size: 22px;
+                    --mat-checkbox-state-layer-size: 22px;
 
                     ::ng-deep label {
                         color: #c33d35;
