@@ -143,7 +143,9 @@ export class ConfigData {
     get_vlan(vlan_id: string | undefined, filename: string = "") {
         if (vlan_id != undefined) {
             try {
-                if (this.vlans.hasOwnProperty(vlan_id)) return this.vlans[vlan_id].names[0];
+                // A VLAN can be known without a name (an SVI with an address and no description).
+                // It then gets the name that generate_template() gives to its network.
+                if (this.vlans.hasOwnProperty(vlan_id)) return this.vlans[vlan_id].names[0] ?? this.vlan_prefix + vlan_id;
                 // else {
                 //     this._config_logger.error("unable to find vlan name for vlan_id " + vlan_id, filename);
                 //     console.error(this.vlans);
@@ -354,8 +356,6 @@ export class ConfigData {
                 junos_interface_array.push('et-' + this.cisco_split(iname.replace("TwentyFiveGigE", "")));
             } else if (iname.startsWith("FortyGigabitEthernet")) {
                 junos_interface_array.push('et-' + this.cisco_split(iname.replace("FortyGigabitEthernet", "")));
-            } else if (iname.startsWith("AppGigabitEthernet")) {
-                junos_interface_array.push('ge-' + this.cisco_split(iname.replace("AppGigabitEthernet", "")));
             } else {
                 junos_interface_array.push(iname);
             }
@@ -517,7 +517,7 @@ export class ConfigData {
     async generate_template() {
         for (var vlan_id in this.vlans) {
             if (this.vlans[vlan_id].names.length == 0) {
-                var vlan_name = "vlan" + vlan_id;
+                var vlan_name = this.vlan_prefix + vlan_id;
                 this._config_logger.warning("VLAN " + vlan_id + " has doesn't have name. Generating one: \"" + vlan_name + "\"");
                 this.vlans[vlan_id].names.push(vlan_name);
             } else if (this.vlans[vlan_id].names.length > 1) this._config_logger.warning("VLAN " + vlan_id + " has multiple names. Using the first one: \"" + this.vlans[vlan_id].names[0] + "\"")
