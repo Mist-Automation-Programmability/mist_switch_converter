@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { Conversion, Diagnostic, messageKind, OriginSource } from '../converters/convert';
 import { linesText } from '../converters/report';
 import { JsonViewComponent } from './json-view.component';
@@ -28,7 +27,7 @@ interface SourceView {
 @Component({
   selector: 'app-part-view',
   standalone: true,
-  imports: [JsonViewComponent, FormsModule],
+  imports: [JsonViewComponent],
   changeDetection: ChangeDetectionStrategy.Default,
   template: `
     <div class="detail-head">
@@ -58,12 +57,6 @@ interface SourceView {
           <dd>Ports with the same settings share one port profile, whatever their switch and their vendor.</dd>
         }
       </dl>
-      @if (part.path === 'snmp_config') {
-        <label class="checkbox">
-          <input type="checkbox" [ngModel]="copySecrets" (ngModelChange)="copySecretsChange.emit($event)" />
-          <span>Copy the SNMP secrets that are in clear text</span>
-        </label>
-      }
       @if (messages.length > 0) {
         <ul class="messages">
           @for (message of messages; track $index) {
@@ -114,8 +107,6 @@ export class PartViewComponent implements OnChanges {
   @Input() conversion: Conversion;
   @Input() part: PartRef;
   @Input() files: Array<{ name: string; text: string }> = [];
-  @Input() copySecrets = false;
-  @Output() copySecretsChange = new EventEmitter<boolean>();
   @Output() openFile = new EventEmitter<{ name: string; line?: number }>();
   @Output() openPart = new EventEmitter<string>();
 

@@ -43,11 +43,22 @@
       @if (disclaimer) {
         <p class="disclaimer">{{ disclaimer }}</p>
       }
+      @if (github_url || docker_url) {
+        <div class="source-links">
+          @if (github_url) {
+            <a [href]="github_url" target="_blank" rel="noopener"><img src="images/github.png" alt="Source code on GitHub" /></a>
+          }
+          @if (docker_url) {
+            <a [href]="docker_url" target="_blank" rel="noopener"><img src="images/docker.png" alt="Docker image" /></a>
+          }
+        </div>
+      }
     </div>
   </main>
 } @else {
   <main class="workbench">
     <!-- Files -->
+    <div class="side">
     <aside class="panel files" aria-label="Files">
       <div class="panel-head">
         <h2>Files</h2>
@@ -103,6 +114,17 @@
       </div>
       <button type="button" class="text-button remove-all" (click)="removeAll()">Remove all the files</button>
     </aside>
+    @if (conversion.template.snmp_config) {
+      <section class="panel options" aria-labelledby="options-title">
+        <h2 id="options-title">Options</h2>
+        <label class="checkbox">
+          <input type="checkbox" [ngModel]="copy_secrets" (ngModelChange)="setCopySecrets($event)" />
+          <span>Copy the SNMP secrets that are in clear text</span>
+        </label>
+        <p class="muted small">Off: the template has to_be_replaced_1, to_be_replaced_2… in their place. On: mind who gets the template.</p>
+      </section>
+    }
+    </div>
 
     <!-- Template -->
     <nav class="panel template-nav" aria-label="Template">
@@ -163,15 +185,11 @@
               This is the file that Download template saves.
             </p>
           </div>
-          <label class="checkbox">
-            <input type="checkbox" [ngModel]="copy_secrets" (ngModelChange)="setCopySecrets($event)" />
-            <span>Copy the SNMP secrets that are in clear text (off: they are replaced by to_be_replaced_1, 2…)</span>
-          </label>
           <app-json-view [value]="conversion.template" [depth]="2" [toolbar]="true" label="Whole template"></app-json-view>
         }
         @case ('part') {
           @if (selection.kind === 'part') {
-            <app-part-view [conversion]="conversion" [part]="selection.part" [files]="files" [copySecrets]="copy_secrets" (copySecretsChange)="setCopySecrets($event)" (openFile)="openFile($event)" (openPart)="selectPath($event)"></app-part-view>
+            <app-part-view [conversion]="conversion" [part]="selection.part" [files]="files" (openFile)="openFile($event)" (openPart)="selectPath($event)"></app-part-view>
           }
         }
         @case ('file') {

@@ -14,6 +14,11 @@ function stringToBool(val, def_val) {
     return def_val
 }
 
+// What the start page shows under the drop box. Each can be set in config.js or by
+// an environment variable; the links lead to this project unless they are changed.
+const DEFAULT_GITHUB_URL = "https://github.com/Mist-Automation-Programmability/mist_switch_converter";
+const DEFAULT_DOCKER_URL = "https://hub.docker.com/r/tmunzer/mist_switch_converter";
+
 var config = {}
 try {
     config = require("./config");
@@ -27,14 +32,21 @@ try {
             httpsPort: process.env.NODE_PORT_HTTPS || 3443,
             httpsCertificate: process.env.NODE_HTTPS_CERT || null,
             httpsKey: process.env.NODE_HTTPS_KEY || null,
-        },
-        login: {
-            disclaimer: process.env.APP_DISCLAIMER || "",
-            github_url: process.env.APP_GITHUB_URL || "",
-            docker_url: process.env.APP_DOCKER_URL || ""
         }
     }
 } finally {
+    // A config.js without a login part, or without some of its values, takes them from
+    // the environment variables, then from the defaults. "none" hides a link.
+    const login = config.login || {};
+    const pick = (value, name, def_val) => {
+        const chosen = value !== undefined ? value : process.env[name] !== undefined ? process.env[name] : def_val;
+        return chosen === "none" ? "" : chosen;
+    }
+    config.login = {
+        disclaimer: pick(login.disclaimer, "APP_DISCLAIMER", ""),
+        github_url: pick(login.github_url, "APP_GITHUB_URL", DEFAULT_GITHUB_URL),
+        docker_url: pick(login.docker_url, "APP_DOCKER_URL", DEFAULT_DOCKER_URL)
+    }
     logger.info("Config loaded!")
     global.config = config;
 }
