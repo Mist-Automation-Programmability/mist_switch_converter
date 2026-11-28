@@ -14,7 +14,7 @@ it('keeps converting the other files when a file makes the converter fail, and r
     { name: 'sw1.txt', text: 'hostname sw1\n!\nvlan 10\n name USERS\n!\ninterface GigabitEthernet1/0/1\n switchport access vlan 10\n!\n' },
   ]);
 
-  expect(result.files).toEqual([
+  expect(result.files.map(({ outcomes: _outcomes, counts: _counts, ports: _ports, ...file }) => file)).toEqual([
     { name: 'ex1.txt', format: 'Juniper', converted: false, hasVlans: false, message: 'Error when reading configuration from ex1.txt' },
     { name: 'sw1.txt', format: 'Cisco', hostname: 'sw1', converted: true, hasVlans: true },
   ]);

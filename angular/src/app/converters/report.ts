@@ -8,6 +8,7 @@
  * rest can hold a secret.
  */
 import { Diagnostic, Severity } from './model';
+import { LineOutcome, LineTrace } from './trace';
 
 interface Collected {
   severity: Severity;
@@ -27,32 +28,51 @@ export class Report {
     /** Name of the source file the messages are about, or '' for the whole conversion. */
     readonly file: string = '',
     readonly diagnostics: Diagnostic[] = [],
+    /** What happened to each line, per file. Shared by the reports of one conversion. */
+    readonly traces: Map<string, LineTrace> = new Map(),
   ) {}
 
   /** A report for one file that writes to the same list of diagnostics. */
   forFile(file: string): Report {
-    return new Report(file, this.diagnostics);
+    return new Report(file, this.diagnostics, this.traces);
   }
 
-  info(code: string, message: string, lines?: number[]): void {
-    this.add('info', code, message, lines);
+  /** What happened to each line of the file of this report. */
+  trace(): LineTrace {
+    let trace = this.traces.get(this.file);
+    if (!trace) {
+      trace = new LineTrace();
+      this.traces.set(this.file, trace);
+    }
+    return trace;
   }
 
-  warning(code: string, message: string, lines?: number[]): void {
-    this.add('warning', code, message, lines);
+  /** Says what happened to lines whose result did not reach the template, whatever the rules said. */
+  linesAre(lines: number[], outcome: LineOutcome): void {
+    this.trace().force(lines, outcome);
   }
 
-  error(code: string, message: string, lines?: number[]): void {
-    this.add('error', code, message, lines);
+  info(code: string, message: string, lines?: number[], subject?: string): void {
+    this.add('info', code, message, lines, subject);
+  }
+
+  warning(code: string, message: string, lines?: number[], subject?: string): void {
+    this.add('warning', code, message, lines, subject);
+  }
+
+  error(code: string, message: string, lines?: number[], subject?: string): void {
+    this.add('error', code, message, lines, subject);
   }
 
   /** A command of the device that the converter read and has no rule for. Reported once per command by `flush`. */
   notConverted(command: string, line: number): void {
+    this.linesAre([line], 'not-converted');
     this.collect('info', 'not-converted', `Not converted: "${command}"`, line);
   }
 
   /** A setting of a port that the converter read and has no rule for. Reported once per setting by `flush`. */
   portSettingNotConverted(command: string, line: number, port: string): void {
+    this.linesAre([line], 'not-converted');
     this.collect('warning', 'port-setting-not-converted', `Not converted: "${command}"`, line, port);
   }
 
@@ -80,8 +100,8 @@ export class Report {
     this.collected.set(key, entry);
   }
 
-  private add(severity: Severity, code: string, message: string, lines?: number[]): void {
-    this.diagnostics.push({ severity, code, message, file: this.file, ...(lines && lines.length > 0 ? { lines } : {}) });
+  private add(severity: Severity, code: string, message: string, lines?: number[], subject?: string): void {
+    this.diagnostics.push({ severity, code, message, file: this.file, ...(lines && lines.length > 0 ? { lines } : {}), ...(subject ? { subject } : {}) });
   }
 }
 

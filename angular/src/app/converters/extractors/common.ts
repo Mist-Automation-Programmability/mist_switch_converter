@@ -47,7 +47,7 @@ export function addMissingLags(ports: Port[], aeIndexOf: (name: string) => numbe
 }
 
 function structuredCloneOf(port: Port): Port {
-  return { ...port, auth: { ...port.auth }, allowedVlans: port.allowedVlans === 'all' ? 'all' : [...port.allowedVlans], groups: [...port.groups], lines: [...port.lines] };
+  return { ...port, auth: { ...port.auth }, allowedVlans: port.allowedVlans === 'all' ? 'all' : [...port.allowedVlans], groups: [...port.groups], lines: [...port.lines], lineNumbers: [...port.lineNumbers] };
 }
 
 /** The kinds of traffic that storm control limits. */

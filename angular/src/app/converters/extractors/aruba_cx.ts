@@ -14,15 +14,15 @@
  *         aaa authentication port-access dot1x authenticator
  *             enable
  */
-import { addOnce, Device, newDevice, newPort, newSnmp, Port, SourceFile, Speed, Vlan } from '../model';
+import { addOnce, Device, newDevice, newPort, newSnmp, Port, SourceFile, Speed, Vlan, noteVlanLine } from '../model';
 import { commandKey, Report } from '../report';
 import { readIndentedBlocks } from '../readers/indented_blocks';
 import { readIosCapture } from '../readers/ios_capture';
-import { sourceLines, Statement, textAfter } from '../readers/statement';
+import { sourceLineNumbers, sourceLines, Statement, textAfter } from '../readers/statement';
 import { expandArubaInterfaceRange, readArubaInterface } from './aruba_cx_interfaces';
 import { ArubaSnmp, arubaSnmpServerRules, arubaSnmpv3Rules, finishArubaSnmp, newArubaSnmp, readArubaSnmp } from './aruba_cx_snmp';
 import { addMissingLags, NOT_A_SWITCH_PORT, referencedVlans, stormControlOf, StormTraffic } from './common';
-import { ignore, rule, RuleTable } from './rules';
+import { ignore, rule, RulePattern, RuleTable } from './rules';
 import { expandVlanRanges, isIpAddress, isVlanId, parseVlanList, subnetOf, VlanRange } from './values';
 
 /** After these keywords comes another keyword, so two words name the command in a report. */
@@ -409,12 +409,14 @@ const sviRules = new RuleTable<SviBlock>(
       const vlan = vlanOf(svi.context, svi.id);
       vlan.alias = textAfter(statement, 1);
       vlan.declared = true;
+      noteVlanLine(vlan, statement.line);
     }),
-    rule('ip address <address> ...', (svi, m) => {
+    rule('ip address <address> ...', (svi, m, statement) => {
       const subnet = subnetOf(m.address);
       if (subnet === null) return false;
       const vlan = vlanOf(svi.context, svi.id);
       vlan.declared = true;
+      noteVlanLine(vlan, statement.line);
       if (m.rest.startsWith('secondary')) addOnce(vlan.subnets, subnet);
       else if (!vlan.subnets.includes(subnet)) vlan.subnets.unshift(subnet);
       return undefined;
@@ -469,6 +471,8 @@ function readInterface(context: Context, name: string, statement: Statement): vo
     if (read.number === undefined || !isVlanId(String(read.number))) return;
     addOnce(context.sviVlans, read.number);
     readBlock(context, sviRules, { id: read.number, context }, statement);
+    const vlan = context.vlans.get(read.number);
+    if (vlan?.lines) noteVlanLine(vlan, statement.line);
     return;
   }
   let draft = context.drafts.get(read.name);
@@ -481,6 +485,7 @@ function readInterface(context: Context, name: string, statement: Statement): vo
     context.drafts.set(read.name, draft);
   }
   draft.port.lines.push(...sourceLines(statement));
+  draft.port.lineNumbers.push(...sourceLineNumbers(statement));
   // The commands of an interface that is not a switch port have no place in a port usage.
   if (read.kind !== 'physical' && read.kind !== 'lag') return;
   for (const child of statement.children) {
@@ -547,6 +552,9 @@ const globalRules = new RuleTable<Context>(
       if (!ranges) return false;
       const ids = ranges.flatMap((range) => Array.from({ length: range.to - range.from + 1 }, (_unused, index) => range.from + index));
       ids.forEach((id) => (vlanOf(context, id).declared = true));
+      // The lines of a block that declares one VLAN are about that VLAN.
+      const lines = ids.length === 1 ? sourceLineNumbers(statement) : [statement.line];
+      ids.forEach((id) => lines.forEach((line) => noteVlanLine(vlanOf(context, id), line)));
       readBlock(context, vlanBlockRules, { ids, context }, statement);
       return undefined;
     }),
@@ -812,16 +820,19 @@ export function extractArubaCx(file: SourceFile, report: Report): Device {
     const reason = context.vsfLinks.has(port.name) ? 'link between the members of the stack (VSF)' : NOT_A_SWITCH_PORT[port.kind];
     if (reason !== undefined) {
       report.info('interface-skipped', `Interface ${port.name}: ${reason}, not converted`, [draft.line]);
+      report.linesAre(port.lineNumbers, 'ignored');
       continue;
     }
     finishPort(context, draft, known, defaults);
     if (port.mode === 'routed') {
       if (port.kind === 'lag') routedLags.add(port.name);
       report.portNote('warning', 'routed-port', 'Routed port, not converted', draft.line, port.name);
+      report.linesAre(port.lineNumbers, 'not-converted');
       continue;
     }
     if (port.kind === 'physical' && port.junosName === undefined) {
       report.warning('port-name', `Interface ${port.name}: the position of the port cannot be translated, not converted`, [draft.line]);
+      report.linesAre(port.lineNumbers, 'not-converted');
       continue;
     }
     ports.push(port);
@@ -859,3 +870,16 @@ export function extractArubaCx(file: SourceFile, report: Report): Device {
   report.flush();
   return device;
 }
+
+/** The rule tables of this extractor, by the place of the configuration they read: for the help page. */
+export const ARUBA_CX_RULES: ReadonlyArray<{ place: string; table: { patterns(): RulePattern[] } }> = [
+  { place: 'Global commands', table: globalRules },
+  { place: 'interface', table: portRules },
+  { place: 'aaa authentication port-access dot1x authenticator / mac-auth', table: authMethodRules },
+  { place: 'port-access port-security', table: portSecurityRules },
+  { place: 'vlan', table: vlanBlockRules },
+  { place: 'interface vlan', table: sviRules },
+  { place: 'port-access role', table: roleRules },
+  { place: 'snmp-server', table: arubaSnmpServerRules },
+  { place: 'snmpv3', table: arubaSnmpv3Rules },
+];

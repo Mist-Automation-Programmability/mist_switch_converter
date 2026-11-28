@@ -43,6 +43,8 @@ export interface Vlan {
   /** True when the VLAN is in the VLAN database of the device, false when a port only refers to it. */
   declared: boolean;
   dhcpSnooping: boolean;
+  /** Lines of the source file that declare or name the VLAN (1-based). */
+  lines?: number[];
 }
 
 export type PortKind =
@@ -111,6 +113,8 @@ export interface Port {
   groups: string[];
   /** The lines of the source that configure this port, as written. */
   lines: string[];
+  /** The numbers of those lines in the source file (1-based). */
+  lineNumbers: number[];
 }
 
 /** Storm control: the traffic that floods a VLAN is limited to a share of the bandwidth of the port. */
@@ -344,6 +348,12 @@ export interface Diagnostic {
   file: string;
   /** Lines of the source file the message is about (1-based). */
   lines?: number[];
+  /**
+   * The part of the template the message is about, as a path: "networks.users",
+   * "port_usages.desk", "switch_matching.rules.sw1", "snmp_config". Absent when the message
+   * is about a file or a command rather than a part of the template.
+   */
+  subject?: string;
 }
 
 /* ---------------------------------------------------------------- helpers */
@@ -391,7 +401,16 @@ export function newPort(name: string, kind: PortKind): Port {
     },
     groups: [],
     lines: [],
+    lineNumbers: [],
   };
+}
+
+/** Notes that a line of the source names a VLAN. */
+export function noteVlanLine(vlan: Vlan, line: number): void {
+  vlan.lines ??= [];
+  if (vlan.lines.includes(line)) return;
+  vlan.lines.push(line);
+  vlan.lines.sort((x, y) => x - y);
 }
 
 /** Adds a value to a list unless it is already there. */
