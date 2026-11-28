@@ -81,4 +81,7 @@ NODE_HTTPS | Boolean | false | Wether or not to enable HTTPS. if set to `true`, 
 NODE_PORT_HTTPS | Number | 3443 | TCP Port on which Node will listen for HTTPS Requests |
 NODE_HTTPS_CERT | String | | HTTPS certificate | 
 NODE_HTTPS_KEY | String | | HTTPS key | 
+APP_DISCLAIMER | String | | Text shown under the drop box of the start page, for example a warning or a disclaimer. Line breaks are kept |
+APP_GITHUB_URL | String | link to this repository | GitHub link shown under the drop box. `none` hides it |
+APP_DOCKER_URL | String | link to the Docker Hub image | Docker link shown under the drop box. `none` hides it |
 

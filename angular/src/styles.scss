@@ -327,6 +327,21 @@ svg.open {
   accent-color: var(--primary);
 }
 
+.option {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.option .checkbox {
+  margin: 0;
+}
+
+.option .option-note {
+  margin: 4px 0 0 28px;
+}
+
 /* --------------------------------------------------------- the right pane */
 
 .detail-head {

@@ -115,10 +115,30 @@
 }
 
 .disclaimer {
-  margin: 16px 0 0;
+  margin: 24px 0 0;
   text-align: center;
   font-size: 13px;
-  color: var(--muted);
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-line;
+}
+
+.source-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.source-links a {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.source-links img {
+  height: 28px;
 }
 
 /* ------------------------------------------------------------- workbench */

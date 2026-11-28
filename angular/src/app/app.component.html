@@ -43,6 +43,16 @@
       @if (disclaimer) {
         <p class="disclaimer">{{ disclaimer }}</p>
       }
+      @if (github_url || docker_url) {
+        <div class="source-links">
+          @if (github_url) {
+            <a [href]="github_url" target="_blank" rel="noopener"><img src="images/github.png" alt="Source code on GitHub" /></a>
+          }
+          @if (docker_url) {
+            <a [href]="docker_url" target="_blank" rel="noopener"><img src="images/docker.png" alt="Docker image" /></a>
+          }
+        </div>
+      }
     </div>
   </main>
 } @else {
@@ -163,10 +173,6 @@
               This is the file that Download template saves.
             </p>
           </div>
-          <label class="checkbox">
-            <input type="checkbox" [ngModel]="copy_secrets" (ngModelChange)="setCopySecrets($event)" />
-            <span>Copy the SNMP secrets that are in clear text (off: they are replaced by to_be_replaced_1, 2…)</span>
-          </label>
           <app-json-view [value]="conversion.template" [depth]="2" [toolbar]="true" label="Whole template"></app-json-view>
         }
         @case ('part') {

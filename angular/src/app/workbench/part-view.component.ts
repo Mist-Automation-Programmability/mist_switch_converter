@@ -37,6 +37,16 @@ interface SourceView {
       <p class="muted">{{ summary }}</p>
     </div>
 
+    @if (part.path === 'snmp_config') {
+      <div class="option">
+        <label class="checkbox">
+          <input type="checkbox" [ngModel]="copySecrets" (ngModelChange)="copySecretsChange.emit($event)" />
+          <span>Copy the SNMP secrets that are in clear text</span>
+        </label>
+        <p class="muted small option-note">Off: the template has to_be_replaced_1, to_be_replaced_2… in their place. On: mind who gets the template.</p>
+      </div>
+    }
+
     <section class="block" aria-labelledby="generated">
       <h3 id="generated">Generated</h3>
       <app-json-view [value]="value" [rootKey]="rootKey" [depth]="part.kind === 'rule' ? 2 : 4" [toolbar]="true" [label]="'Generated ' + part.name"></app-json-view>
@@ -58,12 +68,6 @@ interface SourceView {
           <dd>Ports with the same settings share one port profile, whatever their switch and their vendor.</dd>
         }
       </dl>
-      @if (part.path === 'snmp_config') {
-        <label class="checkbox">
-          <input type="checkbox" [ngModel]="copySecrets" (ngModelChange)="copySecretsChange.emit($event)" />
-          <span>Copy the SNMP secrets that are in clear text</span>
-        </label>
-      }
       @if (messages.length > 0) {
         <ul class="messages">
           @for (message of messages; track $index) {
