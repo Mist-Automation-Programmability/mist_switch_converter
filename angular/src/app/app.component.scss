@@ -159,19 +159,50 @@
   padding: 16px;
 }
 
-.files,
+.side,
 .template-nav {
   position: sticky;
   top: 76px;
   max-height: calc(100vh - 96px);
+}
+
+.template-nav {
   overflow-y: auto;
 }
 
-.files {
+/* The files, and under them the options, which stay in view however many files there are */
+.side {
   flex: 0 0 280px;
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.files {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+}
+
+.options {
+  flex: none;
+}
+
+.options h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.options .checkbox {
+  margin: 0;
+}
+
+.options p {
+  margin: 6px 0 0 25px;
 }
 
 .template-nav {

@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { Conversion, Diagnostic, messageKind, OriginSource } from '../converters/convert';
 import { linesText } from '../converters/report';
 import { JsonViewComponent } from './json-view.component';
@@ -28,7 +27,7 @@ interface SourceView {
 @Component({
   selector: 'app-part-view',
   standalone: true,
-  imports: [JsonViewComponent, FormsModule],
+  imports: [JsonViewComponent],
   changeDetection: ChangeDetectionStrategy.Default,
   template: `
     <div class="detail-head">
@@ -36,16 +35,6 @@ interface SourceView {
       <h2>{{ part.name }}</h2>
       <p class="muted">{{ summary }}</p>
     </div>
-
-    @if (part.path === 'snmp_config') {
-      <div class="option">
-        <label class="checkbox">
-          <input type="checkbox" [ngModel]="copySecrets" (ngModelChange)="copySecretsChange.emit($event)" />
-          <span>Copy the SNMP secrets that are in clear text</span>
-        </label>
-        <p class="muted small option-note">Off: the template has to_be_replaced_1, to_be_replaced_2… in their place. On: mind who gets the template.</p>
-      </div>
-    }
 
     <section class="block" aria-labelledby="generated">
       <h3 id="generated">Generated</h3>
@@ -118,8 +107,6 @@ export class PartViewComponent implements OnChanges {
   @Input() conversion: Conversion;
   @Input() part: PartRef;
   @Input() files: Array<{ name: string; text: string }> = [];
-  @Input() copySecrets = false;
-  @Output() copySecretsChange = new EventEmitter<boolean>();
   @Output() openFile = new EventEmitter<{ name: string; line?: number }>();
   @Output() openPart = new EventEmitter<string>();
 
