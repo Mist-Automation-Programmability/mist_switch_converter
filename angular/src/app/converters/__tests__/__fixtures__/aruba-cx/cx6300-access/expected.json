@@ -1,0 +1,490 @@
+{
+  "files": [
+    {
+      "name": "cx-access-01.txt",
+      "format": "Aruba",
+      "success_vlan": true,
+      "success_config": true,
+      "error_message": ""
+    }
+  ],
+  "ports": [
+    "cx-access-01 lag1 = uplink_core",
+    "cx-access-01 1/1/49 = uplink_core",
+    "cx-access-01 2/1/49 = uplink_core",
+    "cx-access-01 1/1/1 = desk",
+    "cx-access-01 1/1/2 = desk",
+    "cx-access-01 1/1/3 = desk",
+    "cx-access-01 1/1/4 = desk",
+    "cx-access-01 1/1/5 = printer_floor",
+    "cx-access-01 1/1/6 = ap_floor",
+    "cx-access-01 1/1/7 = badge_reader",
+    "cx-access-01 1/1/8 = disabled_access_parking",
+    "cx-access-01 2/1/1 = desk",
+    "cx-access-01 2/1/2 = desk",
+    "cx-access-01 2/1/3 = desk",
+    "cx-access-01 2/1/4 = desk",
+    "cx-access-01 2/1/5 = printer_floor",
+    "cx-access-01 2/1/6 = ap_floor",
+    "cx-access-01 2/1/7 = badge_reader",
+    "cx-access-01 2/1/8 = disabled_access_parking"
+  ],
+  "problems": [
+    "warning: Routed port, not converted on 2 ports, the first is 1/1/50 (lines 239, 383)",
+    "warning: DHCP snooping: the trunk has no \"dhcpv4-snooping trust\", DHCP servers are refused on it on 2 ports, the first is 1/1/6 (lines 213, 357)",
+    "warning: Port usage \"desk\" is shared by ports with different descriptions and is named after the words they have in common: Desk 101,Desk 102,Desk 103,Desk 104,Desk 201,Desk 202,Desk 203,Desk 204",
+    "warning: Port usage \"printer_floor\" is shared by ports with different descriptions and is named after the words they have in common: Printer floor 1,Printer floor 2",
+    "warning: Port usage \"ap_floor\" is shared by ports with different descriptions and is named after the words they have in common: AP floor 1,AP floor 2",
+    "warning: Port usage \"badge_reader\" is shared by ports with different descriptions and is named after the words they have in common: Badge reader 1,Badge reader 2"
+  ],
+  "errors": [],
+  "template": {
+    "name": "template_name",
+    "ntp_servers": [
+      "10.0.0.123",
+      "10.0.1.123"
+    ],
+    "dns_servers": [
+      "10.0.0.53",
+      "10.0.1.53"
+    ],
+    "dns_suffix": [
+      "corp.example.com"
+    ],
+    "networks": {
+      "default": {
+        "vlan_id": "1",
+        "subnet": null
+      },
+      "users": {
+        "vlan_id": "10",
+        "subnet": null
+      },
+      "voice": {
+        "vlan_id": "20",
+        "subnet": null
+      },
+      "printers": {
+        "vlan_id": "30",
+        "subnet": null
+      },
+      "guest_wifi": {
+        "vlan_id": "40",
+        "subnet": null
+      },
+      "mgmt": {
+        "vlan_id": "99",
+        "subnet": "10.99.0.0/24"
+      },
+      "quarantine": {
+        "vlan_id": "666",
+        "subnet": null
+      },
+      "parking": {
+        "vlan_id": "999",
+        "subnet": null
+      }
+    },
+    "port_usages": {
+      "uplink_core": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "users",
+          "voice",
+          "printers",
+          "guest_wifi",
+          "mgmt"
+        ],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "default",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": true
+      },
+      "desk": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": true,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "port_auth": "dot1x",
+        "stp_edge": true,
+        "voip_network": "voice",
+        "port_network": "users",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": true,
+        "storm_control": {
+          "no_broadcast": false,
+          "no_multicast": true,
+          "no_registered_multicast": true,
+          "no_unknown_unicast": false,
+          "percentage": 5
+        },
+        "allow_multiple_supplicants": true,
+        "reauth_interval": 14400,
+        "server_fail_network": "users",
+        "server_reject_network": "quarantine"
+      },
+      "printer_floor": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": true,
+        "enable_qos": false,
+        "mac_auth_only": true,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "port_auth": "dot1x",
+        "stp_edge": true,
+        "port_network": "printers",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "ap_floor": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": false,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": true,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "trunk",
+        "networks": [
+          "users",
+          "guest_wifi",
+          "mgmt"
+        ],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "mgmt",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": false
+      },
+      "badge_reader": {
+        "all_networks": false,
+        "disable_autoneg": true,
+        "disabled": false,
+        "duplex": "full",
+        "speed": "100m",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 2,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": true,
+        "stp_edge": false,
+        "port_network": "printers",
+        "persist_mac": true,
+        "bypass_auth_when_server_down": false
+      },
+      "disabled_access_parking": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": true,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "parking",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      }
+    },
+    "radius_config": {
+      "acct_interim_interval": 0,
+      "acct_servers": [
+        {
+          "port": "1813",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 3
+        },
+        {
+          "port": "1646",
+          "host": "10.0.1.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
+      "auth_servers": [
+        {
+          "port": "1812",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 3
+        },
+        {
+          "port": "1645",
+          "host": "10.0.1.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
+      "auth_servers_retries": 3,
+      "auth_servers_timeout": 5,
+      "coa_enabled": true,
+      "coa_port": 3799
+    },
+    "switch_mgmt": {
+      "cli_banner": "Authorized access only.\nDisconnect now if you are not an authorized user.",
+      "tacacs": {
+        "enabled": true,
+        "tacplus_servers": [
+          {
+            "host": "10.0.0.49",
+            "port": "49",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ],
+        "acct_servers": [
+          {
+            "host": "10.0.0.49",
+            "port": "49",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ]
+      }
+    },
+    "additional_config_cmds": [],
+    "dhcp_snooping": {
+      "enabled": true,
+      "networks": [
+        "users",
+        "voice",
+        "printers"
+      ]
+    },
+    "remote_syslog": {
+      "enabled": true,
+      "servers": [
+        {
+          "host": "10.0.0.60",
+          "protocol": "udp",
+          "port": "514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        },
+        {
+          "host": "10.0.1.60",
+          "protocol": "tcp",
+          "port": "1514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        }
+      ]
+    },
+    "switch_matching": {
+      "enabled": true,
+      "rules": [
+        {
+          "name": "cx-access-01",
+          "port_config": {
+            "ge-0/0/48,ge-1/0/48": {
+              "ae_idx": 0,
+              "aggregated": true,
+              "description": "UPLINK-CORE",
+              "usage": "uplink_core"
+            },
+            "ge-0/0/0": {
+              "description": "Desk 101",
+              "usage": "desk"
+            },
+            "ge-0/0/1": {
+              "description": "Desk 102",
+              "usage": "desk"
+            },
+            "ge-0/0/2": {
+              "description": "Desk 103",
+              "usage": "desk"
+            },
+            "ge-0/0/3": {
+              "description": "Desk 104",
+              "usage": "desk"
+            },
+            "ge-0/0/4": {
+              "description": "Printer floor 1",
+              "usage": "printer_floor"
+            },
+            "ge-0/0/5": {
+              "description": "AP floor 1",
+              "usage": "ap_floor"
+            },
+            "ge-0/0/6": {
+              "description": "Badge reader 1",
+              "usage": "badge_reader"
+            },
+            "ge-0/0/7": {
+              "usage": "disabled_access_parking"
+            },
+            "ge-1/0/0": {
+              "description": "Desk 201",
+              "usage": "desk"
+            },
+            "ge-1/0/1": {
+              "description": "Desk 202",
+              "usage": "desk"
+            },
+            "ge-1/0/2": {
+              "description": "Desk 203",
+              "usage": "desk"
+            },
+            "ge-1/0/3": {
+              "description": "Desk 204",
+              "usage": "desk"
+            },
+            "ge-1/0/4": {
+              "description": "Printer floor 2",
+              "usage": "printer_floor"
+            },
+            "ge-1/0/5": {
+              "description": "AP floor 2",
+              "usage": "ap_floor"
+            },
+            "ge-1/0/6": {
+              "description": "Badge reader 2",
+              "usage": "badge_reader"
+            },
+            "ge-1/0/7": {
+              "usage": "disabled_access_parking"
+            }
+          },
+          "match_name[0:12]": "cx-access-01"
+        }
+      ]
+    },
+    "snmp_config": {
+      "enabled": true,
+      "contact": "noc@example.com",
+      "location": "Building A, floor 1",
+      "views": [
+        {
+          "view_name": "all",
+          "oid": ".1",
+          "include": true
+        }
+      ],
+      "v2c_config": [
+        {
+          "community_name": "to_be_replaced_1",
+          "authorization": "read-only"
+        }
+      ],
+      "trap_groups": [
+        {
+          "group_name": "traps_v2",
+          "version": "v2",
+          "targets": [
+            "10.0.0.70"
+          ],
+          "categories": []
+        }
+      ],
+      "v3_config": {
+        "usm": [
+          {
+            "engine_type": "local_engine",
+            "users": [
+              {
+                "name": "monitoring",
+                "authentication_type": "authentication-sha",
+                "authentication_password": "to_be_replaced",
+                "encryption_type": "privacy-aes128",
+                "encryption_password": "to_be_replaced"
+              }
+            ]
+          }
+        ],
+        "vacm": {
+          "security_to_group": {
+            "security_model": "usm",
+            "content": [
+              {
+                "security_name": "monitoring",
+                "group": "snmpv3_ro"
+              }
+            ]
+          },
+          "access": [
+            {
+              "group_name": "snmpv3_ro",
+              "prefix_list": [
+                {
+                  "type": "default_context_prefix",
+                  "security_model": "usm",
+                  "security_level": "privacy",
+                  "read_view": "all"
+                }
+              ]
+            }
+          ]
+        },
+        "notify": [
+          {
+            "name": "traps",
+            "tag": "traps",
+            "type": "trap"
+          }
+        ],
+        "target_address": [
+          {
+            "target_address_name": "target_10.0.0.71",
+            "address": "10.0.0.71",
+            "port": "162",
+            "tag_list": "traps",
+            "target_parameters": "traps_monitoring"
+          }
+        ],
+        "target_parameters": [
+          {
+            "name": "traps_monitoring",
+            "message_processing_model": "v3",
+            "security_model": "usm",
+            "security_level": "privacy",
+            "security_name": "monitoring"
+          }
+        ]
+      }
+    }
+  }
+}

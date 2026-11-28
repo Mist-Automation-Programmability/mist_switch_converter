@@ -1,6 +1,6 @@
 # SwitchConfigConverter
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 13.1.0-next.2.
+This project uses [Angular](https://angular.dev) 22 and its CLI. It needs Node.js 22.22.3 or later (24.15 or later on Node.js 24).
 
 ## Development server
 

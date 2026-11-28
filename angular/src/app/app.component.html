@@ -1,108 +1,203 @@
-<!-- Toolbar -->
-<div class="toolbar" role="banner" class="banner">
-    <div class="logo">
-        <img src="images/juniper.png" />
-        <div>
-            Switch Configuration Converter
-        </div>
-    </div>
-    <div class="help">
-        <button mat-raised-button color="warn" (click)="openInfo()">
-            <div class="read">
-                PLEASE READ
-                <img src="images/ico_error.svg" /> 
-            </div>
-        </button>
-    </div>
-</div>
+<input #fileInput type="file" multiple hidden (change)="onFileInput($event)" />
 
-<div class="content" role="main">
-    <!-- INPUT -->
-    <div *ngIf="config_files.length==0" style="height: calc(100vh / 20)"></div>
-    <div class="files" [class.dragover]="dragover">
-        <div class="list" *ngIf="config_files.length > 0">
-            <h2>
-                <span>
-                    Processed files
+<header class="topbar">
+  <div class="brand">
+    <img src="images/juniper.png" alt="Juniper Networks" />
+    <span class="title">Switch Configuration Converter</span>
+    <span class="privacy">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+      Your files never leave this browser
+    </span>
+  </div>
+  <div class="actions">
+    <button type="button" class="text-button" [class.pressed]="show_info" (click)="show_info = !show_info">How it works</button>
+    @if (conversion) {
+      <label class="name-field">
+        <span>Template name</span>
+        <input type="text" [(ngModel)]="template_name" (ngModelChange)="renameTemplate()" spellcheck="false" />
+      </label>
+      <button type="button" class="primary-button" (click)="save()">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"></path><path d="M7 11l5 5 5-5"></path><path d="M5 20h14"></path></svg>
+        Download template
+      </button>
+    }
+  </div>
+</header>
+
+@if (!conversion) {
+  <!-- Start screen: the drop box and nothing else -->
+  <main class="start">
+    <div class="start-column">
+      <div class="start-drop" [class.dragging]="dragging">
+        <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#05635E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M5 20h14"></path></svg>
+        <h1>Drop your switch configurations here</h1>
+        <p>One file per switch. They become one Mist template.</p>
+        <button type="button" class="primary-button" (click)="browse()">Browse</button>
+        @if (reading > 0) {
+          <p class="muted">Reading {{ reading }} file{{ reading > 1 ? 's' : '' }}…</p>
+        }
+        @if (skipped.length > 0) {
+          <p class="skipped">Not a text file, not read: {{ skipped.join(', ') }}</p>
+        }
+      </div>
+      @if (disclaimer) {
+        <p class="disclaimer">{{ disclaimer }}</p>
+      }
+    </div>
+  </main>
+} @else {
+  <main class="workbench">
+    <!-- Files -->
+    <aside class="panel files" aria-label="Files">
+      <div class="panel-head">
+        <h2>Files</h2>
+        <span class="muted">{{ files.length }} file{{ files.length > 1 ? 's' : '' }}@if (not_read > 0) {, {{ not_read }} not read}</span>
+      </div>
+      @if (files.length > 6) {
+        <label class="filter">
+          <span class="sr-only">Filter the files</span>
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+          <input type="search" placeholder="Filter by name or vendor" [(ngModel)]="file_filter" />
+        </label>
+      }
+      <ul class="file-list">
+        @for (file of shown_files; track file.name) {
+          <li [class.selected]="isSelectedFile(file.name)">
+            <button type="button" class="file-row" (click)="openFile({ name: file.name })" [attr.aria-current]="isSelectedFile(file.name) ? 'true' : null">
+              <span class="vendor-square" [class]="'vendor-square ' + (file.report?.format ?? 'Unknown').toLowerCase()" aria-hidden="true"></span>
+              <span class="file-text">
+                <span class="file-name">{{ file.name }}</span>
+                <span class="file-meta">
+                  <span class="file-vendor">
+                    {{ vendor_label[file.report?.format ?? 'Unknown'] }}
+                    @if (file.report?.converted && file.report?.hostname) {
+                      · {{ file.report?.hostname }}
+                    }
+                  </span>
+                  @if (file.report && !file.report.converted) {
+                    <span class="pill error">Not read</span>
+                  } @else if (toCheck(file) > 0) {
+                    <span class="pill warning">{{ toCheck(file) }} to check</span>
+                  }
                 </span>
-                <div [class.enabled]="files.selectedOptions.selected.length > 0" (click)="removeConfigFile()">
-                    <mat-icon>delete_forever</mat-icon>
-                </div>
-            </h2>
-            <mat-selection-list #files (selectionChange)="selectFile($event)">
-                <mat-list-option color="primary" *ngFor="let file of config_files" [value]="file">
-                    <div class="file-container">
-                        <div class="fileformat" [ngClass]="file.format.toLowerCase()">{{file.format}}</div>
-                        <div class="filename">{{file.name}}</div>
-                        <img *ngIf="file.format=='Unknown'" src="images/ico_error.svg" class="error" [matTooltip]="file.error_message" />
-                        <img *ngIf="file.format != 'Unknown' && (!file.success_config || !file.success_vlan)" src="images/ico_warning.svg" class="warning" [matTooltip]="file.error_message" />
-                        <img *ngIf="file.success_config && file.success_vlan" src="images/ico_success.svg" class="success" matTooltip="Configuration file processed" />
-                    </div>
-                </mat-list-option>
-            </mat-selection-list>
-        </div>
-        <div class="drops" [class.dragover]="dragover" dropContainer>
-            <input type="file" #dropsRef id="dropsRef" multiple (change)="onFilechange($event)" />
-            <div>
-                <mat-icon class="drop_icon" aria-label="drop files">post_add</mat-icon>
-            </div>
-            <h3>Drop your configuration files here</h3>
-            <h3>or</h3>
-            <button for="dropsRef" mat-raised-button color="primary">Browse your Files</button>
-        </div>
-    </div>
-    <!-- DISCLAIMER -->
-    <div class="info" *ngIf="config_files.length == 0">
-        <div class="disclaimer">
-            <div>
-                {{disclaimer}}
-            </div>
-        </div>
-        <div class="source">
-            <a *ngIf="github_url" href={{github_url}} target="_blank"><img src="images/github.png"></a>
-            <a *ngIf="docker_url" href={{docker_url}} target="_blank"><img src="images/docker.png"></a>
-        </div>
-    </div>
-    <!-- PROCESSIN -->
-    <div *ngIf="config_files.length > 0 && !config_parser.process_done">
-        <mat-divider></mat-divider>
-        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+              </span>
+            </button>
+            <button type="button" class="icon-button remove" (click)="removeFile(file)" [attr.aria-label]="'Remove ' + file.name" title="Remove the file">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+            </button>
+          </li>
+        } @empty {
+          <li class="muted empty">No file matches.</li>
+        }
+      </ul>
+      <div class="drop-zone" [class.dragging]="dragging">
+        <span>Drop files here to add them</span>
+        <span class="muted">or anywhere on this page</span>
+        <button type="button" class="secondary-button" (click)="browse()">Browse</button>
+        @if (reading > 0) {
+          <span class="muted">Reading {{ reading }} file{{ reading > 1 ? 's' : '' }}…</span>
+        }
+        @if (skipped.length > 0) {
+          <span class="skipped">Not a text file, not read: {{ skipped.join(', ') }}</span>
+        }
+      </div>
+      <button type="button" class="text-button remove-all" (click)="removeAll()">Remove all the files</button>
+    </aside>
 
+    <!-- Template -->
+    <nav class="panel template-nav" aria-label="Template">
+      <h2 class="sr-only">Template</h2>
+      <button type="button" class="nav-row strong" [class.selected]="selection.kind === 'template'" (click)="select({ kind: 'template' })">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2"></path><path d="M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"></path></svg>
+        <span class="nav-name">Whole template</span>
+        <span class="nav-detail">JSON</span>
+      </button>
+      @for (section of sections; track section.id) {
+        @if (section.items.length > 0) {
+          <button type="button" class="nav-row section" (click)="toggleSection(section.id)" [attr.aria-expanded]="open_sections.has(section.id)">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" [class.open]="open_sections.has(section.id)"><path d="M9 6l6 6-6 6"></path></svg>
+            <span class="nav-name">{{ section.title }}</span>
+            <span class="nav-detail">{{ section.items.length }}</span>
+          </button>
+          @if (open_sections.has(section.id)) {
+            <ul class="nav-items">
+              @for (item of section.items; track item.path) {
+                <li>
+                  <button type="button" class="nav-row item" [class.selected]="isSelectedPath(item.path)" (click)="select({ kind: 'part', part: item })">
+                    <span class="nav-name">{{ item.name }}</span>
+                    <span class="nav-detail">{{ item.detail }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        }
+      }
+      <hr />
+      <button type="button" class="nav-row" [class.selected]="isLogs('check')" (click)="select({ kind: 'logs', filter: 'check' })">
+        <span class="dot warning" aria-hidden="true"></span>
+        <span class="nav-name">Points to check</span>
+        <span class="nav-detail">{{ counts.check }}</span>
+      </button>
+      <button type="button" class="nav-row" [class.selected]="isLogs('not-converted')" (click)="select({ kind: 'logs', filter: 'not-converted' })">
+        <span class="dot orange" aria-hidden="true"></span>
+        <span class="nav-name">Not converted</span>
+        <span class="nav-detail">{{ counts['not-converted'] }}</span>
+      </button>
+      <button type="button" class="nav-row" [class.selected]="isLogs('all')" (click)="select({ kind: 'logs', filter: 'all' })">
+        <span class="dot grey" aria-hidden="true"></span>
+        <span class="nav-name">All logs</span>
+        <span class="nav-detail">{{ counts.all }}</span>
+      </button>
+    </nav>
 
+    <!-- Detail -->
+    <section class="panel detail" aria-live="polite">
+      @switch (selection.kind) {
+        @case ('template') {
+          <div class="detail-head">
+            <span class="eyebrow">Whole template</span>
+            <h2>{{ conversion.template.name }}</h2>
+            <p class="muted">
+              Generated from {{ files.length - not_read }} of the {{ files.length }} file{{ files.length > 1 ? 's' : '' }}.
+              This is the file that Download template saves.
+            </p>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" [ngModel]="copy_secrets" (ngModelChange)="setCopySecrets($event)" />
+            <span>Copy the SNMP secrets that are in clear text (off: they are replaced by to_be_replaced_1, 2…)</span>
+          </label>
+          <app-json-view [value]="conversion.template" [depth]="2" [toolbar]="true" label="Whole template"></app-json-view>
+        }
+        @case ('part') {
+          @if (selection.kind === 'part') {
+            <app-part-view [conversion]="conversion" [part]="selection.part" [files]="files" [copySecrets]="copy_secrets" (copySecretsChange)="setCopySecrets($event)" (openFile)="openFile($event)" (openPart)="selectPath($event)"></app-part-view>
+          }
+        }
+        @case ('file') {
+          @if (selected_file; as file) {
+            <app-file-view [conversion]="conversion" [file]="file" [line]="selection.kind === 'file' ? selection.line : undefined" (openPart)="selectPath($event)"></app-file-view>
+          }
+        }
+        @case ('logs') {
+          @if (selection.kind === 'logs') {
+            <app-logs-view [conversion]="conversion" [filter]="selection.filter" (filterChange)="select({ kind: 'logs', filter: $event })" (openFile)="openFile($event)" (openPart)="selectPath($event)" (download)="download($event.text, $event.name)"></app-logs-view>
+          }
+        }
+      }
+    </section>
+  </main>
+}
+
+@if (dragging) {
+  <div class="drop-overlay" aria-hidden="true">
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M5 20h14"></path></svg>
+      <span>Drop to add the files</span>
     </div>
-    <!-- RESULT -->
-    <div class="result" *ngIf="config_parser.process_done">
-        <mat-divider></mat-divider>
+  </div>
+}
 
-        <div class="header">
-            <div class="warning">
-                <div>
-                    Please validate the generated configuration.
-                </div>
-                <div>
-                    Passwords from the configuration files were replaced with "to_be_replaced".
-                </div>
-            </div>
-            <div class="export">
-                <mat-form-field>
-                    <mat-label>Template name</mat-label>
-                    <input matInput [(ngModel)]="config_parser.config_data.mist_template.name" (change)="display()">
-                </mat-form-field>
-
-                <button mat-raised-button color="primary" (click)="save()">Download</button>
-                <button mat-raised-button color="primary" (click)="openDetails()">View Details</button>
-            </div>
-        </div>
-        <div class="file-warning" *ngIf="show_file_warning">
-            <div>
-                The format of some of your files are not optimized for automated processing
-            </div>
-            <div>
-                <button mat-stroked-button (click)="openInfo()">Please check the recommanded file formart</button>
-            </div>
-        </div>
-        <div class="template" [class.show_file_warning]="show_file_warning">
-            <pre><code class="raw" [innerHtml]="mist_config_html"></code></pre>
-        </div>
-    </div>
-</div>
+@if (show_info) {
+  <app-how-it-works [githubUrl]="github_url" [dockerUrl]="docker_url" [disclaimer]="disclaimer" (close)="show_info = false"></app-how-it-works>
+}

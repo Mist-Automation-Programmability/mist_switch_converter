@@ -78,6 +78,9 @@ describe('The privacy checks themselves', () => {
       'set access radius-server 10.0.0.80 secret "REDACTED"',
       'set system domain-search corp.example.com',
       'set version 21.4R3-S5.4',
+      'radius-server host 10.0.0.80 key ciphertext REDACTED vrf mgmt',
+      'user admin group administrators password ciphertext REDACTED',
+      'snmpv3 user monitoring auth sha auth-pass ciphertext REDACTED priv aes priv-pass plaintext REDACTED',
     ].join('\n');
 
     expect(scanConfiguration(text)).toEqual([]);
@@ -89,6 +92,8 @@ describe('The privacy checks themselves', () => {
     expect(rulesFound(' key 7 094F471A1A0A')).toEqual(['secret that is not the placeholder']);
     expect(rulesFound('snmp-server community n3tw0rk RO')).toEqual(['secret that is not the placeholder']);
     expect(rulesFound('set access radius-server 10.0.0.80 secret "hunter2"')).toEqual(['secret that is not the placeholder']);
+    expect(rulesFound('radius-server host 10.0.0.80 key ciphertext AQBapb0H2poBQKXP vrf mgmt')).toEqual(['secret that is not the placeholder']);
+    expect(rulesFound('snmpv3 user monitoring auth sha auth-pass plaintext hunter22')).toEqual(['secret that is not the placeholder']);
   });
 
   it('report public addresses, MAC addresses, real domains and e-mail addresses', () => {

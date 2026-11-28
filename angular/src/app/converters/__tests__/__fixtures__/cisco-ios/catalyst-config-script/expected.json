@@ -5,18 +5,26 @@
       "format": "Cisco",
       "success_vlan": true,
       "success_config": true,
-      "error_message": "Unknown error"
+      "error_message": ""
     }
   ],
   "ports": [
-    "sw-floor1 range GigabitEthernet1/0/1 - 4 = desks",
-    "sw-floor1 GigabitEthernet1/0/10 = camera",
-    "sw-floor1 GigabitEthernet1/0/24 = profile",
+    "sw-floor1 GigabitEthernet1/0/1 = desks",
+    "sw-floor1 GigabitEthernet1/0/2 = desks",
+    "sw-floor1 GigabitEthernet1/0/3 = desks",
+    "sw-floor1 GigabitEthernet1/0/4 = desks",
+    "sw-floor1 GigabitEthernet1/0/5 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/6 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/7 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/8 = disabled_access_printers",
+    "sw-floor1 GigabitEthernet1/0/9 = access_printers",
+    "sw-floor1 GigabitEthernet1/0/10 = access_printers",
     "sw-floor1 Port-channel1 = uplink",
-    "sw-floor1 Port-channel1 = profile"
+    "sw-floor1 GigabitEthernet1/0/23 = uplink",
+    "sw-floor1 GigabitEthernet1/0/24 = uplink"
   ],
   "problems": [
-    "warning: VLAN 99 has doesn't have name. Generating one: \"vlan99\""
+    "warning: Port usage \"uplink\" has the name of a port usage that Mist defines itself: check it, or rename it, before importing the template"
   ],
   "errors": [],
   "template": {
@@ -25,19 +33,26 @@
       "10.0.0.123"
     ],
     "dns_servers": [
-      "10.0.0.53"
+      "10.0.0.53",
+      "10.0.0.54"
     ],
-    "dns_suffix": [],
+    "dns_suffix": [
+      "example.com"
+    ],
     "networks": {
-      "vlan10": {
+      "users": {
         "vlan_id": "10",
         "subnet": null
       },
-      "vlan30": {
+      "voice": {
+        "vlan_id": "20",
+        "subnet": null
+      },
+      "printers": {
         "vlan_id": "30",
         "subnet": null
       },
-      "vlan99": {
+      "mgmt": {
         "vlan_id": "99",
         "subnet": "10.0.99.0/24"
       }
@@ -57,11 +72,30 @@
         "networks": [],
         "poe_disabled": false,
         "stp_edge": true,
-        "port_network": "vlan10",
+        "voip_network": "voice",
+        "port_network": "users",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "camera": {
+      "disabled_access_printers": {
+        "all_networks": false,
+        "disable_autoneg": false,
+        "disabled": true,
+        "duplex": "auto",
+        "speed": "auto",
+        "enable_mac_auth": false,
+        "enable_qos": false,
+        "mac_auth_only": false,
+        "mac_limit": 0,
+        "mode": "access",
+        "networks": [],
+        "poe_disabled": false,
+        "stp_edge": false,
+        "port_network": "printers",
+        "persist_mac": false,
+        "bypass_auth_when_server_down": false
+      },
+      "access_printers": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -74,30 +108,13 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
-        "port_network": "vlan30",
-        "persist_mac": false,
-        "bypass_auth_when_server_down": false
-      },
-      "profile": {
-        "all_networks": false,
-        "disable_autoneg": false,
-        "disabled": false,
-        "duplex": "auto",
-        "speed": "auto",
-        "enable_mac_auth": false,
-        "enable_qos": false,
-        "mac_auth_only": false,
-        "mac_limit": 0,
-        "mode": "access",
-        "networks": [],
-        "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
+        "port_network": "printers",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
       "uplink": {
-        "all_networks": true,
+        "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
         "duplex": "auto",
@@ -107,9 +124,15 @@
         "mac_auth_only": false,
         "mac_limit": 0,
         "mode": "trunk",
-        "networks": [],
+        "networks": [
+          "users",
+          "voice",
+          "printers",
+          "mgmt"
+        ],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
+        "port_network": "mgmt",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       }
@@ -157,18 +180,47 @@
         {
           "name": "sw-floor1",
           "port_config": {
-            "range GigabitEthernet1/0/1 - 4": {
+            "ge-0/0/0": {
               "description": "Desks",
               "usage": "desks"
             },
+            "ge-0/0/1": {
+              "description": "Desks",
+              "usage": "desks"
+            },
+            "ge-0/0/2": {
+              "description": "Desks",
+              "usage": "desks"
+            },
+            "ge-0/0/3": {
+              "description": "Desks",
+              "usage": "desks"
+            },
+            "ge-0/0/4": {
+              "usage": "disabled_access_printers"
+            },
+            "ge-0/0/5": {
+              "usage": "disabled_access_printers"
+            },
+            "ge-0/0/6": {
+              "usage": "disabled_access_printers"
+            },
+            "ge-0/0/7": {
+              "usage": "disabled_access_printers"
+            },
+            "ge-0/0/8": {
+              "description": "Printer",
+              "usage": "access_printers"
+            },
             "ge-0/0/9": {
               "description": "Camera",
-              "usage": "camera"
+              "usage": "access_printers"
             },
             "ge-0/0/22,ge-0/0/23": {
               "ae_idx": 0,
               "aggregated": true,
-              "usage": "profile"
+              "description": "Uplink",
+              "usage": "uplink"
             }
           },
           "match_name[0:9]": "sw-floor1"

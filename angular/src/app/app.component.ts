@@ -1,429 +1,265 @@
-import { Component, ElementRef, OnInit, Inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { ConfigParser, ConfigFile } from "./converters/parser_main";
-import { JsonToHtml } from "./common/function/json-to-html"
-import { MatDialog, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { LogMessage, Logger } from "./services/logger";
-import { MatListOption, MatSelectionListChange } from '@angular/material/list';
-import { ViewChild } from '@angular/core';
-import { ConfigData, ParsedInterfaceData, ParsedProfileData } from './converters/parser_config';
+import { Conversion, convert, FileReport } from './converters/convert';
+import { LogFilter, navSections, NavSection, partOf, PartRef, toCheckIn, VENDOR_LABEL, countByKind } from './workbench/view-model';
 
+/**
+ * A file of the list: its text, which stays in the browser, and what the converter
+ * says about it.
+ */
+export interface ConfigFile {
+  name: string;
+  text: string;
+  /** Set by each conversion. */
+  report?: FileReport;
+}
+
+/** What the right pane shows. */
+export type Selection =
+  | { kind: 'template' }
+  | { kind: 'part'; part: PartRef }
+  | { kind: 'file'; name: string; line?: number }
+  | { kind: 'logs'; filter: LogFilter };
+
+/** Name of the template until the user types another one. */
+const DEFAULT_TEMPLATE_NAME = 'template_name';
+
+/** Extensions of the files that are read even when the browser does not say they are text. */
+const TEXT_EXTENSIONS = /\.(cfg|conf|config|txt|log|set|run|text)$/i;
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Default,
+  standalone: false,
 })
 export class AppComponent implements OnInit {
-  title = 'switch migration';
-  @ViewChild('dropsRef')
-  drop_element: ElementRef;
+  @ViewChild('fileInput') fileInput: ElementRef<HTMLInputElement>;
 
-  github_url!: string;
-  docker_url!: string;
-  disclaimer!: string;
+  github_url = '';
+  docker_url = '';
+  disclaimer = '';
 
-  dragover: boolean = false;
+  files: ConfigFile[] = [];
+  /** Number of files that are being read from the disk. */
+  reading = 0;
+  /** The result of the conversion of `files`, undefined when there is no file. */
+  conversion: Conversion | undefined;
+  template_name = DEFAULT_TEMPLATE_NAME;
+  /** Copy into the template the secrets that the files have in clear text (SNMP communities). */
+  copy_secrets = false;
 
-  config_files: ConfigFile[] = [];
-  config_files_selected: ConfigFile[] = [];
-  mist_config_html: string = "";
-  config_parser: ConfigParser = new ConfigParser(this._logger);
-  json_to_html = new JsonToHtml();
+  selection: Selection = { kind: 'template' };
+  sections: NavSection[] = [];
+  /** Sections of the Template list that are unfolded. */
+  open_sections = new Set<string>(['usages']);
+  file_filter = '';
+  /** Files are being dragged over the page. */
+  dragging = false;
+  show_info = false;
+  /** Files that were dropped and could not be read: said once, then cleared. */
+  skipped: string[] = [];
 
-  log_messages: LogMessage[] = [];
-  show_file_warning:boolean=false;
+  readonly vendor_label = VENDOR_LABEL;
 
-  constructor(
-    public _dialog: MatDialog,
-    private _http: HttpClient,
-    private _logger: Logger
-  ) { }
+  constructor(private _http: HttpClient) {}
 
-  /********************************************************
-   * INIT
-   *******************************************************/
-  /**
-   * Just used to retrieve the message from the main page
-   */
   ngOnInit(): void {
-    this._http.get<any>("/api/disclaimer").subscribe({
-      next: data => {
-        if (data.disclaimer) this.disclaimer = data.disclaimer;
-        if (data.github_url) this.github_url = data.github_url;
-        if (data.docker_url) this.docker_url = data.docker_url;
-      }
-    })
-  }
-
-  /********************************************************
-   * FILES PROCESSING
-   *******************************************************/
-  /**
-   * Function triggered when file(s) are dropped/selected
-   * Check if the file is "test/plain" type or if its extension is .cfg, .config, .txt, then read it and add it to the config_files list
-   * Once all files are read, call the function to process them
-   * @param event 
-   */
-  onFilechange(event: any): void {
-    if (event?.target?.files) {
-      for (var index in Object(event.target.files)) {
-        var done = 0;
-        var file = event.target.files[index];
-        if (file.type == "text/plain" || (typeof (file.name) == "string" && file.name.match(/\.cfg$|\.config$|\.txt$/))) {
-          this.readfile(event.target.files[index]).then((config_file) => {
-            this.addConfigFile(config_file);
-            done += 1;
-            if (done == event.target.files.length) {
-              this.drop_element.nativeElement.value = "";
-              this.reinitMistTemplate();
-              this.processFiles();
-            }
-          })
-        }
-      }
-    }
-  }
-
-  /**
-   * Function to add a ConfigFile to the list. If the file is already in the list, drop it
-   * @param file ConfigFile
-   */
-  addConfigFile(file: ConfigFile): void {
-    const index = this.config_files.findIndex(f => f.name == file.name);
-    if (index < 0) this.config_files.push(file);
-    else this.config_files[index] = file;
-  }
-
-  /**
-   * Function to read the dropped/selected file and add it to the config_files list
-   * @param file 
-   * @returns Promise 
-   */
-  readfile(file: File): Promise<ConfigFile> {
-    return new Promise((resolve) => {
-      if (file) {
-        var reader = new FileReader();
-        reader.readAsText(file, "UTF-8");
-        reader.onload = function (e) {
-          const config_file: ConfigFile = {
-            name: file.name,
-            config: (reader.result as string)?.split('\n'),
-            format: "Unknown",
-            success_vlan: undefined,
-            success_config: undefined,
-            error_message: "Unknown error"
-          };
-          resolve(config_file)
-        }
-        reader.onerror = function (evt) {          
-          console.log("error reading file " + file.name);
-        }
-      }
-    })
-  }
-
-  /********************************************************
-   * SELECT AND DELETE FILES
-   *******************************************************/
-  /**
-   * Function to keep track of selected files from the list
-   * @param event 
-   */
-  selectFile(event: MatSelectionListChange) {
-    event.options.forEach((selection: MatListOption) => {
-      var file = selection.value;
-      var selected = selection.selected;
-      var index = this.config_files_selected.indexOf(file);
-      if (selected && index < 0) this.config_files_selected.push(file);
-      else if (!selected && index > -1) {
-        this.config_files_selected.splice(index, 1);
-      }
-    })
-  }
-
-  /**
-   * Function to remove the files selected on the list
-   */
-  removeConfigFile() {
-    if (this.config_files_selected.length > 0) {
-      this.config_files_selected.forEach((file: ConfigFile) => {
-        var index = this.config_files.indexOf(file);
-        if (index > -1) {
-          this.config_files.splice(index, 1);
-        }
-      })
-      this.config_files_selected = [];
-      this.reinitMistTemplate();
-      this.processFiles();
-    }
-  }
-
-  /********************************************************
-   * TEMPLATE MANAGEMENT 
-   *******************************************************/
-
-  /**
-   * function to clear the configuration and the logs. Called when a file is added/remove
-   */
-  reinitMistTemplate() {
-    this.mist_config_html = "";
-    this.config_parser = new ConfigParser(this._logger);
-  }
-
-  /**
-   * CORE function to process the files. 
-   * @returns void
-   */
-  processFiles(): void {
-    this.detect_source().then(() => {
-      this.parse_vlans().then(() => {
-        this.parse_config().then(() => {
-          this.config_parser.generate();
-          this.log_messages = this._logger.getall().filter(e => e.level != "debug");
-          this.display();
-          this.config_files.forEach((file:ConfigFile)=>{
-            console.log(file)
-            if (!file.success_config || !file.success_vlan) this.show_file_warning = true;
-          })
-        });
-      });
-    });
-  }
-
-  /**
-   * loop over each file and call the function to identify the file type (Cisco, Juniper, ...)
-   * @returns Promise
-   */
-  detect_source(): Promise<null> {
-    return new Promise((resolve) => {
-      var i = 0;
-      this._logger.info("Detecting file type");
-      this.config_files.forEach((file: ConfigFile) => {
-        this.config_parser.detect_source(file).then((success) => {
-          i += 1;
-          if (i == this.config_files.length) resolve(null);
-        })
-      })
-    })
-  }
-
-  /**
-   * loop over each file and call the function to parse the VLANS
-   * @returns Promise
-   */
-  parse_vlans(): Promise<null> {
-    return new Promise((resolve) => {
-      var i = 0;
-      this._logger.info("Reading VLANs from config files started");
-      this.config_files.forEach((file: ConfigFile) => {
-        this.config_parser.read_vlans(file).then((success) => {
-          if (!success && file.format == "Cisco") file.error_message = "Unable to parse the VLAN database";
-          else if (!success) file.error_message = "Unable to retrieve the VLAN list";
-          i += 1;
-          if (i == this.config_files.length) resolve(null);
-        })
-      })
-    })
-  }
-
-  /**
-   * loop over each file and call the function to parse the configuration
-   * @returns Promise
-   */
-  parse_config(): Promise<null> {
-    return new Promise((resolve) => {
-      var i = 0;
-      this._logger.info("Reading configuration from config files started");
-      this.config_files.forEach((file: ConfigFile) => {
-        this.config_parser.read_config(file).then((success) => {
-          if (!success && file.error_message == "Unknown error") file.error_message = "Unable to parse the configuration"
-          file.success_config = success;
-          i += 1;
-          if (i == this.config_files.length) resolve(null);
-        })
-      })
-    })
-  }
-
-  /**
-   * Generate the HTML version of the Mist template
-   */
-  display() {
-    this.mist_config_html = this.json_to_html.transform(this.config_parser.config_data.mist_template, 2).replace(/\n/g, "\\n");
-  }
-
-  /********************************************************
-   * EXPORT
-   *******************************************************/
-  /**
-   * Function to export/download the mist template.
-   */
-  save() {
-    var a = document.createElement('a');
-    var file = new Blob([JSON.stringify(this.config_parser.config_data.mist_template, undefined, 4)], { type: "text/plain" });
-    a.href = URL.createObjectURL(file);
-    a.download = this.config_parser.config_data.mist_template?.name.replace(" ", "_") + ".json";
-    a.click();
-  }
-
-  /********************************************************
-   * INFOS AND LOGS
-   *******************************************************/
-  openInfo(): void {
-    this._dialog.open(InfoDialog, {
-      height: '45em',
-      width: '80em'
-    });
-  }
-
-  openDetails(): void {
-    this._dialog.open(DetailsDialog, {
-      data: {
-        config_data: this.config_parser.config_data,
-        log_messages: this.log_messages
+    this._http.get<{ disclaimer?: string; github_url?: string; docker_url?: string }>('/api/disclaimer').subscribe({
+      next: (data) => {
+        this.disclaimer = data.disclaimer ?? '';
+        this.github_url = data.github_url ?? '';
+        this.docker_url = data.docker_url ?? '';
       },
-      height: '90vh',
-      maxHeight: '90vh',
-      width: '90vw',
-      maxWidth: '100em',
-    })
+      error: () => undefined,
+    });
   }
 
-}
+  /* ------------------------------------------------------------ adding files */
 
-/****************************************************************************************************************
- * HELP DIALOG
- ***************************************************************************************************************/
-@Component({
-  selector: 'info',
-  templateUrl: 'info.html',
-  styleUrls: ['./app.component.scss']
-})
-export class InfoDialog {
-  constructor(
-    public _dialogRef: MatDialogRef<InfoDialog>
-  ) { }
-
-}
-
-
-/****************************************************************************************************************
- * RESULT DIALOG
- ***************************************************************************************************************/
-@Component({
-  selector: 'result',
-  templateUrl: 'result.html',
-  styleUrls: ['./app.component.scss']
-})
-export class DetailsDialog {
-
-  json_to_html = new JsonToHtml();
-  selectedIndex:number|null;
-  displayed_columns: string[] = ["switch", "interface", "profile", "action"];
-  displayed_interfaces: ParsedInterfaceData[] = [];
-  details_switches: string[]=[];
-  details_selected_switch:string;
-  details_interfaces:string[]=[];
-  details_selected_interface:string;
-  details_interface_data:string="";
-  details_interface_template:string="";
-  details_interface_template_name:string="";
-  log_messages: LogMessage[] = [];
-  log_messages_displayed: LogMessage[] = [];
-  log_columns: string[] = ['level', 'file', 'message'];
-  log_levels: string[] = ['Critical', 'Error', 'Warning', 'Info', ];
-  log_levels_selected: string[]=['critical', 'error', 'warning'];
-  constructor(
-    public _dialogRef: MatDialogRef<DetailsDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: {config_data:ConfigData, log_messages: LogMessage[]}
-  ) {
-    this.log_messages = this.data.log_messages;
-    this.filter_log_messages();
-    this.displayed_interfaces = this.data.config_data.interfaces;
-    this.data.config_data.interfaces.forEach((interface_data:ParsedInterfaceData)=>{
-      if (!this.details_switches.includes(interface_data.hostname)) this.details_switches.push(interface_data.hostname);
-    })
-    this.details_switches.sort();
-    this.details_selected_switch = this.displayed_interfaces[0].hostname;
-    this.details_update_interfaces();
-    this.details_selected_interface = this.displayed_interfaces[0].interface_name;
-    this.details_update_data();
+  @HostListener('window:dragover', ['$event'])
+  onDragOver(event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    this.dragging = true;
   }
 
-  filter_log_messages():void{
-    this.log_messages_displayed = [];
-    this.log_messages.forEach(message => {
-      if (this.log_levels_selected.includes(message.level)) {
-        this.log_messages_displayed.push(message);
+  @HostListener('window:dragleave', ['$event'])
+  onDragLeave(event: DragEvent): void {
+    // Leaving the window, not moving from one element to another
+    if (event.relatedTarget === null) this.dragging = false;
+  }
+
+  @HostListener('window:drop', ['$event'])
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragging = false;
+    this.addFiles(Array.from(event.dataTransfer?.files ?? []));
+  }
+
+  @HostListener('window:keydown.escape')
+  onEscape(): void {
+    this.show_info = false;
+  }
+
+  browse(): void {
+    this.fileInput.nativeElement.click();
+  }
+
+  onFileInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.addFiles(Array.from(input.files ?? []));
+    // lets the user select the same files again
+    input.value = '';
+  }
+
+  /**
+   * Reads the files in the browser and converts them with the files already there. A file
+   * with the name of a file of the list replaces it. Nothing is sent anywhere.
+   */
+  addFiles(dropped: File[]): void {
+    const readable = dropped.filter((file) => file.type.startsWith('text/') || file.type === '' || TEXT_EXTENSIONS.test(file.name));
+    this.skipped = dropped.filter((file) => !readable.includes(file)).map((file) => file.name);
+    if (readable.length === 0) return;
+    this.reading += readable.length;
+    Promise.all(readable.map((file) => file.text().then((text): ConfigFile => ({ name: file.name, text })).catch(() => undefined))).then((read) => {
+      this.reading -= readable.length;
+      const added = read.filter((file): file is ConfigFile => file !== undefined);
+      for (const file of added) {
+        const index = this.files.findIndex((existing) => existing.name === file.name);
+        if (index < 0) this.files.push(file);
+        else this.files[index] = file;
       }
-    })
+      this.process();
+    });
   }
 
-  view_interface_details(hostname:string, interface_name:string):void{
-    this.details_selected_switch = hostname;
-    this.details_selected_interface = interface_name;
-    this.details_update_data();
-    this.selectedIndex=1;
+  removeFile(file: ConfigFile): void {
+    this.files = this.files.filter((candidate) => candidate !== file);
+    if (this.selection.kind === 'file' && this.selection.name === file.name) this.selection = { kind: 'template' };
+    this.process();
   }
 
-  details_update_interfaces():void{
-    this.details_interfaces = []
-    this.details_selected_interface = "None";
-    this.data.config_data.interfaces.filter(i => i.hostname == this.details_selected_switch).forEach((interface_data:ParsedInterfaceData)=>{
-      this.details_interfaces.push(interface_data.interface_name);
-    })
-    this.details_interfaces.sort();
-    this.details_selected_interface = this.details_interfaces[0];
+  removeAll(): void {
+    this.files = [];
+    this.selection = { kind: 'template' };
+    this.process();
   }
 
-  details_update_data():void{
-    this.details_interface_data = "";
-    this.details_interface_template = "";
-    const interface_data = this.data.config_data.interfaces.filter(i => i.hostname == this.details_selected_switch && i.interface_name == this.details_selected_interface)[0];
-    this.details_interface_data = interface_data.config_blocks.join("\r").replace(/\r\r/g, "\r");
-    const template_data = this.data.config_data.profiles.filter(p => p.uuid == interface_data.profile_id)[0]
-    this.details_interface_template_name = template_data.generated_name;
-    this.details_interface_template = this.json_to_html.transform(template_data.config);
+  /* -------------------------------------------------------------- conversion */
+
+  /** Converts every file into one template. The conversion runs here, in the browser (see converters/convert.ts). */
+  process(): void {
+    if (this.files.length === 0) {
+      this.conversion = undefined;
+      this.sections = [];
+      return;
+    }
+    const conversion = convert(
+      this.files.map((file) => ({ name: file.name, text: file.text })),
+      { copyClearTextSecrets: this.copy_secrets },
+    );
+    conversion.template.name = this.template_name;
+    conversion.files.forEach((report, index) => (this.files[index].report = report));
+    this.conversion = conversion;
+    this.sections = navSections(conversion);
+    // A part that no longer exists is replaced by the whole template
+    if (this.selection.kind === 'part') {
+      const path = this.selection.part.path;
+      if (!this.sections.some((section) => section.items.some((item) => item.path === path))) this.selection = { kind: 'template' };
+    }
   }
 
-  download_list() {
-    var csv_data: string = "#switch_name, interface_name, profile_name\r";
-    this.data.config_data.interfaces.forEach((interface_data: ParsedInterfaceData) => {
-      csv_data += interface_data.hostname + "," + interface_data.interface_name + "," + interface_data.profile_name + "\r";
-    })
-    var a = document.createElement('a');
-    var file = new Blob([csv_data], { type: "text/plain" });
-    a.href = URL.createObjectURL(file);
-    a.download = "interfaces.csv";
-    a.click();
-  }
-  download_logs() {
-    var csv_data: string = "#severity, filename, message\r";
-    this.log_messages.forEach((message: LogMessage) => {
-      csv_data += message.level + "," + message.file + ",\"" + message.message.replace(/"/g, "'") + "\"\r";
-    })
-    var a = document.createElement('a');
-    var file = new Blob([csv_data], { type: "text/plain" });
-    a.href = URL.createObjectURL(file);
-    a.download = "logs.csv"; 
-    a.click();
+  renameTemplate(): void {
+    if (this.conversion) this.conversion.template.name = this.template_name;
+    // A new object, so that the JSON view draws the new name
+    if (this.conversion) this.conversion = { ...this.conversion, template: { ...this.conversion.template } };
   }
 
-  applyFilter(event: Event) {
-    const filterValues = (event.target as HTMLInputElement).value.toLowerCase().split(" ");
-    this.displayed_interfaces = [];
-    this.data.config_data.interfaces.forEach((interface_data: ParsedInterfaceData) => {
-      var keepit: boolean = true;
-      filterValues.forEach((value: string) => {
-        const filterValue = value.trim();
-        if (
-          !interface_data.hostname.includes(filterValue) &&
-          !interface_data.interface_name.includes(filterValue) &&
-          !interface_data.profile_name.includes(filterValue)
-        ) keepit = false;
-      })
-      if (keepit) this.displayed_interfaces.push(interface_data);
-    })
+  setCopySecrets(value: boolean): void {
+    this.copy_secrets = value;
+    this.process();
+  }
+
+  /* --------------------------------------------------------------- selection */
+
+  select(selection: Selection): void {
+    this.selection = selection;
+    if (selection.kind === 'part') {
+      const section = this.sections.find((candidate) => candidate.items.some((item) => item.path === selection.part.path));
+      if (section) this.open_sections.add(section.id);
+    }
+  }
+
+  selectPath(path: string): void {
+    const part = partOf(path);
+    if (part) this.select({ kind: 'part', part });
+  }
+
+  openFile(target: { name: string; line?: number }): void {
+    this.select({ kind: 'file', name: target.name, line: target.line });
+  }
+
+  toggleSection(id: string): void {
+    if (this.open_sections.has(id)) this.open_sections.delete(id);
+    else this.open_sections.add(id);
+  }
+
+  isSelectedPath(path: string): boolean {
+    return this.selection.kind === 'part' && this.selection.part.path === path;
+  }
+
+  isSelectedFile(name: string): boolean {
+    return this.selection.kind === 'file' && this.selection.name === name;
+  }
+
+  isLogs(filter: LogFilter): boolean {
+    return this.selection.kind === 'logs' && this.selection.filter === filter;
+  }
+
+  get selected_file(): ConfigFile | undefined {
+    const selection = this.selection;
+    return selection.kind === 'file' ? this.files.find((file) => file.name === selection.name) : undefined;
+  }
+
+  /* ------------------------------------------------------------------ list */
+
+  get shown_files(): ConfigFile[] {
+    const words = this.file_filter.toLowerCase().split(/\s+/).filter((word) => word !== '');
+    if (words.length === 0) return this.files;
+    return this.files.filter((file) => {
+      const text = [file.name, file.report?.hostname ?? '', this.vendor_label[file.report?.format ?? 'Unknown']].join(' ').toLowerCase();
+      return words.every((word) => text.includes(word));
+    });
+  }
+
+  get not_read(): number {
+    return this.files.filter((file) => file.report && !file.report.converted).length;
+  }
+
+  toCheck(file: ConfigFile): number {
+    return this.conversion ? toCheckIn(this.conversion, file.name) : 0;
+  }
+
+  get counts(): Record<LogFilter, number> {
+    return countByKind(this.conversion?.diagnostics ?? []);
+  }
+
+  /* ---------------------------------------------------------------- export */
+
+  /** Saves the template as a JSON file, from the browser. */
+  save(): void {
+    if (!this.conversion) return;
+    this.download(JSON.stringify(this.conversion.template, undefined, 4), `${this.conversion.template.name.replace(/ /g, '_')}.json`);
+  }
+
+  download(text: string, filename: string): void {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 }

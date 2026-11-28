@@ -5,23 +5,25 @@
       "format": "Cisco",
       "success_vlan": true,
       "success_config": true,
-      "error_message": "Unknown error"
+      "error_message": ""
     }
   ],
   "ports": [
     "sw-floor2 FastEthernet0/1 = desk",
     "sw-floor2 FastEthernet0/2 = desk",
-    "sw-floor2 FastEthernet0/3 = desk_2.03",
+    "sw-floor2 FastEthernet0/3 = desk_2_03",
     "sw-floor2 FastEthernet0/10 = cctv_entrance",
     "sw-floor2 FastEthernet0/11 = badge_reader",
-    "sw-floor2 FastEthernet0/20 = profile",
-    "sw-floor2 FastEthernet0/21 = profile-0006",
-    "sw-floor2 FastEthernet0/22 = profile-0007",
-    "sw-floor2 GigabitEthernet0/1 = uplink_to_sw_core_gi1/0/12",
+    "sw-floor2 FastEthernet0/20 = access_default",
+    "sw-floor2 FastEthernet0/21 = disabled_access_default",
+    "sw-floor2 FastEthernet0/22 = access_default",
+    "sw-floor2 GigabitEthernet0/1 = uplink_to_sw_core_gi1_0_12",
     "sw-floor2 GigabitEthernet0/2 = spare_uplink"
   ],
   "problems": [
-    "warning: Mutliple entries found profile 00010000-0000-4000-8000-000000000000: Desk 2.01,Desk 2.02"
+    "warning: \"switchport mode dynamic desirable\" is negotiated with the neighbour: converted as an access port on FastEthernet0/22 (line 81)",
+    "warning: DHCP snooping: the trunk has no \"ip dhcp snooping trust\", DHCP servers are refused on it on GigabitEthernet0/2 (line 91)",
+    "warning: Port usage \"desk\" is shared by ports with different descriptions and is named after the words they have in common: Desk 2.01,Desk 2.02"
   ],
   "errors": [],
   "template": {
@@ -32,7 +34,9 @@
     "dns_servers": [
       "10.0.0.53"
     ],
-    "dns_suffix": [],
+    "dns_suffix": [
+      "corp.example.com"
+    ],
     "networks": {
       "default": {
         "vlan_id": "1",
@@ -75,7 +79,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "desk_2.03": {
+      "desk_2_03": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -102,7 +106,7 @@
         "enable_mac_auth": false,
         "enable_qos": false,
         "mac_auth_only": false,
-        "mac_limit": 0,
+        "mac_limit": 2,
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
@@ -129,7 +133,7 @@
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile": {
+      "access_default": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -142,12 +146,12 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile-0006": {
+      "disabled_access_default": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": true,
@@ -160,29 +164,12 @@
         "mode": "access",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "default",
         "persist_mac": false,
         "bypass_auth_when_server_down": false
       },
-      "profile-0007": {
-        "all_networks": true,
-        "disable_autoneg": false,
-        "disabled": false,
-        "duplex": "auto",
-        "speed": "auto",
-        "enable_mac_auth": false,
-        "enable_qos": false,
-        "mac_auth_only": false,
-        "mac_limit": 0,
-        "mode": "dynamic desirable",
-        "networks": [],
-        "poe_disabled": false,
-        "stp_edge": true,
-        "persist_mac": false,
-        "bypass_auth_when_server_down": false
-      },
-      "uplink_to_sw_core_gi1/0/12": {
+      "uplink_to_sw_core_gi1_0_12": {
         "all_networks": false,
         "disable_autoneg": false,
         "disabled": false,
@@ -200,10 +187,11 @@
           "mgmt"
         ],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "port_network": "mgmt",
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": true
       },
       "spare_uplink": {
         "all_networks": true,
@@ -218,25 +206,55 @@
         "mode": "trunk",
         "networks": [],
         "poe_disabled": false,
-        "stp_edge": true,
+        "stp_edge": false,
         "persist_mac": false,
-        "bypass_auth_when_server_down": false
+        "bypass_auth_when_server_down": false,
+        "allow_dhcpd": false
       }
     },
     "radius_config": {
       "acct_interim_interval": 0,
-      "acct_servers": [],
-      "auth_servers": [],
+      "acct_servers": [
+        {
+          "port": "1646",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
+      "auth_servers": [
+        {
+          "port": "1645",
+          "host": "10.0.0.80",
+          "secret": "to_be_replaced",
+          "timeout": 5
+        }
+      ],
       "auth_servers_retries": 3,
       "auth_servers_timeout": 5,
       "coa_enabled": false,
       "coa_port": 3799
     },
     "switch_mgmt": {
+      "cli_banner": "Authorized access only",
       "tacacs": {
-        "enabled": false,
-        "tacplus_servers": [],
-        "acct_servers": []
+        "enabled": true,
+        "tacplus_servers": [
+          {
+            "host": "10.0.0.70",
+            "port": "49",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ],
+        "acct_servers": [
+          {
+            "host": "10.0.0.70",
+            "port": "49",
+            "secret": "to_be_replaced",
+            "timeout": 10
+          }
+        ]
       }
     },
     "additional_config_cmds": [],
@@ -248,8 +266,20 @@
       ]
     },
     "remote_syslog": {
-      "enabled": false,
-      "servers": []
+      "enabled": true,
+      "servers": [
+        {
+          "host": "10.0.0.60",
+          "protocol": "udp",
+          "port": "514",
+          "contents": [
+            {
+              "facility": "any",
+              "severity": "any"
+            }
+          ]
+        }
+      ]
     },
     "switch_matching": {
       "enabled": true,
@@ -267,7 +297,7 @@
             },
             "fe-0/0/2": {
               "description": "Desk 2.03",
-              "usage": "desk_2.03"
+              "usage": "desk_2_03"
             },
             "fe-0/0/9": {
               "description": "CCTV entrance",
@@ -278,17 +308,17 @@
               "usage": "badge_reader"
             },
             "fe-0/0/19": {
-              "usage": "profile"
+              "usage": "access_default"
             },
             "fe-0/0/20": {
-              "usage": "profile-0006"
+              "usage": "disabled_access_default"
             },
             "fe-0/0/21": {
-              "usage": "profile-0007"
+              "usage": "access_default"
             },
             "ge-0/0/0": {
               "description": "Uplink to sw-core Gi1/0/12",
-              "usage": "uplink_to_sw_core_gi1/0/12"
+              "usage": "uplink_to_sw_core_gi1_0_12"
             },
             "ge-0/0/1": {
               "description": "Spare uplink",
@@ -296,6 +326,15 @@
             }
           },
           "match_name[0:9]": "sw-floor2"
+        }
+      ]
+    },
+    "snmp_config": {
+      "enabled": true,
+      "v2c_config": [
+        {
+          "community_name": "to_be_replaced_1",
+          "authorization": "read-only"
         }
       ]
     }

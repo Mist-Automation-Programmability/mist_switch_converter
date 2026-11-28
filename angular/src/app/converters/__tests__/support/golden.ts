@@ -3,7 +3,8 @@
  * a fixture, and a file under `test_configs/_results` for a local configuration.
  */
 import type { Conversion, FileResult } from './harness';
-import type { MistTemplateElement } from '../../mist_template';
+import { linesText } from '../../report';
+import type { MistTemplate } from '../../template/mist';
 
 export interface Golden {
   files: FileResult[];
@@ -12,14 +13,14 @@ export interface Golden {
   /** What the user is told went wrong or needs attention. */
   problems: string[];
   errors: string[];
-  template: MistTemplateElement;
+  template: MistTemplate;
 }
 
 export function goldenOf(result: Conversion): Golden {
   return {
     files: result.files,
     ports: result.ports.map((port) => `${port.hostname} ${port.source} = ${port.usage}`),
-    problems: result.logs.filter((entry) => entry.level !== 'info' && entry.level !== 'debug').map((entry) => `${entry.level}: ${entry.message}`),
+    problems: result.logs.filter((entry) => entry.level !== 'info').map((entry) => `${entry.level}: ${entry.message}${entry.lines ? ` (${entry.lines.length === 1 ? 'line' : 'lines'} ${linesText(entry.lines)})` : ''}`),
     errors: result.errors.map((error) => String(error)),
     template: result.template,
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configuredPorts, convert, endpoints, junos, knownDefect, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
+import { configuredPorts, convert, endpoints, junos, logsOf, missingNetworks, portConfig, switchRule, usageFor, vlanIds } from './support/harness';
 
 describe('Junos: reading a file', () => {
   it('recognises "display set" output and reports it as converted', async () => {
@@ -36,7 +36,8 @@ describe('Junos: reading a file', () => {
     );
 
     expect(result.files[0]).toMatchObject({ format: 'Unknown', success_config: false });
-    expect(result.files[0].error_message).toContain('Unable to determinate the type of file');
+    expect(result.files[0].error_message).toContain('Junos configuration with braces');
+    expect(result.files[0].error_message).toContain('show configuration | display set');
     expect(result.template.networks).toEqual({});
   });
 
@@ -51,7 +52,7 @@ describe('Junos: reading a file', () => {
     expect(result.files[0]).toMatchObject({ success_vlan: false, success_config: true, error_message: 'Unable to retrieve the VLAN list' });
   });
 
-  knownDefect('B11', 'gives the same template for Windows (CRLF) and Unix (LF) line endings', async () => {
+  it('gives the same template for Windows (CRLF) and Unix (LF) line endings (B11)', async () => {
     const text = junos(`
       set system host-name ex1
       set system name-server 10.0.0.53
@@ -129,7 +130,7 @@ describe('Junos: VLANs', () => {
     expect(result.template.dhcp_snooping).toEqual({ enabled: true, networks: ['users', 'guest_wifi'] });
   });
 
-  knownDefect('B15', 'enables DHCP snooping on a VLAN whose "dhcp-security" has options', async () => {
+  it('enables DHCP snooping on a VLAN whose "dhcp-security" has options (B15)', async () => {
     // "display set" does not print the bare "dhcp-security" line when the statement has options.
     const result = await convert(
       junos(`
@@ -221,19 +222,39 @@ describe('Junos: access ports', () => {
     expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ port_network: 'users', voip_network: 'voice' });
   });
 
-  knownDefect('B3', 'a port with "disable" is converted as disabled', async () => {
+  it('converts a port with "disable" as disabled (B3)', async () => {
     const result = await convert(
       junos(`
         set interfaces ge-0/0/0 disable
         set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 description "disable after the move"
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
         set vlans USERS vlan-id 10
       `),
     );
 
     expect(usageFor(result, 'ge-0/0/0').disabled).toBe(true);
+    expect(usageFor(result, 'ge-0/0/1').disabled).toBe(false);
   });
 
-  knownDefect('B14', 'a port without VLAN has a network (Junos puts it in the default VLAN)', async () => {
+  it('converts the ports of an interface range with "disable" as disabled (B3)', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces interface-range UNUSED member ge-0/0/10
+        set interfaces interface-range UNUSED member ge-0/0/11
+        set interfaces interface-range UNUSED disable
+        set interfaces interface-range UNUSED unit 0 family ethernet-switching vlan members PARKING
+        set interfaces ge-0/0/10 description "Unused 10"
+        set interfaces ge-0/0/11 description "Unused 11"
+        set vlans PARKING vlan-id 999
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/10').disabled).toBe(true);
+    expect(usageFor(result, 'ge-0/0/11').disabled).toBe(true);
+  });
+
+  it('a port without VLAN has a network (Junos puts it in the default VLAN) (B14)', async () => {
     const result = await convert(
       junos(`
         set interfaces ge-0/0/0 unit 0 family ethernet-switching
@@ -244,7 +265,7 @@ describe('Junos: access ports', () => {
     expect(usageFor(result, 'ge-0/0/0').port_network).toBeDefined();
   });
 
-  knownDefect('B7', 'the voice VLAN given by name refers to an existing network', async () => {
+  it('the voice VLAN given by name refers to an existing network (B7)', async () => {
     const result = await convert(
       junos(`
         set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
@@ -258,7 +279,7 @@ describe('Junos: access ports', () => {
     expect(missingNetworks(result)).toEqual([]);
   });
 
-  knownDefect('B8', '"switch-options voip interface access-ports" does not create a port named "access-ports"', async () => {
+  it('"switch-options voip interface access-ports" does not create a port named "access-ports" (B8)', async () => {
     const result = await convert(
       junos(`
         set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
@@ -271,7 +292,7 @@ describe('Junos: access ports', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
   });
 
-  knownDefect('B13', '"protocols rstp interface all" does not create a port named "all"', async () => {
+  it('"protocols rstp interface all" does not create a port named "all" (B13)', async () => {
     const result = await convert(
       junos(`
         set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
@@ -283,8 +304,154 @@ describe('Junos: access ports', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/0']);
   });
 
-  it.todo('converts "storm-control <profile>" and its storm control profile into storm_control');
-  it.todo('reports routed ports ("family inet" on a physical port) instead of converting them to access ports without network');
+  it('converts "storm-control <profile>" and its storm control profile into storm_control', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching storm-control EDGE
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching storm-control default
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set forwarding-options storm-control-profiles EDGE all bandwidth-percentage 20
+        set forwarding-options storm-control-profiles EDGE all no-broadcast
+        set forwarding-options storm-control-profiles EDGE all no-registered-multicast
+        set forwarding-options storm-control-profiles EDGE action-shutdown
+        set forwarding-options storm-control-profiles default all
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').storm_control).toEqual({ no_broadcast: true, no_multicast: false, no_registered_multicast: true, no_unknown_unicast: false, percentage: 20, disable_port: true });
+    // Without a level, Junos limits the traffic to 80 % of the bandwidth.
+    expect(usageFor(result, 'ge-0/0/1').storm_control).toEqual({ no_broadcast: false, no_multicast: false, no_registered_multicast: false, no_unknown_unicast: false, percentage: 80 });
+    expect(usageFor(result, 'ge-0/0/2')).not.toHaveProperty('storm_control');
+    expect(logsOf(result, 'warning').join('\n')).not.toMatch(/storm control/i);
+  });
+
+  it('gives the storm control of an interface range to its ports', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces interface-range DESKS member-range ge-0/0/0 to ge-0/0/1
+        set interfaces interface-range DESKS unit 0 family ethernet-switching vlan members USERS
+        set interfaces interface-range DESKS unit 0 family ethernet-switching storm-control EDGE
+        set forwarding-options storm-control-profiles EDGE all bandwidth-percentage 5
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/1').storm_control?.percentage).toBe(5);
+  });
+
+  it('leaves out a storm control profile that is not defined or has a level in kilobits per second, with a warning', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching storm-control MISSING
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching storm-control KBPS
+        set forwarding-options storm-control-profiles KBPS all bandwidth-level 5000
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).not.toHaveProperty('storm_control');
+    expect(usageFor(result, 'ge-0/0/1')).not.toHaveProperty('storm_control');
+    const warnings = logsOf(result, 'warning').join('\n');
+    expect(warnings).toContain('is not defined in the file: left out on ge-0/0/0');
+    expect(warnings).toContain('Mist takes a percentage: left out on ge-0/0/1');
+  });
+
+  it('reads the storm control of a switch without ELS: for all ports, and for one port', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set ethernet-switching-options storm-control action-shutdown
+        set ethernet-switching-options storm-control interface all
+        set ethernet-switching-options storm-control interface ge-0/0/1.0 level 30
+        set ethernet-switching-options storm-control interface ge-0/0/1.0 no-unknown-unicast
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').storm_control).toEqual({ no_broadcast: false, no_multicast: false, no_registered_multicast: false, no_unknown_unicast: false, percentage: 80, disable_port: true });
+    // What a port says for itself replaces what "all" says.
+    expect(usageFor(result, 'ge-0/0/1').storm_control).toEqual({ no_broadcast: false, no_multicast: false, no_registered_multicast: false, no_unknown_unicast: true, percentage: 30, disable_port: true });
+  });
+
+  it('converts the trusted and untrusted groups of "dhcp-security" into allow_dhcpd', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching interface-mode trunk
+        set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/3 unit 0 family ethernet-switching interface-mode trunk
+        set interfaces ge-0/0/3 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/4 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+        set vlans USERS forwarding-options dhcp-security group SERVERS overrides trusted
+        set vlans USERS forwarding-options dhcp-security group SERVERS interface ge-0/0/1.0
+        set vlans USERS forwarding-options dhcp-security group GUESTS interface ge-0/0/3.0
+        set vlans USERS forwarding-options dhcp-security group GUESTS overrides untrusted
+        set vlans USERS forwarding-options dhcp-security group OPTIONS interface ge-0/0/4.0
+        set vlans USERS forwarding-options dhcp-security group OPTIONS overrides no-option82
+      `),
+    );
+
+    // Junos and Mist agree on the ports that say nothing: a trunk is trusted, an access port is not.
+    expect(usageFor(result, 'ge-0/0/0')).not.toHaveProperty('allow_dhcpd');
+    expect(usageFor(result, 'ge-0/0/1').allow_dhcpd).toBe(true);
+    expect(usageFor(result, 'ge-0/0/2')).not.toHaveProperty('allow_dhcpd');
+    expect(usageFor(result, 'ge-0/0/3').allow_dhcpd).toBe(false);
+    expect(usageFor(result, 'ge-0/0/4')).not.toHaveProperty('allow_dhcpd');
+    expect(result.template.dhcp_snooping).toEqual({ enabled: true, networks: ['users'] });
+  });
+
+  it('converts "dhcp-trusted" and "no-dhcp-trusted" of a switch without ELS into allow_dhcpd', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching port-mode trunk
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set ethernet-switching-options secure-access-port interface ge-0/0/0.0 dhcp-trusted
+        set ethernet-switching-options secure-access-port interface ge-0/0/1.0 no-dhcp-trusted
+        set ethernet-switching-options secure-access-port vlan USERS examine-dhcp
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').allow_dhcpd).toBe(true);
+    expect(usageFor(result, 'ge-0/0/1').allow_dhcpd).toBe(false);
+  });
+
+  it('reports a routed port ("family inet" on a physical port) and does not convert it', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 description "Link to the router"
+        set interfaces ge-0/0/0 unit 0 family inet address 10.0.0.1/30
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(configuredPorts(result)).toEqual(['ge-0/0/1']);
+    expect(logsOf(result, 'warning')).toContain('Interface ge-0/0/0: routed port (it has an address or tagged units of its own), not converted');
+    expect(Object.values(result.template.networks).map((network) => network.subnet)).not.toContain('10.0.0.0/30');
+  });
+
+  it('reads a list of VLANs between brackets, as typed in configuration mode', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching interface-mode trunk
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members [ USERS VOICE ]
+        set vlans USERS vlan-id 10
+        set vlans VOICE vlan-id 20
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ mode: 'trunk', networks: ['users', 'voice'] });
+  });
 });
 
 describe('Junos: trunk ports', () => {
@@ -337,7 +504,7 @@ describe('Junos: trunk ports', () => {
     expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ mode: 'trunk', all_networks: true, networks: [] });
   });
 
-  knownDefect('B12', 'a trunk written with "port-mode trunk" (switches without ELS) stays a trunk', async () => {
+  it('a trunk written with "port-mode trunk" (switches without ELS) stays a trunk (B12)', async () => {
     const result = await convert(
       junos(`
         set interfaces ge-0/0/0 unit 0 family ethernet-switching port-mode trunk
@@ -388,7 +555,7 @@ describe('Junos: 802.1X', () => {
     expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ port_auth: 'dot1x', guest_network: 'guest_wifi' });
   });
 
-  knownDefect('B6', '"mac-radius" without option enables MAC authentication', async () => {
+  it('"mac-radius" without option enables MAC authentication (B6)', async () => {
     const result = await convert(
       junos(`
         ${PORT}
@@ -400,7 +567,7 @@ describe('Junos: 802.1X', () => {
     expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ port_auth: 'dot1x', enable_mac_auth: true });
   });
 
-  knownDefect('B7', 'the guest VLAN given by name refers to an existing network', async () => {
+  it('the guest VLAN given by name refers to an existing network (B7)', async () => {
     const result = await convert(
       junos(`
         ${PORT}
@@ -412,10 +579,65 @@ describe('Junos: 802.1X', () => {
     expect(missingNetworks(result)).toEqual([]);
   });
 
-  it.todo('converts "server-reject-vlan" into server_reject_network (the parser has a "rejected_network" field that is never filled)');
-  it.todo('converts "server-fail permit" (every client is let in while the RADIUS servers are down)');
-  it.todo('converts "supplicant multiple" into allow_multiple_supplicants');
-  it.todo('converts "reauthentication <seconds>" into reauth_interval');
+  it('converts "server-reject-vlan" into server_reject_network', async () => {
+    const result = await convert(
+      junos(`
+        ${PORT}
+        set protocols dot1x authenticator interface ge-0/0/0.0 server-reject-vlan GUEST-WIFI
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ port_auth: 'dot1x', server_reject_network: 'guest_wifi' });
+  });
+
+  it('converts "server-fail vlan-name" into server_fail_network', async () => {
+    const result = await convert(
+      junos(`
+        ${PORT}
+        set protocols dot1x authenticator interface ge-0/0/0.0 server-fail vlan-name GUEST-WIFI
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ port_auth: 'dot1x', server_fail_network: 'guest_wifi' });
+  });
+
+  it('converts "server-fail permit": every client is let in while the RADIUS servers are down', async () => {
+    const result = await convert(
+      junos(`
+        ${PORT}
+        set protocols dot1x authenticator interface ge-0/0/0.0 server-fail permit
+      `),
+    );
+
+    const usage = usageFor(result, 'ge-0/0/0');
+    expect(usage.bypass_auth_when_server_down_for_unknown_client).toBe(true);
+    expect(usage.bypass_auth_when_server_down).toBe(false);
+  });
+
+  it('converts "supplicant multiple" into allow_multiple_supplicants, and not "supplicant single"', async () => {
+    const result = await convert(
+      junos(`
+        ${PORT}
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set protocols dot1x authenticator interface ge-0/0/0.0 supplicant multiple
+        set protocols dot1x authenticator interface ge-0/0/1.0 supplicant single
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').allow_multiple_supplicants).toBe(true);
+    expect(usageFor(result, 'ge-0/0/1')).not.toHaveProperty('allow_multiple_supplicants');
+  });
+
+  it('converts "reauthentication <seconds>" into reauth_interval', async () => {
+    const result = await convert(
+      junos(`
+        ${PORT}
+        set protocols dot1x authenticator interface ge-0/0/0.0 reauthentication 7200
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').reauth_interval).toBe(7200);
+  });
 });
 
 describe('Junos: switch rule and port names', () => {
@@ -478,7 +700,7 @@ describe('Junos: link aggregation', () => {
     expect(usageFor(result, 'ae1')).toMatchObject({ mode: 'trunk', networks: ['users'] });
   });
 
-  knownDefect('B9', 'keeps the number of an aggregated interface above ae9', async () => {
+  it('keeps the number of an aggregated interface above ae9 (B9)', async () => {
     const result = await convert(
       junos(`
         set interfaces xe-0/2/0 ether-options 802.3ad ae10
@@ -507,8 +729,10 @@ describe('Junos: interface ranges', () => {
     );
 
     expect(result.ports.map((port) => [port.source, port.usage])).toEqual([
+      ['ge-0/0/0', 'access_ports'],
       ['ge-0/0/1', 'access_ports'],
       ['ge-0/0/2', 'access_ports'],
+      ['ge-0/0/3', 'access_ports'],
     ]);
     expect(usageFor(result, 'ge-0/0/1')).toMatchObject({ stp_edge: true, port_auth: 'dot1x' });
     expect(Number(usageFor(result, 'ge-0/0/1').mtu)).toBe(9216);
@@ -529,12 +753,13 @@ describe('Junos: interface ranges', () => {
 
     expect(result.ports.map((port) => [port.source, port.usage])).toEqual([
       ['ge-0/0/10', 'printers'],
+      ['ge-0/0/20', 'printers'],
       ['ge-0/0/21', 'printers'],
       ['ge-0/0/22', 'not_in_the_range'],
     ]);
   });
 
-  knownDefect('B1', 'creates the ports of an interface range that have no configuration of their own', async () => {
+  it('creates the ports of an interface range that have no configuration of their own (B1)', async () => {
     const result = await convert(
       junos(`
         set interfaces interface-range ACCESS-PORTS member-range ge-0/0/0 to ge-0/0/3
@@ -547,7 +772,7 @@ describe('Junos: interface ranges', () => {
     expect(configuredPorts(result)).toEqual(['ge-0/0/0', 'ge-0/0/1', 'ge-0/0/2', 'ge-0/0/3']);
   });
 
-  knownDefect('B2', 'a port of an interface range keeps the VLAN of the range when it also has its own configuration', async () => {
+  it('a port of an interface range keeps the VLAN of the range when it also has its own configuration (B2)', async () => {
     const result = await convert(
       junos(`
         set interfaces interface-range ACCESS-PORTS member-range ge-0/0/0 to ge-0/0/3
@@ -560,7 +785,7 @@ describe('Junos: interface ranges', () => {
     expect(usageFor(result, 'ge-0/0/1')).toMatchObject({ mode: 'access', port_network: 'users' });
   });
 
-  knownDefect('B2', 'what is configured on one port of an interface range does not leak to the other ports', async () => {
+  it('what is configured on one port of an interface range does not leak to the other ports (B2)', async () => {
     const result = await convert(
       junos(`
         set interfaces interface-range ACCESS-PORTS member-range ge-0/0/0 to ge-0/0/3
@@ -576,7 +801,7 @@ describe('Junos: interface ranges', () => {
     expect(usageFor(result, 'ge-0/0/2').speed).toBe('auto');
   });
 
-  knownDefect('B10', 'an interface range with a wildcard member does not stop the conversion of the other ranges', async () => {
+  it('an interface range with a wildcard member does not stop the conversion of the other ranges (B10)', async () => {
     const result = await convert(
       junos(`
         set interfaces interface-range ALL-PORTS member ge-0/0/*
@@ -655,7 +880,7 @@ describe('Junos: system settings', () => {
     expect(JSON.stringify(result.template)).not.toContain('REDACTED');
   });
 
-  knownDefect('B4', 'keeps a RADIUS server that uses the default port', async () => {
+  it('keeps a RADIUS server that uses the default port (B4)', async () => {
     const result = await convert(
       junos(`
         set access radius-server 10.0.0.80 secret "REDACTED"
@@ -667,7 +892,7 @@ describe('Junos: system settings', () => {
     expect(endpoints(result.template.radius_config.auth_servers)).toEqual(['10.0.0.80:1812', '10.0.0.81:1645']);
   });
 
-  knownDefect('B4', 'a RADIUS server does not inherit the port of the server before it', async () => {
+  it('a RADIUS server does not inherit the port of the server before it (B4)', async () => {
     const result = await convert(
       junos(`
         set access radius-server 10.0.0.81 port 1645
@@ -679,7 +904,7 @@ describe('Junos: system settings', () => {
     expect(endpoints(result.template.radius_config.auth_servers)).toEqual(['10.0.0.81:1645', '10.0.0.82:1812']);
   });
 
-  knownDefect('B16', 'a RADIUS server listed as "accounting-server" in the access profile is an accounting server', async () => {
+  it('a RADIUS server listed as "accounting-server" in the access profile is an accounting server (B16)', async () => {
     // The access profile says what a server is used for; "accounting-port" is only needed for a port other than 1813.
     const result = await convert(
       junos(`
@@ -696,13 +921,27 @@ describe('Junos: system settings', () => {
     expect(endpoints(result.template.radius_config.acct_servers)).toEqual(['10.0.0.80:1813']);
   });
 
-  knownDefect('B5', 'a TACACS+ server without "port" uses port 49', async () => {
+  it('leaves out, and names, a RADIUS server that the access profile does not list', async () => {
+    const result = await convert(
+      junos(`
+        set access radius-server 10.0.0.80 secret "REDACTED"
+        set access radius-server 10.0.0.81 secret "REDACTED"
+        set access profile CAMPUS-AUTH radius authentication-server 10.0.0.80
+        set protocols dot1x authenticator authentication-profile-name CAMPUS-AUTH
+      `),
+    );
+
+    expect(endpoints(result.template.radius_config.auth_servers)).toEqual(['10.0.0.80:1812']);
+    expect(logsOf(result, 'info')).toContain('RADIUS servers that the access profile does not list are left out: 10.0.0.81');
+  });
+
+  it('a TACACS+ server without "port" uses port 49 (B5)', async () => {
     const result = await convert(junos('set system tacplus-server 10.0.0.70 secret "REDACTED"'));
 
     expect(endpoints(result.template.switch_mgmt.tacacs.tacplus_servers)).toEqual(['10.0.0.70:49']);
   });
 
-  knownDefect('B5', 'a syslog server does not inherit the port of the server before it', async () => {
+  it('a syslog server does not inherit the port of the server before it (B5)', async () => {
     const result = await convert(
       junos(`
         set system syslog host 10.0.0.61 any any
@@ -714,14 +953,326 @@ describe('Junos: system settings', () => {
     expect(endpoints(result.template.remote_syslog.servers)).toEqual(['10.0.0.61:1514', '10.0.0.62:514']);
   });
 
-  it.todo('reads "system domain-name" as a DNS suffix');
-  it.todo('converts "persistent-learning" into persist_mac');
+  it('reads "system domain-name" as a DNS suffix', async () => {
+    const result = await convert(junos('set system domain-name example.net'));
+
+    expect(result.template.dns_suffix).toEqual(['example.net']);
+  });
+
+  it('converts "persistent-learning" into persist_mac', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members USERS
+        set switch-options interface ge-0/0/0.0 persistent-learning
+        set vlans USERS vlan-id 10
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').persist_mac).toBe(true);
+    expect(usageFor(result, 'ge-0/0/1').persist_mac).toBe(false);
+  });
 });
 
 describe('Junos: switches without ELS (EX2200, EX3300, EX4200...)', () => {
-  it.todo('reads speed and duplex under "ether-options"');
-  it.todo('reads "native-vlan-id" under "family ethernet-switching"');
-  it.todo('reads the voice VLAN from "ethernet-switching-options voip"');
-  it.todo('reads DHCP snooping from "ethernet-switching-options secure-access-port ... examine-dhcp"');
-  it.todo('reads the ports listed under "vlans <name> interface"');
+  const LEGACY_VLANS = `
+    set vlans USERS vlan-id 10
+    set vlans VOICE vlan-id 20
+    set vlans MGMT vlan-id 99
+  `;
+
+  it('reads speed and duplex under "ether-options"', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 ether-options speed 100m
+        set interfaces ge-0/0/0 ether-options link-mode full-duplex
+        set interfaces ge-0/0/0 ether-options no-auto-negotiation
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        ${LEGACY_VLANS}
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ speed: '100m', duplex: 'full', disable_autoneg: true });
+  });
+
+  it('reads "port-mode" and "native-vlan-id" under "family ethernet-switching"', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching port-mode trunk
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members VOICE
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching native-vlan-id 99
+        ${LEGACY_VLANS}
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ mode: 'trunk', networks: ['users', 'voice'], port_network: 'mgmt' });
+  });
+
+  it('reads the voice VLAN from "ethernet-switching-options voip"', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set ethernet-switching-options voip interface ge-0/0/0.0 vlan VOICE
+        ${LEGACY_VLANS}
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ port_network: 'users', voip_network: 'voice' });
+  });
+
+  it('reads DHCP snooping from "ethernet-switching-options secure-access-port vlan <name> examine-dhcp"', async () => {
+    const result = await convert(
+      junos(`
+        set ethernet-switching-options secure-access-port vlan USERS examine-dhcp
+        ${LEGACY_VLANS}
+      `),
+    );
+
+    expect(result.template.dhcp_snooping).toEqual({ enabled: true, networks: ['users'] });
+  });
+
+  it('reads the MAC limit and persistent learning from "ethernet-switching-options secure-access-port interface"', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members USERS
+        set ethernet-switching-options secure-access-port interface ge-0/0/0.0 mac-limit 4
+        set ethernet-switching-options secure-access-port interface ge-0/0/0.0 persistent-learning
+        ${LEGACY_VLANS}
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0')).toMatchObject({ mac_limit: 4, persist_mac: true });
+  });
+
+  it('reads the ports listed under "vlans <name> interface"', async () => {
+    const result = await convert(
+      junos(`
+        set interfaces ge-0/0/0 unit 0 family ethernet-switching
+        set interfaces ge-0/0/1 unit 0 family ethernet-switching
+        set vlans USERS interface ge-0/0/0.0
+        ${LEGACY_VLANS}
+      `),
+    );
+
+    expect(usageFor(result, 'ge-0/0/0').port_network).toBe('users');
+    // A port that no VLAN lists is in the default VLAN.
+    expect(usageFor(result, 'ge-0/0/1').port_network).toBe('default');
+    expect(missingNetworks(result)).toEqual([]);
+  });
+});
+
+describe('Junos: SNMP', () => {
+  it('gives a template without SNMP to a file without SNMP', async () => {
+    const result = await convert(junos('set vlans USERS vlan-id 10'));
+
+    expect(result.template.snmp_config).toBeUndefined();
+  });
+
+  it('reads where the switch is and who to call', async () => {
+    const result = await convert(
+      junos(`
+        set snmp location "Building A, floor 2"
+        set snmp contact "noc@example.com"
+        set snmp description "Access switch"
+        set snmp engine-id use-mac-address
+      `),
+    );
+
+    expect(result.template.snmp_config).toEqual({ enabled: true, location: 'Building A, floor 2', contact: 'noc@example.com', description: 'Access switch', engine_id_type: 'use_mac_address' });
+  });
+
+  it('reads the communities of version 2c with their rights, client lists and views, and hides the communities', async () => {
+    const result = await convert(
+      junos(`
+        set snmp client-list MONITORING 10.0.0.0/24
+        set snmp client-list MONITORING 10.0.1.0/24
+        set snmp view SYSTEM oid .1.3.6.1.2.1.1 include
+        set snmp view SYSTEM oid .1.3.6.1.2.1.1.9 exclude
+        set snmp view EVERYTHING oid .1
+        set snmp community n3tmon authorization read-only
+        set snmp community n3tmon client-list-name MONITORING
+        set snmp community wr1te authorization read-write
+        set snmp community wr1te view SYSTEM
+        set snmp community bare
+      `),
+    );
+
+    expect(result.template.snmp_config).toEqual({
+      enabled: true,
+      client_list: [{ client_list_name: 'MONITORING', clients: ['10.0.0.0/24', '10.0.1.0/24'] }],
+      views: [
+        { view_name: 'SYSTEM', oid: '.1.3.6.1.2.1.1', include: true },
+        { view_name: 'SYSTEM', oid: '.1.3.6.1.2.1.1.9', include: false },
+        { view_name: 'EVERYTHING', oid: '.1', include: true },
+      ],
+      v2c_config: [
+        { community_name: 'to_be_replaced_1', authorization: 'read-only', client_list_name: 'MONITORING' },
+        { community_name: 'to_be_replaced_2', authorization: 'read-write', view: 'SYSTEM' },
+        // Without "authorization", a community can only read.
+        { community_name: 'to_be_replaced_3', authorization: 'read-only' },
+      ],
+    });
+    // The message gives the line of the community, not the community.
+    expect(result.logs.filter((entry) => entry.message.includes('community'))).toEqual([
+      { level: 'info', file: 'file1.txt', lines: [6], message: 'SNMP: the community of this line is "to_be_replaced_1" in the template. A community is a password: type it in the template, or turn on "Copy the SNMP secrets that are in clear text"' },
+      { level: 'info', file: 'file1.txt', lines: [8], message: 'SNMP: the community of this line is "to_be_replaced_2" in the template. A community is a password: type it in the template, or turn on "Copy the SNMP secrets that are in clear text"' },
+      { level: 'info', file: 'file1.txt', lines: [10], message: 'SNMP: the community of this line is "to_be_replaced_3" in the template. A community is a password: type it in the template, or turn on "Copy the SNMP secrets that are in clear text"' },
+    ]);
+    expect(JSON.stringify(result)).not.toMatch(/n3tmon|wr1te|bare/);
+  });
+
+  it('turns the clients written under a community into a client list', async () => {
+    const result = await convert(
+      junos(`
+        set snmp community n3tmon clients 10.0.0.70/32
+        set snmp community n3tmon clients 10.0.0.71/32
+      `),
+    );
+
+    expect(result.template.snmp_config).toMatchObject({
+      client_list: [{ client_list_name: 'community_1_clients', clients: ['10.0.0.70/32', '10.0.0.71/32'] }],
+      v2c_config: [{ community_name: 'to_be_replaced_1', authorization: 'read-only', client_list_name: 'community_1_clients' }],
+    });
+  });
+
+  it('reports a client that a community refuses: a client list cannot say that', async () => {
+    const result = await convert(
+      junos(`
+        set snmp community n3tmon clients 10.0.0.0/24
+        set snmp community n3tmon clients 10.0.0.9/32 restrict
+      `),
+    );
+
+    expect(result.template.snmp_config?.client_list).toEqual([{ client_list_name: 'community_1_clients', clients: ['10.0.0.0/24'] }]);
+    expect(logsOf(result, 'info')).toContain('Not converted: "snmp community"');
+    expect(JSON.stringify(result.logs)).not.toContain('n3tmon');
+  });
+
+  it('reads the trap groups', async () => {
+    const result = await convert(
+      junos(`
+        set snmp trap-group NMS version v2
+        set snmp trap-group NMS categories link
+        set snmp trap-group NMS categories authentication
+        set snmp trap-group NMS targets 10.0.0.70
+        set snmp trap-group NMS targets 10.0.0.71
+        set snmp trap-group LEGACY targets 10.0.0.72
+      `),
+    );
+
+    expect(result.template.snmp_config?.trap_groups).toEqual([
+      { group_name: 'NMS', version: 'v2', targets: ['10.0.0.70', '10.0.0.71'], categories: ['link', 'authentication'] },
+      { group_name: 'LEGACY', version: 'all', targets: ['10.0.0.72'], categories: [] },
+    ]);
+  });
+
+  it('reads the users of version 3: their algorithms are kept, their keys are not', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 usm local-engine user monitor authentication-sha authentication-key "REDACTED"
+        set snmp v3 usm local-engine user monitor privacy-aes128 privacy-key "REDACTED"
+        set snmp v3 usm local-engine user reader authentication-sha256 authentication-key "REDACTED"
+        set snmp v3 usm local-engine user anyone authentication-none
+        set snmp v3 usm remote-engine 80000a4c010a000046 user informer authentication-md5 authentication-key "REDACTED"
+        set snmp v3 usm remote-engine 80000a4c010a000046 user informer privacy-des privacy-key "REDACTED"
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config?.usm).toEqual([
+      {
+        engine_type: 'local_engine',
+        users: [
+          { name: 'monitor', authentication_type: 'authentication-sha', authentication_password: 'to_be_replaced', encryption_type: 'privacy-aes128', encryption_password: 'to_be_replaced' },
+          { name: 'reader', authentication_type: 'authentication-sha256', authentication_password: 'to_be_replaced', encryption_type: 'privacy-none' },
+          { name: 'anyone', authentication_type: 'authentication-none', encryption_type: 'privacy-none' },
+        ],
+      },
+      {
+        engine_type: 'remote_engine',
+        remote_engine_id: '80000a4c010a000046',
+        users: [{ name: 'informer', authentication_type: 'authentication-md5', authentication_password: 'to_be_replaced', encryption_type: 'privacy-des', encryption_password: 'to_be_replaced' }],
+      },
+    ]);
+    expect(logsOf(result, 'info')).toContain('SNMP version 3: the passwords of 3 users are "to_be_replaced" in the template: a configuration only has their keys, type them there');
+    expect(JSON.stringify(result.template)).not.toContain('REDACTED');
+  });
+
+  it('reads the groups of version 3 and what they may see', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 vacm security-to-group security-model usm security-name monitor group READERS
+        set snmp v3 vacm security-to-group security-model usm security-name operator group WRITERS
+        set snmp v3 vacm access group READERS default-context-prefix security-model usm security-level privacy read-view SYSTEM
+        set snmp v3 vacm access group READERS default-context-prefix security-model usm security-level privacy notify-view SYSTEM
+        set snmp v3 vacm access group WRITERS context-prefix lab security-model any security-level authentication read-view EVERYTHING
+        set snmp v3 vacm access group WRITERS context-prefix lab security-model any security-level authentication write-view EVERYTHING
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config?.vacm).toEqual({
+      security_to_group: {
+        security_model: 'usm',
+        content: [
+          { security_name: 'monitor', group: 'READERS' },
+          { security_name: 'operator', group: 'WRITERS' },
+        ],
+      },
+      access: [
+        { group_name: 'READERS', prefix_list: [{ type: 'default_context_prefix', security_model: 'usm', security_level: 'privacy', read_view: 'SYSTEM', notify_view: 'SYSTEM' }] },
+        { group_name: 'WRITERS', prefix_list: [{ type: 'context_prefix', context_prefix: 'lab', security_model: 'any', security_level: 'authentication', read_view: 'EVERYTHING', write_view: 'EVERYTHING' }] },
+      ],
+    });
+  });
+
+  it('keeps the groups of version 3 only: the template has one security model for them', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 vacm security-to-group security-model v2c security-name old group READERS
+        set snmp v3 vacm security-to-group security-model usm security-name monitor group READERS
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config?.vacm?.security_to_group).toEqual({ security_model: 'usm', content: [{ security_name: 'monitor', group: 'READERS' }] });
+    expect(logsOf(result, 'info')).toContain('SNMP: the groups of the security names of versions 1 and 2c are left out, the template has those of version 3');
+  });
+
+  it('reads where the notifications of version 3 go', async () => {
+    const result = await convert(
+      junos(`
+        set snmp v3 target-address NMS address 10.0.0.70
+        set snmp v3 target-address NMS port 1162
+        set snmp v3 target-address NMS tag-list "TRAPS INFORMS"
+        set snmp v3 target-address NMS target-parameters NMS-V3
+        set snmp v3 target-parameters NMS-V3 parameters message-processing-model v3
+        set snmp v3 target-parameters NMS-V3 parameters security-model usm
+        set snmp v3 target-parameters NMS-V3 parameters security-level privacy
+        set snmp v3 target-parameters NMS-V3 parameters security-name monitor
+        set snmp v3 target-parameters NMS-V3 notify-filter LINKS
+        set snmp v3 notify ALL type trap
+        set snmp v3 notify ALL tag TRAPS
+        set snmp v3 notify-filter LINKS oid .1.3.6.1.6.3.1.1.5 include
+      `),
+    );
+
+    expect(result.template.snmp_config?.v3_config).toEqual({
+      notify: [{ name: 'ALL', tag: 'TRAPS', type: 'trap' }],
+      notify_filter: [{ profile_name: 'LINKS', contents: [{ oid: '.1.3.6.1.6.3.1.1.5', include: true }] }],
+      target_address: [{ target_address_name: 'NMS', address: '10.0.0.70', port: '1162', tag_list: 'TRAPS INFORMS', target_parameters: 'NMS-V3' }],
+      target_parameters: [{ name: 'NMS-V3', message_processing_model: 'v3', security_model: 'usm', security_level: 'privacy', security_name: 'monitor', notify_filter: 'LINKS' }],
+    });
+  });
+
+  it('reports the SNMP statements that it does not convert, by their first words', async () => {
+    const result = await convert(
+      junos(`
+        set snmp community n3tmon authorization read-only
+        set snmp trap-options source-address 10.0.0.1
+        set snmp v3 snmp-community INDEX community-name "REDACTED"
+        set snmp name ex1
+      `),
+    );
+
+    expect(logsOf(result, 'info').filter((message) => message.startsWith('Not converted'))).toEqual(['Not converted: "snmp trap-options"', 'Not converted: "snmp v3 snmp-community"', 'Not converted: "snmp name"']);
+  });
 });

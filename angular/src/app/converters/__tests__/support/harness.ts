@@ -2,18 +2,16 @@
  * Test harness for the converter.
  *
  * `convert()` feeds configuration text to the converter the same way the app does
- * (see `AppComponent.readfile` and `AppComponent.processFiles`) and returns what a
- * user would get: the exported Mist template, the per-file status and the log.
+ * (see `AppComponent.processFiles`) and returns what a user gets: the exported Mist
+ * template, the status of each file and the log.
  *
- * Tests should assert on that result and not on the internals of the parsers, so
- * that they keep their value when the parsers are reworked. When the converter gets
- * a single entry point, only this file has to change.
+ * Tests should assert on that result and not on the internals of the converter, so
+ * that they keep their value when the converter changes. The readers, the rule
+ * tables and the other building blocks have tests of their own in `unit/`.
  */
 import { expect, it } from 'vitest';
-import { ConfigParser, ConfigFile } from '../../parser_main';
-import type { MistTemplateElement, ProfileConfigurationElement, SwitchMatchingRuleElement, SwitchMatchingRulePortConfigElement } from '../../mist_template';
-import type { Logger } from '../../../services/logger';
-import { resetUuid } from './deterministic-uuid';
+import { convert as convertFiles, type ConvertOptions } from '../../convert';
+import type { MistPortConfig, MistPortUsage, MistSwitchRule, MistTemplate } from '../../template/mist';
 
 /* ------------------------------------------------------------------ types */
 
@@ -23,17 +21,22 @@ export interface InputFile {
 }
 
 export interface LogEntry {
-  level: 'debug' | 'info' | 'warning' | 'error' | 'critical';
+  level: 'info' | 'warning' | 'error';
   file: string;
   message: string;
+  /** Lines of the file that the message is about. */
+  lines?: number[];
 }
 
 /** Status of one input file, as shown in the file list of the app. */
 export interface FileResult {
   name: string;
   format: string;
-  success_vlan: boolean | undefined;
-  success_config: boolean | undefined;
+  /** The file declares VLANs. */
+  success_vlan: boolean;
+  /** The file was converted. */
+  success_config: boolean;
+  /** Why the file was not converted or what is missing from it, '' when there is nothing to say. */
   error_message: string;
 }
 
@@ -41,128 +44,50 @@ export interface FileResult {
 export interface SourcePort {
   file: string;
   hostname: string;
-  /** Interface name as written in the source configuration. */
+  /** Interface name as written in the source configuration, in its long form. */
   source: string;
   /** Name of the port usage in `template.port_usages`. */
   usage: string;
   description: string;
 }
 
-/** A port usage as exported: fields that are `undefined` in the converter are absent. */
-export type PortUsage = Partial<ProfileConfigurationElement>;
-export type PortConfig = Partial<SwitchMatchingRulePortConfigElement>;
-export type SwitchRule = SwitchMatchingRuleElement & Record<string, unknown>;
+export type PortUsage = Partial<MistPortUsage>;
+export type PortConfig = Partial<MistPortConfig>;
+export type SwitchRule = MistSwitchRule;
 
 export interface Conversion {
   /** The Mist template exactly as the app exports it (JSON round trip included). */
-  template: MistTemplateElement;
+  template: MistTemplate;
   files: FileResult[];
   ports: SourcePort[];
   logs: LogEntry[];
-  /**
-   * Exceptions raised inside the converter. In the app these are invisible: the
-   * conversion silently skips the rest of the step that failed, or never finishes.
-   */
-  errors: unknown[];
+  /** Failures of the converter itself. It reports them and goes on with the other files. */
+  errors: string[];
 }
 
 /* ---------------------------------------------------------------- convert */
 
-class RecordingLogger {
-  readonly entries: LogEntry[] = [];
-  debug(message: string, file = ''): void { this.entries.push({ level: 'debug', file, message }); }
-  info(message: string, file = ''): void { this.entries.push({ level: 'info', file, message }); }
-  warning(message: string, file = ''): void { this.entries.push({ level: 'warning', file, message }); }
-  error(message: string, file = ''): void { this.entries.push({ level: 'error', file, message }); }
-  critical(message: string, file = ''): void { this.entries.push({ level: 'critical', file, message }); }
-  getall(): LogEntry[] { return this.entries; }
-}
-
-/** Same object as the one built by `AppComponent.readfile`. */
-function toConfigFile(input: string | InputFile, index: number): ConfigFile {
-  const file: InputFile = typeof input === 'string' ? { name: `file${index + 1}.txt`, text: input } : input;
-  return {
-    name: file.name,
-    config: file.text.split('\n'),
-    format: 'Unknown',
-    success_vlan: undefined,
-    success_config: undefined,
-    error_message: 'Unknown error',
-  };
-}
-
-/**
- * Runs `run` and returns the promise rejections nobody handled while it ran.
- * Some parser steps are `async` functions that are called without `await`; when they
- * throw, the error only shows up as an unhandled rejection.
- */
-async function collectUnhandledRejections(run: () => Promise<void>): Promise<unknown[]> {
-  const errors: unknown[] = [];
-  const record = (reason: unknown): void => { errors.push(reason); };
-  const previous = process.listeners('unhandledRejection');
-  process.removeAllListeners('unhandledRejection');
-  process.on('unhandledRejection', record);
-  try {
-    try {
-      await run();
-    } catch (error) {
-      errors.push(error);
-    }
-    // Node reports unhandled rejections once the current turn of the event loop is over.
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  } finally {
-    process.off('unhandledRejection', record);
-    for (const listener of previous) process.on('unhandledRejection', listener);
-  }
-  return errors;
-}
-
 /**
  * Converts one or more configuration files into a Mist template.
  * A string is turned into a file named `file1.txt`, `file2.txt`, ...
+ *
+ * The converter is synchronous. This function is `async` because the tests were
+ * written with `await` for the converter that came before it.
  */
 export async function convert(...inputs: Array<string | InputFile>): Promise<Conversion> {
-  resetUuid();
-  const logger = new RecordingLogger();
-  const parser = new ConfigParser(logger as unknown as Logger);
-  const files = inputs.map(toConfigFile);
+  return convertWith({}, ...inputs);
+}
 
-  // Same sequence as AppComponent.processFiles(): all files go through one step
-  // before the next step starts.
-  const errors = await collectUnhandledRejections(async () => {
-    for (const file of files) await parser.detect_source(file);
-    for (const file of files) {
-      const success = await parser.read_vlans(file);
-      if (!success && file.format == 'Cisco') file.error_message = 'Unable to parse the VLAN database';
-      else if (!success) file.error_message = 'Unable to retrieve the VLAN list';
-    }
-    for (const file of files) {
-      const success = await parser.read_config(file);
-      if (!success && file.error_message == 'Unknown error') file.error_message = 'Unable to parse the configuration';
-      file.success_config = success;
-    }
-    parser.generate();
-  });
-
+/** `convert` with the options of the page, such as "Copy the SNMP secrets that are in clear text". */
+export async function convertWith(options: ConvertOptions, ...inputs: Array<string | InputFile>): Promise<Conversion> {
+  const result = convertFiles(inputs.map((input, index) => (typeof input === 'string' ? { name: `file${index + 1}.txt`, text: input } : input)), options);
   return {
-    // The app downloads JSON.stringify(mist_template); do the same so tests see the real export.
-    template: JSON.parse(JSON.stringify(parser.config_data.mist_template)) as MistTemplateElement,
-    files: files.map((file) => ({
-      name: file.name,
-      format: file.format,
-      success_vlan: file.success_vlan,
-      success_config: file.success_config,
-      error_message: file.error_message,
-    })),
-    ports: parser.config_data.interfaces.map((port) => ({
-      file: port.file,
-      hostname: port.hostname,
-      source: port.interface_name,
-      usage: port.profile_name,
-      description: port.description,
-    })),
-    logs: [...logger.entries],
-    errors,
+    // The app downloads JSON.stringify(template); do the same so tests see the real export.
+    template: JSON.parse(JSON.stringify(result.template)) as MistTemplate,
+    files: result.files.map((file) => ({ name: file.name, format: file.format, success_vlan: file.hasVlans, success_config: file.converted, error_message: file.message ?? '' })),
+    ports: result.ports.map((port) => ({ file: port.file, hostname: port.hostname, source: port.name, usage: port.usage, description: port.description })),
+    logs: result.diagnostics.map((entry) => ({ level: entry.severity, file: entry.file, message: entry.message, ...(entry.lines ? { lines: entry.lines } : {}) })),
+    errors: result.diagnostics.filter((entry) => entry.code === 'internal-error').map((entry) => entry.message),
   };
 }
 
@@ -221,6 +146,19 @@ export function ios(body: string, options: IosOptions = {}): string {
  */
 export function junos(body: string): string {
   return body.split('\n').map((line) => line.trim()).filter((line) => line.length > 0).join('\n') + '\n';
+}
+
+/**
+ * The output of `show running-config` on an Aruba AOS-CX switch. `body` is the part of
+ * the configuration under test; write it as the switch prints it, with the lines of a
+ * block indented by four spaces.
+ */
+export function cx(body: string, options: { /** `null` leaves the `hostname` command out. Default: `cx1`. */ hostname?: string | null } = {}): string {
+  const hostname = options.hostname === undefined ? 'cx1' : options.hostname;
+  const lines = ['Current configuration:', '!', '!Version ArubaOS-CX FL.10.13.1000', '!export-password: default'];
+  if (hostname) lines.push(`hostname ${hostname}`);
+  lines.push(...dedent(body).split('\n'), '');
+  return lines.join('\n');
 }
 
 /* --------------------------------------------------------- result helpers */
@@ -291,8 +229,8 @@ export function vlanIds(conversion: Conversion): Record<string, number> {
 }
 
 /** A list of servers as `host:port` strings, whatever the type used for the port. */
-export function endpoints(servers: object[]): string[] {
-  return (servers as Array<{ host: string; port: string | number }>).map((server) => `${server.host}:${server.port}`);
+export function endpoints(servers: Array<{ host: string; port: string | number }>): string[] {
+  return servers.map((server) => `${server.host}:${server.port}`);
 }
 
 /**
@@ -309,7 +247,8 @@ export function missingNetworks(conversion: Conversion): string[] {
     check(usage.port_network);
     check(usage.voip_network);
     check(usage.guest_network);
-    check(usage.rejected_network);
+    check(usage.server_fail_network);
+    check(usage.server_reject_network);
     (usage.networks ?? []).forEach(check);
   }
   conversion.template.dhcp_snooping.networks.forEach(check);

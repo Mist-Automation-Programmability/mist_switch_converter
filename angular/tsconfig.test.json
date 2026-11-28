@@ -1,4 +1,4 @@
-/* Type-checks the converter and its tests (npm run test:types). Vitest itself does not check types. */
+/* Type-checks the converter, the view model of the page and their tests (npm run test:types). Vitest itself does not check types. */
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
@@ -10,6 +10,7 @@
   },
   "include": [
     "src/app/converters/**/*.ts",
-    "vitest.config.ts"
+    "src/app/workbench/**/*.test.ts",
+    "vitest.config.mts"
   ]
 }

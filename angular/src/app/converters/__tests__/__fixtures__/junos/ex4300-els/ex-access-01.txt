@@ -25,6 +25,7 @@ set chassis aggregated-devices ethernet device-count 2
 set interfaces interface-range ACCESS member-range ge-0/0/0 to ge-0/0/9
 set interfaces interface-range ACCESS unit 0 family ethernet-switching interface-mode access
 set interfaces interface-range ACCESS unit 0 family ethernet-switching vlan members USERS
+set interfaces interface-range ACCESS unit 0 family ethernet-switching storm-control EDGE
 set interfaces interface-range PRINTERS member ge-0/0/10
 set interfaces interface-range PRINTERS member ge-0/0/11
 set interfaces interface-range PRINTERS unit 0 family ethernet-switching vlan members PRINTERS
@@ -63,6 +64,21 @@ set interfaces ae10 unit 0 family ethernet-switching vlan members all
 set interfaces irb unit 99 family inet address 10.99.0.12/24
 set interfaces vme unit 0 family inet dhcp
 set routing-options static route 0.0.0.0/0 next-hop 10.99.0.1
+set snmp location "Building A"
+set snmp contact "noc@example.com"
+set snmp client-list NMS 10.0.0.0/24
+set snmp community REDACTED authorization read-only
+set snmp community REDACTED client-list-name NMS
+set snmp trap-options source-address 10.99.0.12
+set snmp trap-group NMS version v2
+set snmp trap-group NMS categories link
+set snmp trap-group NMS categories chassis
+set snmp trap-group NMS targets 10.0.0.90
+set snmp v3 usm local-engine user nms authentication-sha authentication-key "REDACTED"
+set snmp v3 usm local-engine user nms privacy-aes128 privacy-key "REDACTED"
+set snmp v3 vacm security-to-group security-model usm security-name nms group MONITORING
+set snmp v3 vacm access group MONITORING default-context-prefix security-model usm security-level privacy read-view NMS-VIEW
+set snmp view NMS-VIEW oid .1 include
 set access radius-server 10.0.0.80 secret "REDACTED"
 set access radius-server 10.0.0.80 source-address 10.99.0.12
 set access radius-server 10.0.0.81 port 1645
@@ -94,7 +110,10 @@ set vlans MGMT vlan-id 99
 set vlans MGMT l3-interface irb.99
 set vlans PRINTERS vlan-id 30
 set vlans USERS vlan-id 10
-set vlans USERS forwarding-options dhcp-security
+set vlans USERS forwarding-options dhcp-security group SERVERS overrides trusted
+set vlans USERS forwarding-options dhcp-security group SERVERS interface ge-0/0/9.0
+set forwarding-options storm-control-profiles EDGE all bandwidth-percentage 20
+set forwarding-options storm-control-profiles EDGE all no-multicast
 set vlans VOICE vlan-id 20
 
 {master:0}
